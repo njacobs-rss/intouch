@@ -6,8 +6,8 @@
   "scripts": {
     "login": "clasp login",
     "pull": "clasp pull",
-    "push:master": "clasp push",
-    "push:all": "node multi-deploy.js"
+    "push:master": "clasp push && git add . && git commit -m \"Master Deploy\" && git push",
+    "push:all": "node multi-deploy.js && git add . && git commit -m \"Fleet Deploy\" && git push"
   },
   "keywords": [],
   "author": "",

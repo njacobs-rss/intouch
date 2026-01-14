@@ -7,7 +7,8 @@
 // SECTION: ORCHESTRATION & AUTOMATION
 // =============================================================
 
-function runMasterPipeline() {
+
+ {
   const functionName = 'runMasterPipeline';
   const startTime = new Date();
   console.log(`[${functionName}] 🚀 Starting Nightly Master Pipeline...`);

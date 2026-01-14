@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      /* --- GLOBAL RESET & TYPOGRAPHY --- */
+      body { 
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        padding: 12px; 
+        background-color: #f8fafc; 
+        color: #333; 
+        margin: 0;
+      }
+
+      h2 { 
+        color: #4a5568; 
+        text-align: center; 
+        font-size: 13px; 
+        margin: 0 0 12px 0; 
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+
+      /* --- INPUT CONTROL GROUP (THE COCKPIT) --- */
+      .control-group { 
+        background: white; 
+        padding: 12px; 
+        border-radius: 8px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+        border: 1px solid #e2e8f0;
+        margin-bottom: 15px;
+      }
+
+      label { 
+        font-size: 10px; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        color: #718096; 
+        display: block; 
+        margin-bottom: 4px; 
+      }
+      
+      select, input[type="text"] { 
+        width: 100%; 
+        padding: 8px; 
+        border: 1px solid #cbd5e0; 
+        border-radius: 5px; 
+        box-sizing: border-box; 
+        font-size: 12px; 
+        background-color: #fff;
+        margin-bottom: 10px;
+      }
+
+      .checkbox-wrapper {
+        font-size: 11px; 
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        color: #4a5568;
+      }
+      
+      .checkbox-wrapper input { margin-right: 6px; }
+
+      /* --- BUTTON GRIDS --- */
+      
+      /* Row of 3 (Dense) */
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      
+      /* Row of 2 */
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      /* Standard Stack */
+      .grid-1 {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      /* --- BUTTON STYLES --- */
+      button { 
+        padding: 10px 8px; 
+        border: 1px solid #e2e8f0; 
+        border-radius: 6px; 
+        cursor: pointer; 
+        font-size: 11px; 
+        font-weight: 600; 
+        color: #2d3748; 
+        background: white;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        
+        /* Flex setup for centering */
+        display: flex; 
+        justify-content: center;
+        align-items: center;
+      }
+
+      button:hover { 
+        transform: translateY(-2px); 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        background: #fafbfc;
+      }
+
+      /* Vertical Button (Icon Top, Text Bottom) - For Global Grid */
+      .btn-vertical {
+        flex-direction: column;
+        text-align: center;
+        height: 100%; /* Fill grid cell */
+      }
+      .btn-vertical .icon { margin-bottom: 5px; margin-right: 0; font-size: 18px; }
+
+      /* Horizontal Button (Icon Left) - For Local List */
+      .btn-horizontal {
+        flex-direction: row;
+        text-align: left;
+        justify-content: flex-start;
+      }
+      .btn-horizontal .icon { margin-right: 10px; font-size: 16px; }
+
+      /* --- COLOR CODING --- */
+      .btn-safe   { border-top: 3px solid #27ae60; } /* Green Top for Vertical */
+      .btn-copy   { border-top: 3px solid #2980b9; } /* Blue Top */
+      .btn-del    { border-top: 3px solid #c0392b; } /* Red Top */
+      .btn-config { border-top: 3px solid #f39c12; } /* Orange Top */
+      
+      /* Local buttons keep side borders */
+      .btn-local  { border-left: 4px solid #8e44ad; } 
+      .btn-warn   { border-left: 4px solid #d35400; } 
+
+      /* --- DIVIDER --- */
+      .section-divider {
+        border: 0;
+        height: 1px;
+        background: #cbd5e0;
+        margin: 20px 0;
+      }
+
+      /* --- UTILS --- */
+      #confirm-modal { display: none; background: #fff8e1; border: 1px solid #ffe58f; color: #b7791f; padding: 15px; border-radius: 6px; margin-top: 20px; text-align: center; }
+      .confirm-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+      .btn-yes { background: #28a745; color: white; border: none; padding: 8px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+      .btn-no { background: #718096; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
+      
+      #spinner { display: none; text-align: center; margin: 30px 0; }
+      .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3182ce; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; margin: 0 auto 10px auto; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+      #log-area { display: none; margin-top: 20px; font-size: 11px; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 4px; }
+      .log-entry { padding: 6px; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; }
+      .status-success { color: #27ae60; font-weight: bold; }
+      .status-error { color: #c0392b; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+
+    <h2>🚀 Global Functions (All Sheets)</h2>
+    
+    <div class="control-group">
+      <label>Target Sheet (For Global Ops)</label>
+      <select id="sheet-selector"><option>Loading...</option></select>
+      
+      <label>New Deploy Name (Copy Only)</label>
+      <input type="text" id="new-name-input" placeholder="Enter new tab name...">
+      
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="hide-check"> 
+        <span>Hide sheet after deployment?</span>
+      </div>
+    </div>
+
+    <div class="grid-3" id="global-row-1">
+      <button class="btn-safe btn-vertical" onclick="requestAction('safeUpdate')">
+        <span class="icon">📑</span> Deploy Update (All)
+      </button>
+
+      <button class="btn-copy btn-vertical" onclick="requestAction('copy')">
+        <span class="icon">📑</span> Deploy New (All)
+      </button>
+
+      <button class="btn-del btn-vertical" onclick="requestAction('delete')">
+        <span class="icon">🚫</span> Mass Terminate (All)
+      </button>
+    </div>
+
+    <div class="grid-2" id="global-row-2">
+      <button class="btn-local btn-vertical" onclick="requestAction('statcore')">
+        <span class="icon">🌐</span> Global Data Refresh (All)
+      </button>
+
+      <button class="btn-config btn-vertical" onclick="requestAction('config')">
+        <span class="icon">⚙️</span> Update Setup IDs (Global)
+      </button>
+    </div>
+
+    <hr class="section-divider">
+
+    <h2>📍 Local Functions (This File)</h2>
+    
+    <div class="grid-1" id="local-buttons">
+      <button class="btn-local btn-horizontal" onclick="requestAction('createTabs')">
+        <span class="icon">⬆️</span> Refresh AM Tabs
+      </button>
+
+      <button class="btn-local btn-horizontal" onclick="requestAction('updateNotes')">
+        <span class="icon">📝</span> Update Notes Only
+      </button>
+
+      <button class="btn-warn btn-horizontal" onclick="requestAction('totalRefresh')">
+        <span class="icon">📊</span> Force Local Refresh
+      </button>
+
+      <button class="btn-warn btn-horizontal" onclick="requestAction('deleteTabs')">
+        <span class="icon">❌</span> Delete AM Tabs
+      </button>
+    </div>
+
+    <div id="confirm-modal">
+      <div style="font-weight:bold; margin-bottom:5px;">⚠️ Confirm Action</div>
+      <div id="confirm-text" style="font-size:13px;"></div>
+      <div class="confirm-btns">
+        <button class="btn-yes" onclick="executeConfirmedAction()">Run</button>
+        <button class="btn-no" onclick="cancelAction()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="spinner">
+      <div class="loader"></div>
+      <div style="color:#666; font-size:12px;">Working...</div>
+    </div>
+
+    <div id="log-area"><div id="log-content"></div></div>
+
+    <script>
+      // 1. Initialize Dropdown with Failure Handler
+      google.script.run
+        .withSuccessHandler(populateDropdown)
+        .withFailureHandler(function(e) {
+             var select = document.getElementById('sheet-selector');
+             select.innerHTML = '<option value="">Error loading list</option>';
+             console.error(e);
+        })
+        .getFilteredSheetNames();
+
+      function populateDropdown(names) {
+        var select = document.getElementById('sheet-selector');
+        select.innerHTML = ''; 
+        if (!names || names.length === 0) {
+           var option = document.createElement('option');
+           option.text = "No available sheets"; 
+           option.value = ""; 
+           select.add(option); 
+           return;
+        }
+        names.forEach(function(name) {
+          var option = document.createElement('option');
+          option.value = name; option.text = name; select.add(option);
+        });
+      }
+
+      // 2. Request Action
+      let pendingAction = null;
+
+      function requestAction(actionType) {
+        var sheetName = document.getElementById('sheet-selector').value;
+        var newName = document.getElementById('new-name-input').value;
+        var msg = "";
+
+        // VALIDATION for Global Actions:
+        if (['safeUpdate', 'copy', 'delete'].includes(actionType)) {
+             if (sheetName === "Loading..." || sheetName === "") {
+                  alert("⚠️ Please wait for the Sheet List to load, or check for errors.");
+                  return;
+             }
+        }
+
+        if (actionType === 'safeUpdate') msg = `GLOBAL: Deploy "${sheetName}" to all external files? (Overwrites existing)`;
+        if (actionType === 'copy') {
+           if(!newName) { alert("Please enter a New Deploy Name."); return; }
+           msg = `GLOBAL: Deploy "${sheetName}" as NEW tab "${newName}" to all external files?`;
+        }
+        if (actionType === 'delete') msg = `WARNING: MASS TERMINATE "${sheetName}" from all external files?`;
+        if (actionType === 'config') msg = `GLOBAL: Update Template IDs in "SETUP" tab for all external files?`;
+        if (actionType === 'statcore') msg = `GLOBAL: Run data pipeline for all fleets?`;
+
+        if (actionType === 'createTabs') msg = `LOCAL: Refresh/Create AM Tabs based on Setup?`;
+        if (actionType === 'deleteTabs') msg = `LOCAL: Delete all existing Employee tabs from this sheet?`;
+        if (actionType === 'updateNotes') msg = `LOCAL: Refresh dynamic notes for this sheet only?`;
+        if (actionType === 'totalRefresh') msg = `LOCAL: Force Full Refresh (Data + Notes)?`;
+
+        document.getElementById('confirm-text').innerText = msg;
+        document.getElementById('confirm-modal').style.display = 'block';
+        
+        // Hide all control sections during confirmation
+        document.getElementById('global-row-1').style.display = 'none'; 
+        document.getElementById('global-row-2').style.display = 'none'; 
+        document.getElementById('local-buttons').style.display = 'none'; 
+        document.querySelector('.control-group').style.display = 'none'; 
+        
+        pendingAction = actionType;
+      }
+
+      function cancelAction() {
+        document.getElementById('confirm-modal').style.display = 'none';
+        document.getElementById('global-row-1').style.display = 'grid'; 
+        document.getElementById('global-row-2').style.display = 'grid'; 
+        document.getElementById('local-buttons').style.display = 'grid'; 
+        document.querySelector('.control-group').style.display = 'block';
+        pendingAction = null;
+      }
+
+      // 3. Execute Action (Send to Google Apps Script)
+      function executeConfirmedAction() {
+        var actionToRun = pendingAction; 
+        
+        if (!actionToRun) {
+          alert("Error: No action selected.");
+          cancelAction();
+          return;
+        }
+
+        // A. UI Updates (Hide menus, show spinner)
+        document.getElementById('confirm-modal').style.display = 'none';
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('log-area').style.display = 'none';
+        document.getElementById('log-content').innerHTML = '';
+
+        // B. Gather Data
+        var sheetName = document.getElementById('sheet-selector').value;
+        var newName = document.getElementById('new-name-input').value;
+        var hideCheck = document.getElementById('hide-check').checked;
+
+        console.log("Attempting to run action: " + actionToRun);
+
+        // C. Define Failure Handler
+        function onFailure(error) {
+          document.getElementById('spinner').style.display = 'none';
+          document.getElementById('global-row-1').style.display = 'grid'; 
+          document.getElementById('global-row-2').style.display = 'grid'; 
+          document.getElementById('local-buttons').style.display = 'grid'; 
+          document.querySelector('.control-group').style.display = 'block';
+          pendingAction = null; 
+          alert("❌ ERROR: " + error.message);
+        }
+
+        // D. Run the specific function using 'actionToRun' variable
+        if (actionToRun === 'safeUpdate') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheetSafe(sheetName, hideCheck);
+        } 
+        else if (actionToRun === 'copy') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCopySheet(sheetName, newName, hideCheck);
+        } 
+        else if (actionToRun === 'delete') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runDeleteSheet(sheetName);
+        } 
+        else if (actionToRun === 'config') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheet();
+        } 
+        else if (actionToRun === 'statcore') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSTATCORE();
+        }
+        else if (actionToRun === 'createTabs') {
+          google.script.run.withSuccessHandler(() => showSimpleSuccess('AM Tabs Refreshed')).withFailureHandler(onFailure).createEmployeeTabs();
+        } 
+        else if (actionToRun === 'deleteTabs') {
+          google.script.run.withSuccessHandler(() => showSimpleSuccess('Tabs Deleted')).withFailureHandler(onFailure).deleteEmployeeTabs();
+        } 
+        else if (actionToRun === 'updateNotes') {
+          google.script.run.withSuccessHandler(() => showSimpleSuccess('Notes Updated')).withFailureHandler(onFailure).manualUpdateNotesOnly();
+        } 
+        else if (actionToRun === 'totalRefresh') {
+          google.script.run.withSuccessHandler(() => showSimpleSuccess('Local Refresh Complete')).withFailureHandler(onFailure).runMasterPipeline(); 
+        }
+
+        // Clear global variable after launch
+        pendingAction = null;
+      }
+
+      function showLogs(logs) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('global-row-1').style.display = 'grid'; 
+        document.getElementById('global-row-2').style.display = 'grid'; 
+        document.getElementById('local-buttons').style.display = 'grid'; 
+        document.querySelector('.control-group').style.display = 'block';
+        
+        var logArea = document.getElementById('log-area');
+        var logContent = document.getElementById('log-content');
+        logArea.style.display = 'block';
+
+        if (!logs || logs.length === 0) {
+          logContent.innerHTML = '<div style="padding:10px;">Action Complete (No logs returned).</div>';
+          return;
+        }
+
+        var html = '';
+        logs.forEach(function(log) {
+          var colorClass = 'status-' + (log.status ? log.status.toLowerCase() : 'error');
+          html += `<div class="log-entry"><span style="font-weight:500;">${log.file}</span><span class="${colorClass}">${log.status}: ${log.msg}</span></div>`;
+        });
+        logContent.innerHTML = html;
+      }
+
+      function showSimpleSuccess(msg) {
+        showLogs([{ file: 'Local Action', status: 'Success', msg: msg }]);
+      }
+    </script>
+  </body>
+</html>

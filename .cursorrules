@@ -1,0 +1,345 @@
+# InTouch GAS Project - Cursor AI Rules
+
+## ⛔ CRITICAL: Code Preservation Rules
+
+These rules exist because this codebase handles 30,000+ rows and has been carefully tuned. What looks "inefficient" is often intentional.
+
+### ❌ FORBIDDEN Actions
+
+**1. "Refactoring for efficiency"**
+- Replacing manual batch loops with single API calls
+- Consolidating similar code blocks
+- Changing implementation patterns
+- "Improving" variable names in existing code
+- ❌ Example violation: Replacing a batch loop with `sheet.getRange().setValues(hugeArray)` because "it's simpler"
+
+**2. Removing "redundant" code**
+- Memory management: `SpreadsheetApp.flush()`, `Utilities.sleep()`
+- Batch size configurations (4000, 3000, etc.)
+- Explicit delays between API calls
+- Helper functions like `getTrueLastRow_()`, `cleanKey()`, `normalizeHeader_()`
+- ❌ Example violation: Removing `SpreadsheetApp.flush()` because "Sheets handles this automatically"
+
+**3. Placeholder comments instead of real code**
+- Comments like `// ... rest of code ...` are FORBIDDEN in output
+- NEVER truncate functions with `// ... existing logic ...`
+- If you can't fit the whole file, say so - don't abbreviate
+- ❌ Example violation: `// ... [Keep existing helper functions] ...`
+
+**4. "Logical" optimizations**
+- Removing try-catch blocks
+- Removing null/undefined checks
+- Simplifying conditional logic
+- Removing "unnecessary" validation
+- ❌ Example violation: Removing `if (!sheet) throw new Error(...)` because "the sheet always exists"
+
+### ✅ REQUIRED: What "Complete Code" Means
+
+When providing code changes:
+1. **Preserve ALL existing functions** - even if they seem unused
+2. **Keep ALL memory management** - flush(), sleep(), batch patterns
+3. **Maintain ALL error handling** - try-catch, validation, null checks
+4. **Match original structure** - same variable names, same patterns
+5. **Show context** - include surrounding code so user knows where changes go
+
+### 🔍 Before Outputting Code, Verify:
+
+```
+□ Am I ONLY changing what was discussed?
+□ Did I preserve all SpreadsheetApp.flush() calls?
+□ Did I preserve all Utilities.sleep() calls?
+□ Did I preserve all batch size constants?
+□ Did I preserve all helper functions?
+□ Did I preserve all try-catch blocks?
+□ Did I preserve all null checks?
+□ Are there ZERO placeholder comments?
+```
+
+---
+
+## Project Overview
+This is a Google Apps Script (GAS) project for OpenTable's Account Management operations. It runs inside Google Sheets and integrates with Slides, Drive, and external data sources.
+
+**Key Entry Points:**
+- `Main.js` → Menu creation, triggers (onOpen, onEdit)
+- `Admin.js` → Data pipeline orchestration, AM tab management
+- `STATCORE.js` → Core data sync from external spreadsheets
+- `AiOpsFunctions.js` → Sidebar data APIs, AI brief generation
+- `BizInsights.js` → Slides/presentation generation
+- `DynamicNotes.js` → Rule-based sticky note engine
+- `FleetCommander.js` → Multi-file deployment operations
+
+**HTML Sidebars:**
+- `BI_Sidebar.html` → Main user-facing sidebar (3 tabs)
+- `AdminSidebar.html` → Fleet management operations
+
+---
+
+## Critical GAS Patterns (MUST FOLLOW)
+
+### 1. Memory Management for Large Data
+When working with 10k+ rows, ALWAYS use this pattern:
+```javascript
+// ✅ CORRECT: Batch + Flush
+const batchSize = 4000;
+for (let i = 0; i < data.length; i += batchSize) {
+  const batch = data.slice(i, i + batchSize);
+  sheet.getRange(startRow + i, 1, batch.length, cols).setValues(batch);
+  SpreadsheetApp.flush(); // Critical - prevents timeout
+}
+
+// ❌ WRONG: Single massive write
+sheet.getRange(1, 1, 30000, 50).setValues(hugeArray); // Will timeout
+```
+
+### 2. Column Lookup Pattern (Fuzzy Matching)
+This project uses flexible header matching. Follow this pattern:
+```javascript
+const findCol = (headers, keyword) => headers.findIndex(h => 
+  String(h).toLowerCase().replace(/[^a-z0-9]/g, "").includes(
+    keyword.toLowerCase().replace(/[^a-z0-9]/g, "")
+  )
+);
+
+// Usage
+const ridIdx = findCol(headers, "rid");
+const amIdx = findCol(headers, "accountmanager");
+```
+
+### 3. Logging Pattern (Pattern 6)
+All pipeline functions MUST log to the "Refresh" sheet:
+```javascript
+function myPipelineStep() {
+  const startTime = new Date();
+  const functionName = 'myPipelineStep';
+  let result = "Success";
+  let recordsAdded = 0;
+  let errorMessage = "";
+  
+  try {
+    // ... your logic ...
+    recordsAdded = processedCount;
+  } catch (error) {
+    errorMessage = error.message;
+    result = "Fail";
+    Logger.log(`[${functionName}] Error: ${errorMessage}`);
+  }
+  
+  const duration = (new Date() - startTime) / 1000;
+  const refreshSheet = ss.getSheetByName('Refresh');
+  if (refreshSheet) {
+    refreshSheet.appendRow([functionName, new Date(), recordsAdded, duration, result, errorMessage]);
+  }
+}
+```
+
+### 4. Safe Sheet Access
+Always validate sheets exist before accessing:
+```javascript
+// ✅ CORRECT
+const sheet = ss.getSheetByName('STATCORE');
+if (!sheet) throw new Error("Sheet 'STATCORE' not found.");
+
+// ✅ CORRECT with fallback
+const targetSheet = ss.getSheetByName('STATCORE') || ss.getSheetByName('Statcore');
+```
+
+### 5. True Last Row Detection
+For sheets with empty formatted rows, use column scanning:
+```javascript
+function getTrueLastRow_(sheet, columnA1 = "A") {
+  const lastRow = sheet.getLastRow();
+  if (lastRow === 0) return 0;
+  const data = sheet.getRange(`${columnA1}1:${columnA1}${lastRow}`).getValues();
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i][0] !== "" && data[i][0] != null) return i + 1;
+  }
+  return 0;
+}
+```
+
+---
+
+## Sidebar Development Rules
+
+### Client-Server Communication
+```javascript
+// In HTML: Call server function
+google.script.run
+  .withSuccessHandler(handleSuccess)
+  .withFailureHandler(handleError)
+  .serverFunctionName(param1, param2);
+
+// In .gs: Function must be global (not inside another function)
+function serverFunctionName(param1, param2) {
+  // Return data - will be passed to handleSuccess
+  return { status: 'ok', data: [...] };
+}
+```
+
+### UI State Pattern
+```javascript
+// Show loading state
+function setLoadingState(isLoading) {
+  const btn = document.getElementById('my-btn');
+  btn.disabled = isLoading;
+  btn.innerText = isLoading ? 'Loading...' : 'Run';
+  document.getElementById('spinner').style.display = isLoading ? 'block' : 'none';
+}
+```
+
+### Never Do This in Sidebars
+```javascript
+// ❌ WRONG: localStorage doesn't work in GAS sidebars
+localStorage.setItem('key', value);
+
+// ❌ WRONG: Can't access SpreadsheetApp directly
+SpreadsheetApp.getActiveSpreadsheet(); // This is server-side only
+
+// ✅ CORRECT: Use google.script.run for all data operations
+google.script.run.withSuccessHandler(fn).getDataFromSheet();
+```
+
+---
+
+## File Organization
+
+| File | Purpose | Key Functions |
+|------|---------|---------------|
+| `Main.js` | Entry point, menus | `onOpen`, `onEdit`, `BI_openSidebar` |
+| `Admin.js` | Pipeline orchestration | `runMasterPipeline`, `handleIntouchEdits` |
+| `STATCORE.js` | Data sync | `updateSTATCORE`, `runSYSCOREUpdates`, `runDAGCOREUpdates` |
+| `AiOpsFunctions.js` | Sidebar APIs | `getSidebarData`, `generateAMSummary`, `buildPromptForRID` |
+| `BizInsights.js` | Slides generation | `createBizInsightsDeck` |
+| `DynamicNotes.js` | Note engine | `updateAccountNotes`, `buildDynamicNote` |
+| `FleetCommander.js` | Multi-file ops | `runUpdateSheetSafe`, `runCopySheet` |
+
+---
+
+## Common Data Structures
+
+### Account Record (from STATCORE)
+```javascript
+{
+  rid: "12345",           // Restaurant ID (Column A)
+  accountName: "...",     // Column E
+  parentAccount: "...",   // Column F
+  metro: "...",           // Column G
+  accountManager: "...",  // Column N
+  status: "...",          // Column I
+  termEndDate: Date,      // Column K
+  // ... see STATCORE sheet headers row 2
+}
+```
+
+### Sidebar Data Response
+```javascript
+{
+  ams: ["AM Name 1", "AM Name 2", ...],  // Unique AM list
+  accounts: [
+    { rid: "12345", name: "Restaurant", metro: "LA", macro: "Downtown" },
+    // ...
+  ]
+}
+```
+
+---
+
+## Debugging Tips
+
+### View Logs
+1. In Apps Script Editor: View → Logs (or Ctrl+Enter)
+2. For triggers: View → Executions
+3. Use `console.log()` or `Logger.log()` for debugging
+
+### Common Errors
+
+**"Service Timed Out"**
+- Add `SpreadsheetApp.flush()` after large writes
+- Add `Utilities.sleep(200)` between API calls
+- Reduce batch size
+
+**"Cannot read property of undefined"**
+- Check if sheet exists: `if (!sheet) return;`
+- Check if column was found: `if (colIdx === -1) { ... }`
+
+**Sidebar won't open**
+- Check for syntax errors in HTML
+- Ensure server functions are global
+- Check browser console for JS errors
+
+---
+
+## When Adding New Features
+
+### New Server Function
+1. Add function to appropriate .gs file
+2. Make it global (not nested)
+3. Return serializable data (no Date objects, use strings)
+4. Add to relevant HTML sidebar if needed
+
+### New Pipeline Step
+1. Follow Pattern 6 logging
+2. Chain to next step: `if (result === "Success") nextStep();`
+3. Add to `runMasterPipeline()` sequence if nightly
+
+### New Sidebar Tab
+1. Add tab button in HTML nav
+2. Add tab content div
+3. Wire up in `setupTabs()` function
+4. Add server functions for data
+
+---
+
+## Deployment
+
+### Local Development (clasp)
+```bash
+npm run pull      # Get latest from Apps Script
+npm run push:master  # Push to master project
+npm run push:all  # Deploy to all fleet files
+```
+
+### Target Projects
+See `targets.json` for deployment destinations.
+
+---
+
+## AI Assistant Instructions
+
+### Golden Rule: PRESERVE FIRST, MODIFY SECOND
+
+This codebase works in production with 30,000+ rows. Every "inefficiency" exists for a reason.
+
+### When I ask for help:
+1. **Assume GAS context** - No Node.js imports, no ES6 modules
+2. **NEVER refactor unprompted** - Only change what I specifically ask about
+3. **Preserve ALL existing code** - flush(), sleep(), batch patterns, helpers
+4. **Consider data scale** - This handles 30k+ rows
+5. **Test incrementally** - Suggest adding Logger.log() for debugging
+6. **Sidebar awareness** - Client code (HTML) vs Server code (.gs) are separate
+
+### When providing code:
+1. **Show targeted changes** - Use "before/after" format or mark changes with comments
+2. **Include surrounding context** - 5-10 lines above/below so I know where it goes
+3. **NEVER use placeholder comments** - No `// ... rest of code ...`
+4. **If the file is too long** - Say "I'll show just the modified function" rather than truncating with placeholders
+
+### When I share an error:
+1. Check if it's client-side (browser console) or server-side (Apps Script logs)
+2. Look for common GAS gotchas (timeouts, permissions, undefined sheets)
+3. Suggest minimal test cases to isolate the issue
+4. **Do NOT suggest "cleaning up" unrelated code**
+
+### When I want to add a feature:
+1. Identify which file(s) need changes
+2. Show how it connects to existing functions
+3. Include Pattern 6 logging if it's a pipeline function
+4. Consider both UI and backend implications
+5. **Match existing patterns exactly** - copy the style from similar functions
+
+### Red Flags - STOP and ask before:
+- Suggesting removal of any flush()/sleep() calls
+- Proposing to "simplify" batch processing
+- Recommending consolidation of helper functions
+- Offering to "clean up" or "refactor" anything not discussed

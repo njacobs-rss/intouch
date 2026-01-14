@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    /* =========================================
+       GLOBAL STYLES (COMPACT MODE)
+       ========================================= */
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      margin: 0; 
+      background: #f8fafc; 
+      color: #0f172a; 
+      font-size: 12px; /* Adjusted for compactness */
+    }
+    
+    * { box-sizing: border-box; }
+
+    /* =========================================
+       NAVIGATION TABS
+       ========================================= */
+    .tab-nav { 
+      display: flex; 
+      background: #fff; 
+      border-bottom: 1px solid #e2e8f0; 
+      position: sticky; 
+      top: 0; 
+      z-index: 100; 
+    }
+
+    .tab-btn { 
+      flex: 1; 
+      padding: 10px; /* Reduced padding */
+      border: 0; 
+      background: 0; 
+      font-weight: 600; 
+      color: #64748b; 
+      cursor: pointer; 
+      border-bottom: 3px solid transparent; 
+      text-transform: uppercase; 
+      font-size: 11px; 
+    }
+
+    .tab-btn:hover { background: #f1f5f9; color: #0f172a; }
+
+    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+
+    .tab-content { 
+      display: none; 
+      padding: 10px; /* Reduced padding */
+      height: calc(100vh - 45px); 
+      overflow-y: auto; 
+    }
+
+    .tab-content.active { display: block; }
+
+    /* =========================================
+       LAYOUT & CARDS
+       ========================================= */
+    .card { 
+      background: #fff; 
+      border: 1px solid #e2e8f0; 
+      border-radius: 6px; /* Tighter radius */
+      padding: 10px; /* Tighter padding */
+      margin-bottom: 8px; 
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
+    }
+
+    h3 { 
+      margin: 0 0 6px 0; 
+      font-size: 11px; 
+      color: #64748b; 
+      text-transform: uppercase; 
+      border-bottom: 1px solid #f1f5f9; 
+      padding-bottom: 4px; 
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    /* New Grid for Penetration stats */
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; }
+
+    /* =========================================
+       METRICS & TYPOGRAPHY
+       ========================================= */
+    .lbl { 
+      font-size: 10px; 
+      color: #64748b; 
+      text-transform: uppercase; 
+      font-weight: 700; 
+      margin-bottom: 2px; 
+    }
+
+    .val { font-size: 15px; font-weight: 700; color: #1e293b; }
+    .sub { font-size: 10px; color: #64748b; }
+
+    .txt-red { color: #ef4444; }
+    .txt-grn { color: #166534; }
+    .txt-blue { color: #2563eb; }
+
+    /* =========================================
+       TABLES
+       ========================================= */
+    .mini-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .mini-table td { padding: 2px 0; border-bottom: 1px dashed #f1f5f9; }
+    .mini-table td:last-child { text-align: right; font-weight: 600; }
+
+    /* =========================================
+       FORMS & BUTTONS
+       ========================================= */
+    select, input { 
+      width: 100%; 
+      padding: 6px; /* Compact inputs */
+      border: 1px solid #cbd5e1; 
+      border-radius: 4px; 
+      font-size: 12px; 
+      margin-bottom: 8px; 
+      background: #fff; 
+    }
+    
+    .btn { 
+      width: 100%; 
+      padding: 8px; /* Compact buttons */
+      border-radius: 4px; 
+      border: 0; 
+      cursor: pointer; 
+      font-weight: 600; 
+      margin-top: 4px; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      gap: 6px; 
+      font-size: 12px;
+    }
+
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-sec { background: #e2e8f0; color: #334155; }
+
+    /* =========================================
+       COMPONENTS
+       ========================================= */
+    #acc-detail { 
+      display: none; 
+      background: #f1f5f9; 
+      padding: 8px; 
+      border-radius: 4px; 
+      margin-bottom: 8px; 
+      border: 1px solid #e2e8f0; 
+    }
+
+    .detail-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+    .detail-row span:last-child { font-weight: 600; color: #334155; }
+
+    .overlay-view { 
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+      background: #fff; z-index: 2000; padding: 20px; 
+      display: none; flex-direction: column; 
+    }
+    .overlay-view.active { display: flex; }
+
+    .data-preview { 
+      background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; 
+      border-radius: 6px; font-family: monospace; font-size: 11px; 
+      white-space: pre-wrap; flex-grow: 1; overflow-y: auto; margin-top: 10px; 
+    }
+
+    .spinner { 
+      border: 3px solid #f3f3f3; border-top: 3px solid #2563eb; 
+      border-radius: 50%; width: 20px; height: 20px; 
+      animation: spin 1s linear infinite; margin: 0 auto; 
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    #sim-results { border-left: 4px solid #ccc; }
+  </style>
+</head>
+<body>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="tab-prep">MEETING PREP</button>
+    <button class="tab-btn" data-tab="tab-calc">PRICING SIMULATOR</button>
+    <button class="tab-btn" data-tab="tab-summary">BUCKET SUMMARY</button>
+  </div>
+
+  <div id="tab-prep" class="tab-content active">
+     <div class="card">
+        <h3>Partner Triage</h3>
+        <label class="lbl">Select Account</label>
+        <input type="text" id="account-input" list="account-list" placeholder="Loading..." oninput="checkAccount()" onfocus="this.select()" disabled>
+        <datalist id="account-list"></datalist>
+        <div id="acc-detail"></div>
+        <button class="btn btn-primary" id="btn-ai" onclick="runAI()" disabled>✨ Launch AI Brief</button>
+        <button class="btn btn-sec" onclick="runDeck()">📄 Create Presentation</button>
+     </div>
+  </div>
+
+  <div id="tab-calc" class="tab-content">
+    <div class="card">
+      <h3>Simulation Scope</h3>
+      <div class="grid-2" style="margin-bottom:10px;">
+        <button class="btn btn-primary" id="scope-ind" onclick="setScope('INDIVIDUAL')">Individual</button>
+        <button class="btn btn-sec" id="scope-grp" onclick="setScope('GROUP')">Group</button>
+      </div>
+
+      <div id="selector-ind">
+        <label class="lbl">Select Account</label>
+        <input type="text" id="calc-acc-input" list="account-list" placeholder="Search Account..." onchange="onCalcAccountSelect()" onfocus="this.select()">
+      </div>
+
+      <div id="selector-grp" style="display:none;">
+        <label class="lbl">Select Group</label>
+        <select id="calc-grp-select" onchange="onCalcGroupSelect()">
+          <option value="" disabled selected>Loading Groups...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Configuration</h3>
+      <label class="lbl">System Type</label>
+      <select id="sim-system" onchange="updateSystemDefaults()">
+        <option value="CORE" selected>Core ($299)</option>
+        <option value="PRO">Pro ($499)</option>
+      </select>
+
+      <label class="lbl">Pricing Model</label>
+      <select id="sim-model" onchange="updateSimInputs()">
+        <option value="FREEMIUM">Free Direct Plan (Freemium)</option>
+        <option value="FREE_GOOGLE">Free Google Plan</option>
+        <option value="AYCE">AYCE</option>
+      </select>
+
+      <div class="grid-2">
+        <div id="input-sub">
+          <label class="lbl">Sub Fee ($)</label>
+          <input type="number" id="sim-sub" value="299">
+        </div>
+        <div id="input-disco">
+          <label class="lbl">Disco Price ($)</label>
+          <input type="number" id="sim-rate" value="1.50" step="0.05">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="runSimulation()">🎲 Run Simulation</button>
+    </div>
+
+    <div id="sim-results" class="card" style="display:none;">
+      <h3>Results Breakdown</h3>
+      <div id="sim-table-container"></div>
+    </div>
+  </div>
+
+  <div id="tab-summary" class="tab-content">
+    <div style="background:#fee2e2; color:#991b1b; padding:8px 10px; border-radius:4px; margin-bottom:8px; font-weight:600; font-size:11px; text-align:center; border:1px solid #fca5a5;">
+      ⚠️ WIP - DATA ON THIS VIEW MAY NOT BE ACCURATE
+    </div>
+    <div class="card">
+      <label class="lbl">Account Manager</label>
+      <select id="am-picker" onchange="runAMSummary()">
+         <option value="" disabled selected>Loading...</option>
+      </select>
+    </div>
+
+    <div id="loading" style="display:none; text-align:center; padding:20px;">
+      <div class="spinner"></div>
+      <div class="sub" style="margin-top:8px;">Crunching numbers...</div>
+    </div>
+
+    <div id="summary-content"></div>
+  </div>
+
+  <div id="overlay-loading" class="overlay-view" style="align-items:center; text-align:center;">
+     <div id="loader-spacer" style="height:0px; transition: height 0.3s;"></div>
+     <div class="spinner"></div>
+     <div id="loader-text" class="lbl" style="margin-top:15px; font-size:14px; color:#64748b;">Preparing Data for Brief...</div>
+     
+     <button id="btn-cancel" class="btn" onclick="cancelProcess()" 
+             style="display:none; margin-top:15px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; width:auto; padding:6px 20px; font-size:11px;">
+        Stop Script
+     </button>
+
+     <div id="loader-upsell" style="display:none; margin-top:30px; background:#eff6ff; padding:20px; border-radius:12px; border:1px solid #bfdbfe; width:90%; max-width:280px; animation: fadeIn 0.5s;">
+         <p style="margin:0 0 15px 0; color:#1e40af; font-size:13px; line-height:1.5; font-weight:500;">
+            Why sit here and twiddle your thumbs?<br>
+            <span style="font-weight:400; color:#3b82f6;">Dig into the account with InTouch AI on Gemini!</span>
+         </p>
+         <button class="btn btn-primary" onclick="runAI()" style="background:#2563eb; border-radius:20px; box-shadow:0 2px 4px rgba(37,99,235,0.2);">
+            ✨ Launch AI Brief
+         </button>
+         <p style="margin:12px 0 0 0; color:#64748b; font-size:11px; font-style:italic; line-height:1.4;">
+            Presentation is generating in the background and will open automatically when ready.
+         </p>
+     </div>
+  </div>
+
+  <div id="overlay-results" class="overlay-view">
+     <h2 style="margin:0 0 10px 0; color:#2563eb;">✨ Brief Ready!</h2>
+     <div id="copy-status" style="display:none; padding:10px; border-radius:6px; font-weight:600; margin-bottom:15px;"></div>
+     <button class="btn btn-primary" onclick="launchGeminiAndCopy()">🚀 Copy Data & Open Gemini</button>
+     <button class="btn btn-sec" onclick="closeOverlay()">Back</button>
+     <div id="ai-preview" class="data-preview"></div>
+  </div>
+
+  <script>
+    // --- GLOBAL VARIABLES ---
+    let ACCOUNT_MAP = {}; 
+    let CURRENT_SCOPE = 'INDIVIDUAL'; 
+    let CURRENT_BASELINE_REV = 0; 
+    let isAICancelled = false; 
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+      setupTabs();
+      setLoadingState(true);
+      google.script.run
+        .withSuccessHandler(populateSidebarData)
+        .withFailureHandler(handleError)
+        .getSidebarData();
+    };
+
+    function setLoadingState(isLoading) {
+      const amPicker = document.getElementById('am-picker');
+      const accountInput = document.getElementById('account-input');
+
+      if (isLoading) {
+        amPicker.innerHTML = '<option value="" disabled selected>Loading AMs...</option>';
+        amPicker.disabled = true;
+        amPicker.style.backgroundColor = "#f3f4f6";
+
+        accountInput.value = '';
+        accountInput.placeholder = "Loading Accounts...";
+        accountInput.disabled = true;
+        accountInput.style.backgroundColor = "#f3f4f6";
+      } else {
+        amPicker.disabled = false;
+        amPicker.style.backgroundColor = "white";
+        accountInput.placeholder = "Search Accounts...";
+        accountInput.disabled = false;
+        accountInput.style.backgroundColor = "white";
+      }
+    }
+
+    function populateSidebarData(data) {
+      if (!data) return;
+
+      const amPicker = document.getElementById('am-picker');
+      let amHtml = '<option value="" disabled selected>Select AM</option>';
+      if (data.ams && data.ams.length > 0) {
+        data.ams.forEach(am => { amHtml += `<option value="${am}">${am}</option>`; });
+      }
+      amPicker.innerHTML = amHtml;
+
+      const dataList = document.getElementById('account-list');
+      let accHtml = '';
+      ACCOUNT_MAP = {}; 
+
+      if (data.accounts && data.accounts.length > 0) {
+        data.accounts.forEach(acc => {
+          const displayVal = `${acc.name} (${acc.rid})`;
+          ACCOUNT_MAP[displayVal] = acc;
+          accHtml += `<option value="${displayVal}">`;
+        });
+      }
+      dataList.innerHTML = accHtml;
+      setLoadingState(false);
+    }
+
+    function handleError(err) {
+      console.error(err);
+      alert("Failed to load sidebar data: " + err.message);
+    }
+
+    // --- TAB LOGIC: PARTNER TRIAGE ---
+    function checkAccount() {
+      const val = document.getElementById('account-input').value;
+      const detailBox = document.getElementById('acc-detail');
+      const btnAI = document.getElementById('btn-ai');
+      
+      const record = ACCOUNT_MAP[val];
+      
+      // 🔍 DEBUG: Log what we found
+      console.log("[checkAccount] Input value:", val);
+      console.log("[checkAccount] Record found:", record);
+      
+      if (record) {
+         btnAI.disabled = false;
+         detailBox.style.display = 'block';
+         
+         // Show warning styling if metro/macro are empty
+         const metroClass = record.metro ? '' : 'style="color:#ef4444;"';
+         const macroClass = record.macro ? '' : 'style="color:#ef4444;"';
+         
+         detailBox.innerHTML = `
+            <div class="detail-row"><span>RID:</span><span>${record.rid}</span></div>
+            <div class="detail-row"><span>Metro:</span><span ${metroClass}>${record.metro || '⚠️ EMPTY'}</span></div>
+            <div class="detail-row"><span>Macro:</span><span ${macroClass}>${record.macro || '⚠️ EMPTY'}</span></div>
+         `;
+      } else {
+         btnAI.disabled = true;
+         detailBox.style.display = 'none';
+      }
+    }
+
+    // --- TAB LOGIC: BUCKET SUMMARY ---
+    function runAMSummary() {
+       const amName = document.getElementById('am-picker').value;
+       if(!amName) return;
+       
+       document.getElementById('summary-content').style.display = 'none';
+       document.getElementById('loading').style.display = 'block';
+       
+       google.script.run.withSuccessHandler(res => {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('summary-content').style.display = 'block';
+          if(typeof res === 'object') { renderSummary(res); } 
+          else { document.getElementById('summary-content').innerHTML = res; }
+       }).generateAMSummary(amName);
+    }
+
+    function renderSummary(d) {
+       const renderList = (title, items) => {
+         if (!items || items.length === 0) return '';
+         let h = `<div class="card"><h3>${title}</h3><table class="mini-table">`;
+         items.forEach(i => h += `<tr><td>${i.label}</td><td>${i.count}</td></tr>`);
+         h += `</table></div>`;
+         return h;
+       };
+
+       // UPDATED DASHBOARD LAYOUT (COMPACT + NEW SECTION)
+       let html = `
+        <div class="grid-2">
+            <div class="card"><div class="lbl">Bucket</div><div class="val">${d.book || 0}</div><div class="sub">Accounts</div></div>
+            <div class="card"><div class="lbl">Groups</div><div class="val">${d.groups || "0"}</div><div class="sub">Count | Share %</div></div>
+        </div>
+        <div class="grid-2">
+            <div class="card"><div class="lbl">Avg Yield</div><div class="val">$${d.yield || 0}</div></div>
+            <div class="card"><div class="lbl">Avg Sub</div><div class="val">$${d.subfees || 0}</div></div>
+        </div>
+        
+        <div class="card">
+             <div class="lbl">TERM PENDING</div>
+             <div class="val txt-red">${d.termPending || 0}</div>
+             <div class="sub">Immediate Action</div>
+        </div>
+
+        <div class="card">
+             <div class="lbl">Contract Renewal</div>
+             <table class="mini-table">
+               <tr><td>Expired</td><td class="txt-red">${d.termExpired || 0}</td></tr>
+               <tr><td>Canceling</td><td class="txt-red">${d.canceling || 0}</td></tr>
+               <tr><td>Warning (45d)</td><td class="txt-blue">${d.termWarn || 0}</td></tr>
+             </table>
+        </div>
+
+        <div class="card">
+             <div class="lbl">Bucket Penetration (Engagement)</div>
+             <div class="grid-2">
+                 <div style="text-align:center; padding:4px;">
+                    <div class="val">${d.mtgPenetration}</div><div class="sub">Mtg Pen %</div>
+                 </div>
+                 <div style="text-align:center; padding:4px;">
+                    <div class="val">${d.runRate}</div><div class="sub">Mtgs / WkDay</div>
+                 </div>
+                 <div style="text-align:center; padding:4px;">
+                    <div class="val">${d.taskPenetration}</div><div class="sub">Task Pen %</div>
+                 </div>
+                 <div style="text-align:center; padding:4px;">
+                    <div class="val">${d.totalMtgs}</div><div class="sub">Total Vol</div>
+                 </div>
+             </div>
+        </div>
+
+        <div class="grid-3">
+           <div class="card"><div class="lbl">Active PI</div><div class="val">${d.activePi || 0}</div></div>
+           <div class="card"><div class="lbl">PD Live</div><div class="val">${d.pd || 0}</div></div>
+           <div class="card"><div class="lbl">XP Active</div><div class="val">${d.xp || 0}</div></div>
+        </div>
+        
+        <div class="card">
+           <div class="lbl">Performance (Avg)</div>
+           <table class="mini-table">
+             <tr><td>Disco Share</td><td>${d.disco}</td></tr>
+             <tr><td>PI Rev Share</td><td>${d.piRevShare}</td></tr>
+           </table>
+        </div>
+       `;
+
+       // Dynamic Lists
+       html += renderList('Top Metros', d.metroList);
+       html += renderList('System Mix', d.sysTypeList);
+       html += renderList('Alternate SOR', d.sorList);
+       html += renderList('Quality Tiers', d.qualityList);
+       html += renderList('Special Programs', d.progList);
+       html += renderList('Excl. Pricing Mix', d.priceList);
+       html += renderList('No Bookings (Reason)', d.noBookList);
+
+       document.getElementById('summary-content').innerHTML = html;
+    }
+
+    // --- OVERLAY & ACTIONS ---
+
+    function setLoadingMode(mode) {
+       const overlay = document.getElementById('overlay-loading');
+       const upsell = document.getElementById('loader-upsell');
+       const text = document.getElementById('loader-text');
+       const spacer = document.getElementById('loader-spacer');
+       const cancelBtn = document.getElementById('btn-cancel'); 
+
+       overlay.classList.add('active');
+       isAICancelled = false; 
+
+       if (mode === 'deck') {
+          overlay.style.justifyContent = 'flex-start'; 
+          spacer.style.height = '15vh'; 
+          text.innerText = "Generating Presentation...";
+          upsell.style.display = 'block';
+          cancelBtn.style.display = 'none'; 
+       } else {
+          overlay.style.justifyContent = 'center';
+          spacer.style.height = '0px';
+          text.innerText = "Preparing Data for Brief..."; 
+          upsell.style.display = 'none';
+          cancelBtn.style.display = 'inline-flex'; 
+       }
+    }
+
+    function cancelProcess() {
+       isAICancelled = true;
+       document.getElementById('overlay-loading').classList.remove('active');
+       document.getElementById('account-input').focus();
+    }
+
+    function runDeck() {
+       const val = document.getElementById('account-input').value;
+       const record = ACCOUNT_MAP[val];
+       if(!record) return alert("Please select a valid account.");
+
+       // 🔍 DEBUG: Log what we're sending
+       console.log("[runDeck] Sending config:", {
+          accountName: record.name,
+          rid: record.rid,
+          metro: record.metro,
+          macro: record.macro,
+          neighborhood: record.neighborhood
+       });
+
+       setLoadingMode('deck');
+       
+       google.script.run
+          .withSuccessHandler(res => {
+             document.getElementById('overlay-loading').classList.remove('active');
+             if(res && res.newSheetsUrl) window.open(res.newSheetsUrl);
+          })
+          .withFailureHandler(err => {
+             document.getElementById('overlay-loading').classList.remove('active');
+             console.error("[runDeck] Server error:", err);
+             alert("Failed to create deck: " + err.message);
+          })
+          .createBizInsightsDeck({
+             accountName: record.name,
+             rid: record.rid,
+             metro: record.metro,
+             macro: record.macro,
+             neighborhood: record.neighborhood || record.macro
+          });
+    }
+
+    function runAI() {
+       const val = document.getElementById('account-input').value;
+       const record = ACCOUNT_MAP[val];
+       if(!record) return alert("Please select a valid account.");
+       
+       setLoadingMode('simple');
+       
+       google.script.run.withSuccessHandler(res => {
+          if (isAICancelled) return; 
+          
+          document.getElementById('overlay-loading').classList.remove('active');
+          document.getElementById('ai-preview').innerText = res;
+          document.getElementById('copy-status').style.display = 'none';
+          document.getElementById('overlay-results').classList.add('active');
+       }).buildPromptForRID(record.rid);
+    }
+
+    function launchGeminiAndCopy() {
+       const text = document.getElementById('ai-preview').innerText;
+       const url = 'https://gemini.google.com/gem/55125c85f8bf';
+       
+       const syncSuccess = copyToClipboardSync(text);
+
+       if (syncSuccess) {
+           updateStatus(true);
+           window.open(url, '_blank'); 
+       } else {
+           if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(() => {
+                 updateStatus(true);
+                 setTimeout(() => window.open(url, '_blank'), 250);
+              }).catch(err => {
+                 console.error(err);
+                 updateStatus(false);
+                 alert("Copy failed. Please manually copy the text below.");
+              });
+           } else {
+              updateStatus(false);
+              alert("Clipboard not supported. Please copy manually.");
+           }
+       }
+    }
+
+    function copyToClipboardSync(text) {
+       try {
+          const t = document.createElement("textarea");
+          t.value = text;
+          t.style.position = "fixed"; 
+          t.style.left = "-9999px";
+          document.body.appendChild(t);
+          t.select();
+          const result = document.execCommand("copy"); 
+          document.body.removeChild(t);
+          return result;
+       } catch (err) {
+          return false;
+       }
+    }
+
+    function updateStatus(isSuccess) {
+       const statusDiv = document.getElementById('copy-status');
+       statusDiv.style.display = 'block';
+       if (isSuccess) {
+          statusDiv.innerText = "✅ Data copied! Launching Gemini...";
+          statusDiv.style.background = "#dcfce7"; 
+          statusDiv.style.color = "#166534";
+       } else {
+          statusDiv.innerText = "⚠️ Copy failed.";
+          statusDiv.style.background = "#fee2e2"; 
+          statusDiv.style.color = "#991b1b";
+       }
+    }
+
+    function setupTabs() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+      });
+    }
+
+    function closeOverlay() { 
+      document.querySelectorAll('.overlay-view').forEach(e => e.classList.remove('active')); 
+    }
+
+    // =========================================================
+    // --- SIMULATOR FUNCTIONS (TAB 3 - RESTORED) ---
+    // =========================================================
+
+    function updateSystemDefaults() {
+      const sys = document.getElementById('sim-system').value;
+      const subInput = document.getElementById('sim-sub');
+      
+      // Only reset defaults if NOT in AYCE mode
+      if (document.getElementById('sim-model').value !== 'AYCE') {
+          if (sys === 'PRO') { subInput.value = 499; } else { subInput.value = 299; }
+      }
+      resetSimResults();
+    }
+
+    function setScope(scope) {
+      CURRENT_SCOPE = scope;
+      
+      // Toggle Buttons
+      document.getElementById('scope-ind').className = scope === 'INDIVIDUAL' ? 'btn btn-primary' : 'btn btn-sec';
+      document.getElementById('scope-grp').className = scope === 'GROUP' ? 'btn btn-primary' : 'btn btn-sec';
+      
+      // Toggle Dropdowns
+      document.getElementById('selector-ind').style.display = scope === 'INDIVIDUAL' ? 'block' : 'none';
+      document.getElementById('selector-grp').style.display = scope === 'GROUP' ? 'block' : 'none';
+      
+      resetSimResults();
+      
+      // Lazy Load Groups
+      if (scope === 'GROUP' && document.getElementById('calc-grp-select').options.length <= 1) {
+        loadGroups();
+      }
+    }
+
+    function loadGroups() {
+      const sel = document.getElementById('calc-grp-select');
+      sel.innerHTML = '<option>Loading...</option>';
+      google.script.run.withSuccessHandler(groups => {
+        let html = '<option value="" disabled selected>Select Group</option>';
+        groups.forEach(g => html += `<option value="${g}">${g}</option>`);
+        sel.innerHTML = html;
+      }).getGroupList();
+    }
+
+    function fetchBaseline(target) {
+      CURRENT_BASELINE_REV = 0; // Reset
+      google.script.run.withSuccessHandler(res => {
+         CURRENT_BASELINE_REV = res.revenue;
+         // If AYCE is currently selected, apply logic immediately
+         if (document.getElementById('sim-model').value === 'AYCE') {
+            updateSimInputs();
+         }
+      }).getAccountRevenue(target); // Changed from getFinancialBaseline to match AiOpsFunctions
+    }
+
+    function onCalcAccountSelect() {
+       const val = document.getElementById('calc-acc-input').value;
+       resetSimResults();
+       // Fetch Baseline if valid account selected
+       if (ACCOUNT_MAP[val]) fetchBaseline(ACCOUNT_MAP[val].rid);
+    }
+
+    function onCalcGroupSelect() {
+       const val = document.getElementById('calc-grp-select').value;
+       resetSimResults();
+       // Fetch Baseline if valid group selected
+       if (val) fetchBaseline(val);
+    }
+
+    function updateSimInputs() {
+      const model = document.getElementById('sim-model').value;
+      const showDisco = (model === 'FREEMIUM');
+      document.getElementById('input-disco').style.visibility = showDisco ? 'visible' : 'hidden';
+      
+      // Reset disco rate to default when Freemium is selected
+      if (model === 'FREEMIUM') {
+         document.getElementById('sim-rate').value = '1.50';
+      }
+      
+      // AYCE Logic (90% of Baseline)
+      if (model === 'AYCE') {
+         if (CURRENT_BASELINE_REV > 0) {
+            document.getElementById('sim-sub').value = Math.round(CURRENT_BASELINE_REV * 0.9);
+         }
+      } else {
+         // Revert to system default based on dropdown
+         const sys = document.getElementById('sim-system').value;
+         document.getElementById('sim-sub').value = (sys === 'PRO') ? 499 : 299;
+      }
+      resetSimResults();
+    }
+
+    function resetSimResults() {
+      document.getElementById('sim-results').style.display = 'none';
+    }
+
+    function runSimulation() {
+      const model = document.getElementById('sim-model').value;
+      const subFee = document.getElementById('sim-sub').value;
+      const discoRate = document.getElementById('sim-rate').value;
+      
+      let target = '';
+      if (CURRENT_SCOPE === 'INDIVIDUAL') {
+        const val = document.getElementById('calc-acc-input').value;
+        if (!ACCOUNT_MAP[val]) return alert("Please select a valid account first.");
+        target = ACCOUNT_MAP[val].rid; 
+      } else {
+        target = document.getElementById('calc-grp-select').value;
+        if (!target) return alert("Please select a group.");
+      }
+
+      const btn = event.target;
+      const oldText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = "Calculating...";
+
+      google.script.run.withSuccessHandler(res => {
+        btn.disabled = false;
+        btn.innerText = oldText;
+        
+        if (res.success || res.breakdown) {
+           // Support both legacy and new return formats
+           renderSimTable(res.data || res); 
+        } else {
+           alert("Simulation Error: " + (res.error || "Unknown"));
+        }
+      }).runPricingSimulation({ // Ensure this function exists in AiOpsFunctions or Main
+        scope: CURRENT_SCOPE,
+        target: target,
+        model: model,
+        subFee: subFee,
+        discoRate: discoRate
+      });
+    }
+
+    function renderSimTable(data) {
+      const box = document.getElementById('sim-results');
+      const container = document.getElementById('sim-table-container');
+      box.style.display = 'block';
+      
+      const bd = data.breakdown;
+      const cb = data.currentBreakdown || {}; // Current breakdown from server
+      const fmt = (n) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      const pct = (n) => Math.round(n) + '%';
+      
+      // Simplified model labels
+      const modelValue = document.getElementById('sim-model').value;
+      const modelLabels = {
+        'FREEMIUM': 'Freemium',
+        'FREE_GOOGLE': 'Free Google',
+        'AYCE': 'AYCE'
+      };
+      const label = modelLabels[modelValue] || modelValue;
+      
+      // Current pricing values (from server or calculate fallback)
+      const currentSubFee = cb.subFee || 0;
+      const currentVariableFees = cb.variableFees || 0;
+      const currentTotal = cb.total || (bd.total - data.monthlyDelta);
+      
+      let rows = '';
+
+      if (modelValue === 'FREEMIUM' || modelValue === 'FREE_GOOGLE') {
+        rows = `
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">CURRENT PRICING</td></tr>
+          <tr><td>Sub Fee</td><td>${fmt(currentSubFee)}</td></tr>
+          <tr><td>Variable Fees</td><td>${fmt(currentVariableFees)}</td></tr>
+          <tr style="border-top:1px solid #e2e8f0; font-weight:600;"><td>Current Total</td><td>${fmt(currentTotal)}</td></tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">${label.toUpperCase()} SIMULATION</td></tr>
+          <tr><td>Sub Fee</td><td>${fmt(bd.subFee)}</td></tr>
+          <tr><td>Your Network</td><td>${fmt(bd.yourNetwork)}</td></tr>
+          <tr><td>Network</td><td>${fmt(bd.network)}</td></tr>
+          <tr><td>Discovery PI</td><td>${fmt(bd.discoPI)}</td></tr>
+          <tr><td>Google</td><td>${fmt(bd.google)}</td></tr>
+          <tr style="border-top:2px solid #e2e8f0; font-weight:bold;"><td>Simulated Total</td><td>${fmt(bd.total)}</td></tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">COMPARISON</td></tr>
+          <tr><td>Monthly Delta</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${fmt(data.monthlyDelta)}</td></tr>
+          <tr><td>% Change</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${pct(data.percentChange * -1)}</td></tr>
+        `;
+      } else {
+        rows = `
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">CURRENT PRICING</td></tr>
+          <tr><td>Sub Fee</td><td>${fmt(currentSubFee)}</td></tr>
+          <tr><td>Variable Fees</td><td>${fmt(currentVariableFees)}</td></tr>
+          <tr style="border-top:1px solid #e2e8f0; font-weight:600;"><td>Current Total</td><td>${fmt(currentTotal)}</td></tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">${label.toUpperCase()} SIMULATION</td></tr>
+          <tr><td>Sub Fee</td><td>${fmt(bd.subFee)}</td></tr>
+          <tr style="border-top:2px solid #e2e8f0; font-weight:bold;"><td>Simulated Total</td><td>${fmt(bd.total)}</td></tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">COMPARISON</td></tr>
+          <tr><td>Monthly Delta</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${fmt(data.monthlyDelta)}</td></tr>
+          <tr><td>% Change</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${pct(data.percentChange * -1)}</td></tr>
+        `;
+      }
+
+      container.innerHTML = `<table class="mini-table" style="width:100%; margin-top:5px;">${rows}</table>`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Ignore Node.js scripts
+multi-deploy.js
+targets.json
+
+# Ignore config files
+package.json
+package-lock.json
+.clasp.json
+.gitignore
+
+# Ignore system folders
+node_modules
+.git

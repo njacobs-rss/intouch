@@ -1,0 +1,18 @@
+[
+  {
+    "label": "MASTER (Source of Truth)",
+    "scriptId": "1Lr0GL0K6A09u-Bi7yE8pW23pw8QQyGIC1rlUE8J8vVkalrmJD67zhyEY"
+  },
+  {
+    "label": "Southwest",
+    "scriptId": "13Ude89knXN24C-ilf30QNH3wqbX2rw6NRd8xL7WnVJdoREtWzh_Ud-zP"
+  },
+  {
+    "label": "Southcentral",
+    "scriptId": "12EKmLL_PLlBuh9VxrrEDnjUjkjxDNX1MLJRIflSYy-UP1FXch51b0hth"
+  },
+  {
+    "label": "NewYork",
+    "scriptId": "1L3_yg1eQtuPBoo0kXACQfp2l4XTKBA-Awldw2A_vMve8i-v5Ll9yLUAj"
+  }
+]

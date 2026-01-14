@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Clasp credentials (NEVER push these)
+.clasp.json
+.clasprc.json
+
+# Deployment targets (may contain sensitive script IDs)
+targets.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.idea/
+.vscode/
+
+# Lock files (optional - some prefer to commit these)
+# package-lock.json

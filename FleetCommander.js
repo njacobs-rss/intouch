@@ -72,6 +72,7 @@ function getFilteredSheetNames() {
  * Preserves formulas by using a rename-and-replace strategy
  */
 function runUpdateSheetSafe(sheetName, hideSheet) {
+  assertAdminAccess(); // Global function - requires admin
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ss.toast("Scanning fleet files for '" + sheetName + "'...", "🚀 Safe Update Started", -1);
 
@@ -143,6 +144,7 @@ function runUpdateSheetSafe(sheetName, hideSheet) {
  * COPY NEW: Pushes a new sheet to all fleet files
  */
 function runCopySheet(sourceSheetName, newSheetName, hideSheet) {
+  assertAdminAccess(); // Global function - requires admin
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sourceSheet = ss.getSheetByName(sourceSheetName);
   var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
@@ -188,6 +190,7 @@ function runCopySheet(sourceSheetName, newSheetName, hideSheet) {
  * DELETE: Removes a sheet from all fleet files
  */
 function runDeleteSheet(sheetToDelete) {
+  assertAdminAccess(); // Global function - requires admin
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
   var files = sourceFolder.getFiles();
@@ -220,6 +223,7 @@ function runDeleteSheet(sheetToDelete) {
  * CONFIG UPDATE: Updates Template IDs in SETUP tab
  */
 function runUpdateSheet() {
+  assertAdminAccess(); // Global function - requires admin
   var TEMPLATE_FOLDER_ID = '1lt4n-LZe8ufMqCkNSU-tGRs4DysEKySs'; 
   var logs = [];
   try {
@@ -266,6 +270,7 @@ function runUpdateSheet() {
  * PREVIOUS: ITGlobal.updateSTATCORE() / InTouchLib.runStatcorePipeline()
  */
 function runUpdateSTATCORE() {
+  assertAdminAccess(); // Global function - requires admin
   var logs = [];
   try {
     // 1. Call the local function directly from STATCORE.gs
@@ -286,4 +291,83 @@ function runUpdateSTATCORE() {
     });
   }
   return logs;
+}
+
+/**
+ * REFRESH EMPLOYEE TABS: Recreates AM tabs in all fleet files
+ * Reads employee names from Setup sheet, deletes old tabs, creates fresh ones from Launcher
+ */
+function runCreateEmployeeTabs() {
+  assertAdminAccess(); // Global function - requires admin
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var logs = [];
+
+  while (files.hasNext()) {
+    var file = files.next();
+    
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getId() !== ss.getId() && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        var setupSheet = targetSS.getSheetByName("Setup");
+        var launcherSheet = targetSS.getSheetByName("Launcher");
+        
+        if (!setupSheet || !launcherSheet) {
+          logs.push({ status: 'Skipped', file: file.getName(), msg: 'Missing Setup or Launcher sheet' });
+          continue;
+        }
+
+        // 1. Get employee names from Setup B3:B
+        var employeeNames = setupSheet.getRange("B3:B" + setupSheet.getLastRow()).getValues()
+          .map(function(r) { return r[0] ? r[0].toString().trim() : ''; })
+          .filter(function(name) { return name && name !== "Manager Lens"; });
+
+        if (employeeNames.length === 0) {
+          logs.push({ status: 'Skipped', file: file.getName(), msg: 'No employees in Setup' });
+          continue;
+        }
+
+        // 2. Get first names for tab naming
+        var firstNames = employeeNames.map(function(n) { return n.split(' ')[0]; });
+
+        // 3. Delete existing employee tabs
+        var sheetsToDelete = targetSS.getSheets().filter(function(s) { 
+          return firstNames.includes(s.getName()); 
+        });
+        sheetsToDelete.forEach(function(s) { targetSS.deleteSheet(s); });
+
+        // 4. Create new tabs from Launcher template
+        firstNames.forEach(function(name, i) {
+          var uniqueName = getUniqueSheetName_(targetSS, name);
+          var copy = launcherSheet.copyTo(targetSS).setName(uniqueName);
+          copy.getRange("B2").setValue(employeeNames[i]);
+          targetSS.setActiveSheet(copy);
+          targetSS.moveActiveSheet(1);
+        });
+
+        // 5. Set Setup as active sheet
+        targetSS.setActiveSheet(setupSheet);
+        
+        logs.push({ status: 'Success', file: file.getName(), msg: 'Created ' + employeeNames.length + ' tabs' });
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
+  }
+  return logs;
+}
+
+/**
+ * Helper: Get unique sheet name for a target spreadsheet
+ * (Mirrors getUniqueSheetName from Admin.gs but works on any SS)
+ */
+function getUniqueSheetName_(ss, baseName) {
+  var name = baseName, idx = 1;
+  while (ss.getSheetByName(name)) { name = baseName + " (" + idx++ + ")"; }
+  return name;
 }

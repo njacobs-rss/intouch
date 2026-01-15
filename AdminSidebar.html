@@ -193,13 +193,17 @@
       </button>
     </div>
 
-    <div class="grid-2" id="global-row-2">
+    <div class="grid-3" id="global-row-2">
       <button class="btn-local btn-vertical" onclick="requestAction('statcore')">
         <span class="icon">🌐</span> Global Data Refresh (All)
       </button>
 
       <button class="btn-config btn-vertical" onclick="requestAction('config')">
         <span class="icon">⚙️</span> Update Setup IDs (Global)
+      </button>
+
+      <button class="btn-safe btn-vertical" onclick="requestAction('globalTabs')">
+        <span class="icon">👥</span> Refresh AM Tabs (All)
       </button>
     </div>
 
@@ -292,6 +296,7 @@
         if (actionType === 'delete') msg = `WARNING: MASS TERMINATE "${sheetName}" from all external files?`;
         if (actionType === 'config') msg = `GLOBAL: Update Template IDs in "SETUP" tab for all external files?`;
         if (actionType === 'statcore') msg = `GLOBAL: Run data pipeline for all fleets?`;
+        if (actionType === 'globalTabs') msg = `GLOBAL: Refresh AM Tabs in all external files? (Deletes & recreates employee tabs)`;
 
         if (actionType === 'createTabs') msg = `LOCAL: Refresh/Create AM Tabs based on Setup?`;
         if (actionType === 'deleteTabs') msg = `LOCAL: Delete all existing Employee tabs from this sheet?`;
@@ -368,6 +373,9 @@
         } 
         else if (actionToRun === 'statcore') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSTATCORE();
+        }
+        else if (actionToRun === 'globalTabs') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCreateEmployeeTabs();
         }
         else if (actionToRun === 'createTabs') {
           google.script.run.withSuccessHandler(() => showSimpleSuccess('AM Tabs Refreshed')).withFailureHandler(onFailure).createEmployeeTabs();

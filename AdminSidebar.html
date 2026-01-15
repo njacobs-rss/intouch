@@ -170,6 +170,111 @@
       .log-entry { padding: 6px; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; }
       .status-success { color: #27ae60; font-weight: bold; }
       .status-error { color: #c0392b; font-weight: bold; }
+      .status-warning { color: #d69e2e; font-weight: bold; }
+
+      /* --- RANGE REPLICATOR STYLES --- */
+      .range-display {
+        background: #f7fafc;
+        border: 1px dashed #cbd5e0;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 12px;
+        font-size: 11px;
+        min-height: 50px;
+      }
+      .range-display.captured {
+        background: #e6fffa;
+        border-color: #38b2ac;
+        border-style: solid;
+      }
+      .range-display .range-label {
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 4px;
+      }
+      .range-display .range-info {
+        color: #718096;
+        font-size: 10px;
+      }
+      .range-display .range-info span {
+        display: inline-block;
+        margin-right: 12px;
+      }
+      .range-display .range-headers {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #e2e8f0;
+        color: #4a5568;
+        font-size: 10px;
+        word-break: break-word;
+      }
+      .range-badges {
+        margin-top: 6px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 600;
+        margin-right: 4px;
+      }
+      .badge-formula { background: #fef3c7; color: #92400e; }
+      .badge-richtext { background: #dbeafe; color: #1e40af; }
+      
+      .inline-input-group {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .inline-input-group > div {
+        flex: 1;
+      }
+      .inline-input-group input[type="text"],
+      .inline-input-group input[type="number"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5e0;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 12px;
+      }
+      .inline-input-group input[type="number"] {
+        width: 70px;
+      }
+
+      /* No Header Warning Modal */
+      #no-header-modal { 
+        display: none; 
+        background: #fef3c7; 
+        border: 1px solid #f59e0b; 
+        color: #92400e; 
+        padding: 15px; 
+        border-radius: 6px; 
+        margin-top: 20px; 
+        text-align: center; 
+      }
+
+      /* Header Mismatch Modal */
+      #mismatch-modal { 
+        display: none; 
+        background: #fed7d7; 
+        border: 1px solid #f56565; 
+        color: #c53030; 
+        padding: 15px; 
+        border-radius: 6px; 
+        margin-top: 20px; 
+      }
+      #mismatch-modal h3 { margin: 0 0 10px 0; font-size: 13px; text-align: center; }
+      .mismatch-list {
+        max-height: 100px;
+        overflow-y: auto;
+        background: white;
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 12px;
+        font-size: 10px;
+      }
     </style>
   </head>
   <body>
@@ -215,6 +320,52 @@
       <button class="btn-safe btn-vertical" onclick="requestAction('globalTabs')">
         <span class="icon">👥</span> Refresh AM Tabs (All)
       </button>
+    </div>
+
+    <hr class="section-divider">
+
+    <h2 id="range-replicator-header">📋 Range Replicator</h2>
+    
+    <div class="control-group" id="range-replicator-section">
+      <div class="range-display" id="range-display">
+        <div class="range-label">No range captured</div>
+        <div class="range-info">
+          <span>Sheet: —</span>
+          <span>Range: —</span>
+          <span>Size: — × —</span>
+        </div>
+      </div>
+      
+      <button class="btn-copy btn-horizontal" onclick="captureRange()" style="width:100%; margin-bottom:12px;">
+        <span class="icon">📷</span> Capture Selection
+      </button>
+      
+      <div class="inline-input-group">
+        <div>
+          <label>Header Row (for verify)</label>
+          <input type="number" id="header-row-input" placeholder="Row #" min="1">
+        </div>
+        <div style="flex:2;">
+          <label>Target Sheet</label>
+          <select id="target-sheet-selector"><option value="">— Same as source —</option></select>
+        </div>
+      </div>
+      
+      <div class="checkbox-wrapper" style="margin-bottom:8px;">
+        <input type="checkbox" id="alt-range-check" onchange="toggleAltRange()"> 
+        <span>Use different target range</span>
+      </div>
+      
+      <input type="text" id="alt-range-input" placeholder="e.g., A5:F20" style="display:none; margin-bottom:12px;">
+      
+      <div class="grid-2">
+        <button class="btn-config btn-vertical" onclick="requestRangeAction('verify')" id="btn-verify">
+          <span class="icon">✓</span> Verify Headers
+        </button>
+        <button class="btn-safe btn-vertical" onclick="requestRangeAction('push')" id="btn-push">
+          <span class="icon">🚀</span> Push to Fleet
+        </button>
+      </div>
     </div>
 
     <hr class="section-divider">
@@ -294,6 +445,30 @@
       </div>
     </div>
 
+    <div id="no-header-modal">
+      <div style="font-weight:bold; margin-bottom:5px;">⚠️ No Header Row Specified</div>
+      <div style="font-size:12px; margin-bottom:10px;">
+        Without a header row, the system cannot verify that target sheets have matching column structures. 
+        Proceed anyway?
+      </div>
+      <div class="confirm-btns">
+        <button class="btn-yes" onclick="executeRangePush(true)">Push Anyway</button>
+        <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
+      </div>
+    </div>
+
+    <div id="mismatch-modal">
+      <h3>⚠️ Header Mismatches Found</h3>
+      <div class="mismatch-list" id="mismatch-list"></div>
+      <div style="font-size:11px; margin-bottom:10px; text-align:center;">
+        Force push to all files anyway? Files with mismatches will be overwritten.
+      </div>
+      <div class="confirm-btns">
+        <button class="btn-yes" onclick="executeRangePush(true)">Force Push All</button>
+        <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
+      </div>
+    </div>
+
     <div id="spinner">
       <div class="loader"></div>
       <div style="color:#666; font-size:12px;">Working...</div>
@@ -351,6 +526,9 @@
           document.getElementById('global-row-2').style.display = 'none'; 
           document.getElementById('local-buttons').style.display = 'none'; 
           document.querySelector('.control-group').style.display = 'none';
+          document.getElementById('range-replicator-section').style.display = 'none';
+          document.getElementById('range-replicator-header').style.display = 'none';
+          document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'none'; });
           return;
         }
 
@@ -375,7 +553,10 @@
         document.getElementById('global-row-1').style.display = 'none'; 
         document.getElementById('global-row-2').style.display = 'none'; 
         document.getElementById('local-buttons').style.display = 'none'; 
-        document.querySelector('.control-group').style.display = 'none'; 
+        document.querySelector('.control-group').style.display = 'none';
+        document.getElementById('range-replicator-section').style.display = 'none';
+        document.getElementById('range-replicator-header').style.display = 'none';
+        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'none'; });
         
         pendingAction = actionType;
       }
@@ -383,10 +564,19 @@
       function cancelAction() {
         document.getElementById('confirm-modal').style.display = 'none';
         document.getElementById('data-refresh-modal').style.display = 'none';
+        document.getElementById('no-header-modal').style.display = 'none';
+        document.getElementById('mismatch-modal').style.display = 'none';
         document.getElementById('global-row-1').style.display = 'grid'; 
         document.getElementById('global-row-2').style.display = 'grid'; 
         document.getElementById('local-buttons').style.display = 'grid'; 
         document.querySelector('.control-group').style.display = 'block';
+        // Show Range Replicator sections
+        var rangeSection = document.getElementById('range-replicator-section');
+        var rangeHeader = document.getElementById('range-replicator-header');
+        if (rangeSection) rangeSection.style.display = 'block';
+        if (rangeHeader) rangeHeader.style.display = 'block';
+        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
+        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
         pendingAction = null;
       }
 
@@ -408,6 +598,10 @@
           document.getElementById('global-row-2').style.display = 'grid'; 
           document.getElementById('local-buttons').style.display = 'grid'; 
           document.querySelector('.control-group').style.display = 'block';
+          document.getElementById('range-replicator-section').style.display = 'block';
+          document.getElementById('range-replicator-header').style.display = 'block';
+          document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
+          document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
           alert("❌ ERROR: " + error.message);
         }
 
@@ -455,6 +649,10 @@
           document.getElementById('global-row-2').style.display = 'grid'; 
           document.getElementById('local-buttons').style.display = 'grid'; 
           document.querySelector('.control-group').style.display = 'block';
+          document.getElementById('range-replicator-section').style.display = 'block';
+          document.getElementById('range-replicator-header').style.display = 'block';
+          document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
+          document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
           pendingAction = null; 
           alert("❌ ERROR: " + error.message);
         }
@@ -498,6 +696,13 @@
         document.getElementById('global-row-2').style.display = 'grid'; 
         document.getElementById('local-buttons').style.display = 'grid'; 
         document.querySelector('.control-group').style.display = 'block';
+        // Restore Range Replicator sections
+        var rangeSection = document.getElementById('range-replicator-section');
+        var rangeHeader = document.getElementById('range-replicator-header');
+        if (rangeSection) rangeSection.style.display = 'block';
+        if (rangeHeader) rangeHeader.style.display = 'block';
+        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
+        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
         
         var logArea = document.getElementById('log-area');
         var logContent = document.getElementById('log-content');
@@ -518,6 +723,241 @@
 
       function showSimpleSuccess(msg) {
         showLogs([{ file: 'Local Action', status: 'Success', msg: msg }]);
+      }
+
+      // =============================================================
+      // RANGE REPLICATOR FUNCTIONS
+      // =============================================================
+      
+      let capturedRangeData = null;
+
+      // Initialize target sheet dropdown
+      google.script.run
+        .withSuccessHandler(populateTargetSheetDropdown)
+        .withFailureHandler(function(e) { console.error("Failed to load sheet names:", e); })
+        .getAllSheetNamesForTarget();
+
+      function populateTargetSheetDropdown(names) {
+        var select = document.getElementById('target-sheet-selector');
+        // Keep the first "same as source" option
+        var firstOption = select.options[0];
+        select.innerHTML = '';
+        select.add(firstOption);
+        
+        if (names && names.length > 0) {
+          names.forEach(function(name) {
+            var option = document.createElement('option');
+            option.value = name;
+            option.text = name;
+            select.add(option);
+          });
+        }
+      }
+
+      function toggleAltRange() {
+        var checkbox = document.getElementById('alt-range-check');
+        var input = document.getElementById('alt-range-input');
+        input.style.display = checkbox.checked ? 'block' : 'none';
+        if (!checkbox.checked) {
+          input.value = '';
+        }
+      }
+
+      function captureRange() {
+        document.getElementById('range-display').innerHTML = '<div style="text-align:center; color:#718096;">Capturing...</div>';
+        
+        google.script.run
+          .withSuccessHandler(function(data) {
+            capturedRangeData = data;
+            updateRangeDisplay(data);
+          })
+          .withFailureHandler(function(e) {
+            document.getElementById('range-display').innerHTML = 
+              '<div class="range-label" style="color:#c53030;">Capture Failed</div>' +
+              '<div class="range-info">' + e.message + '</div>';
+            capturedRangeData = null;
+          })
+          .captureSelectedRange();
+      }
+
+      function updateRangeDisplay(data) {
+        var display = document.getElementById('range-display');
+        display.className = 'range-display captured';
+        
+        var badgesHtml = '<div class="range-badges">';
+        if (data.hasFormulas) badgesHtml += '<span class="badge badge-formula">Has Formulas</span>';
+        if (data.hasRichText) badgesHtml += '<span class="badge badge-richtext">Has Rich Text</span>';
+        badgesHtml += '</div>';
+        
+        var headersPreview = data.firstRowHeaders.slice(0, 5).join(', ');
+        if (data.firstRowHeaders.length > 5) headersPreview += '...';
+        
+        display.innerHTML = 
+          '<div class="range-label">Range Captured</div>' +
+          '<div class="range-info">' +
+            '<span>Sheet: <strong>' + data.sheetName + '</strong></span>' +
+            '<span>Range: <strong>' + data.rangeA1 + '</strong></span>' +
+            '<span>Size: <strong>' + data.numRows + ' × ' + data.numCols + '</strong></span>' +
+          '</div>' +
+          badgesHtml +
+          '<div class="range-headers">Row 1: ' + headersPreview + '</div>';
+      }
+
+      function requestRangeAction(actionType) {
+        // Validate captured data
+        if (!capturedRangeData) {
+          alert('⚠️ Please capture a range first.');
+          return;
+        }
+        
+        var headerRow = document.getElementById('header-row-input').value;
+        
+        if (actionType === 'verify') {
+          if (!headerRow) {
+            alert('⚠️ Please enter a Header Row number to verify against.');
+            return;
+          }
+          executeRangeVerify();
+        } 
+        else if (actionType === 'push') {
+          if (!headerRow) {
+            // Show no-header warning modal
+            hideAllSections();
+            document.getElementById('no-header-modal').style.display = 'block';
+          } else {
+            // Run verify first, then push based on results
+            executeRangeVerifyThenPush();
+          }
+        }
+      }
+
+      function hideAllSections() {
+        document.getElementById('global-row-1').style.display = 'none';
+        document.getElementById('global-row-2').style.display = 'none';
+        document.getElementById('local-buttons').style.display = 'none';
+        document.querySelector('.control-group').style.display = 'none';
+        document.getElementById('range-replicator-section').style.display = 'none';
+        document.getElementById('range-replicator-header').style.display = 'none';
+        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'none'; });
+        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'none'; });
+      }
+
+      function showAllSections() {
+        document.getElementById('global-row-1').style.display = 'grid';
+        document.getElementById('global-row-2').style.display = 'grid';
+        document.getElementById('local-buttons').style.display = 'grid';
+        document.querySelector('.control-group').style.display = 'block';
+        document.getElementById('range-replicator-section').style.display = 'block';
+        document.getElementById('range-replicator-header').style.display = 'block';
+        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
+        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
+      }
+
+      function cancelRangeAction() {
+        document.getElementById('no-header-modal').style.display = 'none';
+        document.getElementById('mismatch-modal').style.display = 'none';
+        document.getElementById('confirm-modal').style.display = 'none';
+        showAllSections();
+      }
+
+      function buildRangeConfig() {
+        var targetSheet = document.getElementById('target-sheet-selector').value;
+        var altRangeChecked = document.getElementById('alt-range-check').checked;
+        var altRange = document.getElementById('alt-range-input').value;
+        var headerRow = document.getElementById('header-row-input').value;
+        
+        return {
+          sheetName: capturedRangeData.sheetName,
+          rangeA1: capturedRangeData.rangeA1,
+          targetSheetName: targetSheet || capturedRangeData.sheetName,
+          targetRangeA1: (altRangeChecked && altRange) ? altRange : capturedRangeData.rangeA1,
+          headerRow: headerRow,
+          numRows: capturedRangeData.numRows,
+          numCols: capturedRangeData.numCols,
+          data: capturedRangeData.data,
+          firstRowHeaders: capturedRangeData.firstRowHeaders
+        };
+      }
+
+      function executeRangeVerify() {
+        hideAllSections();
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('log-area').style.display = 'none';
+        
+        var config = buildRangeConfig();
+        
+        google.script.run
+          .withSuccessHandler(function(logs) {
+            document.getElementById('spinner').style.display = 'none';
+            showAllSections();
+            showLogs(logs);
+          })
+          .withFailureHandler(function(e) {
+            document.getElementById('spinner').style.display = 'none';
+            showAllSections();
+            alert('❌ Verification Error: ' + e.message);
+          })
+          .verifyRangeHeaders(config);
+      }
+
+      function executeRangeVerifyThenPush() {
+        hideAllSections();
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('log-area').style.display = 'none';
+        
+        var config = buildRangeConfig();
+        
+        google.script.run
+          .withSuccessHandler(function(logs) {
+            document.getElementById('spinner').style.display = 'none';
+            
+            // Check for mismatches
+            var mismatches = logs.filter(function(log) {
+              return log.status === 'Warning' && log.msg.includes('Mismatch');
+            });
+            
+            if (mismatches.length > 0) {
+              // Show mismatch modal
+              var mismatchHtml = '';
+              mismatches.forEach(function(m) {
+                mismatchHtml += '<div style="padding:4px; border-bottom:1px solid #fecaca;">' +
+                  '<strong>' + m.file + '</strong>: ' + m.msg + '</div>';
+              });
+              document.getElementById('mismatch-list').innerHTML = mismatchHtml;
+              document.getElementById('mismatch-modal').style.display = 'block';
+            } else {
+              // All good - proceed with push
+              executeRangePush(false);
+            }
+          })
+          .withFailureHandler(function(e) {
+            document.getElementById('spinner').style.display = 'none';
+            showAllSections();
+            alert('❌ Verification Error: ' + e.message);
+          })
+          .verifyRangeHeaders(config);
+      }
+
+      function executeRangePush(forceOverwrite) {
+        document.getElementById('no-header-modal').style.display = 'none';
+        document.getElementById('mismatch-modal').style.display = 'none';
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('log-area').style.display = 'none';
+        
+        var config = buildRangeConfig();
+        
+        google.script.run
+          .withSuccessHandler(function(logs) {
+            document.getElementById('spinner').style.display = 'none';
+            showAllSections();
+            showLogs(logs);
+          })
+          .withFailureHandler(function(e) {
+            document.getElementById('spinner').style.display = 'none';
+            showAllSections();
+            alert('❌ Push Error: ' + e.message);
+          })
+          .pushRangeToFleet(config, forceOverwrite);
       }
     </script>
   </body>

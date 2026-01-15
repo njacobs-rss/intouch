@@ -559,6 +559,358 @@ function runCreateEmployeeTabs() {
   return logs;
 }
 
+// =============================================================
+// SECTION: RANGE REPLICATOR
+// PURPOSE: Push specific cell ranges across fleet files
+// =============================================================
+
+/**
+ * HELPER: Get ALL sheet names (for Range Replicator target dropdown)
+ * Unlike getFilteredSheetNames(), this returns everything for targeting
+ */
+function getAllSheetNamesForTarget() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheets().map(function(s) { return s.getName(); });
+}
+
+/**
+ * CAPTURE: Get the currently selected range with all data
+ * Returns values, formulas (where present), and rich text info
+ */
+function captureSelectedRange() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var range = sheet.getActiveRange();
+  
+  if (!range) {
+    throw new Error("No range selected. Please select a range first.");
+  }
+  
+  var a1Notation = range.getA1Notation();
+  var numRows = range.getNumRows();
+  var numCols = range.getNumColumns();
+  
+  // Get values and formulas
+  var values = range.getValues();
+  var formulas = range.getFormulas();
+  
+  // Build hybrid data: use formula if present, otherwise use value
+  var data = [];
+  var hasFormulas = false;
+  for (var r = 0; r < numRows; r++) {
+    var row = [];
+    for (var c = 0; c < numCols; c++) {
+      if (formulas[r][c] && formulas[r][c] !== '') {
+        row.push({ type: 'formula', value: formulas[r][c] });
+        hasFormulas = true;
+      } else {
+        row.push({ type: 'value', value: values[r][c] });
+      }
+    }
+    data.push(row);
+  }
+  
+  // Get first row as potential headers (for display)
+  var firstRowHeaders = values[0].map(function(v) { 
+    return v !== null && v !== undefined ? String(v) : ''; 
+  });
+  
+  // Check for rich text
+  var hasRichText = false;
+  try {
+    var richTextValues = range.getRichTextValues();
+    for (var r = 0; r < numRows && !hasRichText; r++) {
+      for (var c = 0; c < numCols && !hasRichText; c++) {
+        var rt = richTextValues[r][c];
+        if (rt) {
+          var runs = rt.getRuns();
+          if (runs.length > 1) {
+            hasRichText = true;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Rich text not supported or error - continue without it
+  }
+  
+  return {
+    sheetName: sheet.getName(),
+    rangeA1: a1Notation,
+    startRow: range.getRow(),
+    startCol: range.getColumn(),
+    numRows: numRows,
+    numCols: numCols,
+    data: data,
+    firstRowHeaders: firstRowHeaders,
+    hasFormulas: hasFormulas,
+    hasRichText: hasRichText
+  };
+}
+
+/**
+ * VERIFY: Check headers across all fleet files
+ * @param {Object} config - Configuration object with range and header info
+ * @returns {Array} logs - Array of verification results per file
+ */
+function verifyRangeHeaders(config) {
+  assertAdminAccess();
+  
+  var logs = [];
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  var targetSheetName = config.targetSheetName || config.sheetName;
+  var headerRow = parseInt(config.headerRow);
+  var targetRangeA1 = config.targetRangeA1 || config.rangeA1;
+  var sourceHeaders = config.firstRowHeaders;
+  
+  // If no header row specified, skip verification
+  if (!headerRow || isNaN(headerRow)) {
+    return [{ status: 'Warning', file: 'SYSTEM', msg: 'No header row specified - verification skipped' }];
+  }
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getId() !== ss.getId() && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        var targetSheet = targetSS.getSheetByName(targetSheetName);
+        
+        if (!targetSheet) {
+          logs.push({ status: 'Skipped', file: file.getName(), msg: 'Sheet "' + targetSheetName + '" not found' });
+          continue;
+        }
+        
+        // Parse target range to get column positions
+        var rangeRef = parseA1Notation_(targetRangeA1);
+        var headerRange = targetSheet.getRange(headerRow, rangeRef.startCol, 1, rangeRef.numCols);
+        var targetHeaders = headerRange.getValues()[0].map(function(v) {
+          return v !== null && v !== undefined ? String(v).trim() : '';
+        });
+        
+        // Compare headers
+        var matches = true;
+        var mismatches = [];
+        for (var i = 0; i < sourceHeaders.length; i++) {
+          var srcHeader = String(sourceHeaders[i] || '').trim();
+          var tgtHeader = String(targetHeaders[i] || '').trim();
+          if (srcHeader !== tgtHeader) {
+            matches = false;
+            mismatches.push('Col ' + (i + 1) + ': "' + srcHeader + '" vs "' + tgtHeader + '"');
+          }
+        }
+        
+        if (matches) {
+          logs.push({ status: 'Success', file: file.getName(), msg: 'Headers match' });
+        } else {
+          logs.push({ status: 'Warning', file: file.getName(), msg: 'Mismatch: ' + mismatches.slice(0, 3).join(', ') + (mismatches.length > 3 ? '...' : '') });
+        }
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
+  }
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
+  return logs;
+}
+
+/**
+ * PUSH: Replicate range data to all fleet files
+ * @param {Object} config - Configuration with captured range data
+ * @param {boolean} forceOverwrite - If true, push even if headers don't match
+ * @returns {Array} logs - Array of results per file
+ */
+function pushRangeToFleet(config, forceOverwrite) {
+  assertAdminAccess();
+  
+  var logs = [];
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName(config.sheetName);
+  var startTime = new Date();
+  var processedCount = 0;
+  
+  var targetSheetName = config.targetSheetName || config.sheetName;
+  var targetRangeA1 = config.targetRangeA1 || config.rangeA1;
+  var headerRow = parseInt(config.headerRow);
+  var hasHeaderRow = headerRow && !isNaN(headerRow);
+  
+  // Get fresh data from source range (including rich text)
+  var sourceRange = sourceSheet.getRange(config.rangeA1);
+  var richTextValues = null;
+  try {
+    richTextValues = sourceRange.getRichTextValues();
+  } catch (e) {
+    // Rich text not available - continue without it
+  }
+  
+  ss.toast("Pushing range to fleet files...", "Range Replicator", -1);
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    
+    // Timeout protection (5 min safety margin)
+    if ((new Date() - startTime) / 1000 > 300) {
+      logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'Timeout risk - stopped at ' + processedCount + ' files. Run again to continue.' });
+      break;
+    }
+    
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getId() !== ss.getId() && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        var targetSheet = targetSS.getSheetByName(targetSheetName);
+        
+        if (!targetSheet) {
+          logs.push({ status: 'Skipped', file: file.getName(), msg: 'Sheet "' + targetSheetName + '" not found' });
+          continue;
+        }
+        
+        // Parse target range
+        var rangeRef = parseA1Notation_(targetRangeA1);
+        var targetRange = targetSheet.getRange(rangeRef.startRow, rangeRef.startCol, config.numRows, config.numCols);
+        
+        // Verify headers if specified and not forcing
+        if (hasHeaderRow && !forceOverwrite) {
+          var headerRange = targetSheet.getRange(headerRow, rangeRef.startCol, 1, config.numCols);
+          var targetHeaders = headerRange.getValues()[0];
+          var headersMatch = true;
+          for (var i = 0; i < config.firstRowHeaders.length; i++) {
+            if (String(config.firstRowHeaders[i] || '').trim() !== String(targetHeaders[i] || '').trim()) {
+              headersMatch = false;
+              break;
+            }
+          }
+          if (!headersMatch) {
+            logs.push({ status: 'Skipped', file: file.getName(), msg: 'Header mismatch - use Force to override' });
+            continue;
+          }
+        }
+        
+        // Build output arrays
+        var valuesToWrite = [];
+        var formulasToWrite = [];
+        var hasAnyFormulas = false;
+        
+        for (var r = 0; r < config.data.length; r++) {
+          var valueRow = [];
+          var formulaRow = [];
+          for (var c = 0; c < config.data[r].length; c++) {
+            var cell = config.data[r][c];
+            if (cell.type === 'formula') {
+              valueRow.push(''); // Placeholder
+              formulaRow.push(cell.value);
+              hasAnyFormulas = true;
+            } else {
+              valueRow.push(cell.value);
+              formulaRow.push('');
+            }
+          }
+          valuesToWrite.push(valueRow);
+          formulasToWrite.push(formulaRow);
+        }
+        
+        // Write values first
+        targetRange.setValues(valuesToWrite);
+        
+        // Write formulas where needed
+        if (hasAnyFormulas) {
+          for (var r = 0; r < formulasToWrite.length; r++) {
+            for (var c = 0; c < formulasToWrite[r].length; c++) {
+              if (formulasToWrite[r][c] !== '') {
+                targetRange.getCell(r + 1, c + 1).setFormula(formulasToWrite[r][c]);
+              }
+            }
+          }
+        }
+        
+        // Apply rich text if available
+        if (richTextValues) {
+          try {
+            targetRange.setRichTextValues(richTextValues);
+          } catch (e) {
+            // Rich text application failed - continue without it
+          }
+        }
+        
+        logs.push({ status: 'Success', file: file.getName(), msg: 'Range pushed (' + config.numRows + 'x' + config.numCols + ')' });
+        processedCount++;
+        
+        Utilities.sleep(200); // Rate limiting
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
+  }
+  
+  ss.toast("Range push complete.", "Range Replicator", 5);
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
+  return logs;
+}
+
+/**
+ * HELPER: Parse A1 notation to get row/col info
+ * @param {string} a1 - A1 notation like "B5:F10"
+ * @returns {Object} - {startRow, startCol, numRows, numCols}
+ */
+function parseA1Notation_(a1) {
+  // Handle single cell or range
+  var parts = a1.toUpperCase().split(':');
+  var startCell = parts[0];
+  var endCell = parts[1] || parts[0];
+  
+  // Parse start cell
+  var startMatch = startCell.match(/([A-Z]+)(\d+)/);
+  if (!startMatch) throw new Error("Invalid A1 notation: " + a1);
+  var startCol = columnLetterToNumber_(startMatch[1]);
+  var startRow = parseInt(startMatch[2]);
+  
+  // Parse end cell
+  var endMatch = endCell.match(/([A-Z]+)(\d+)/);
+  if (!endMatch) throw new Error("Invalid A1 notation: " + a1);
+  var endCol = columnLetterToNumber_(endMatch[1]);
+  var endRow = parseInt(endMatch[2]);
+  
+  return {
+    startRow: startRow,
+    startCol: startCol,
+    numRows: endRow - startRow + 1,
+    numCols: endCol - startCol + 1
+  };
+}
+
+/**
+ * HELPER: Convert column letter(s) to number
+ * @param {string} letters - Column letters like "A", "AB", "ZZ"
+ * @returns {number} - Column number (1-based)
+ */
+function columnLetterToNumber_(letters) {
+  var result = 0;
+  for (var i = 0; i < letters.length; i++) {
+    result = result * 26 + (letters.charCodeAt(i) - 64);
+  }
+  return result;
+}
+
 /**
  * Helper: Get unique sheet name for a target spreadsheet
  * (Mirrors getUniqueSheetName from Admin.gs but works on any SS)

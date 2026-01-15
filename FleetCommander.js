@@ -265,111 +265,228 @@ function runUpdateSheet() {
 }
 
 /**
- * [UPDATED] runUpdateSTATCORE
- * ACTION: Full Pipeline - STATCORE → SYSCORE → DAGCORE
+ * FLEET DATA REFRESH: Full Pipeline - STATCORE → SYSCORE → DAGCORE
+ * Iterates through all fleet files and runs the complete data pipeline
  * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
  */
 function runUpdateSTATCORE(updateNotes) {
-  assertAdminAccess(); // Global function - requires admin
+  assertAdminAccess();
   var logs = [];
-  try {
-    // Call the local function directly from STATCORE.gs
-    // This triggers the full chain: STATCORE → SYSCORE → DAGCORE
-    updateSTATCORE(); 
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var processedCount = 0;
+  var startTime = new Date();
+  
+  while (files.hasNext()) {
+    var file = files.next();
     
-    var msg = 'Full Pipeline Executed (STATCORE + SYSCORE + DAGCORE)';
-    
-    // Optionally update dynamic notes
-    if (updateNotes === true) {
-      updateAccountNotes();
-      msg += ' + Notes';
+    // Check for timeout risk (5 min safety margin from 6 min limit)
+    if ((new Date() - startTime) / 1000 > 300) {
+      logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'Timeout risk - stopped at ' + processedCount + ' files. Run again to continue.' });
+      break;
     }
     
-    logs.push({ 
-      status: 'Success', 
-      file: 'Global System', 
-      msg: msg 
-    });
-    
-  } catch (e) {
-    logs.push({ 
-      status: 'Error', 
-      file: 'Global System', 
-      msg: e.message 
-    });
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        
+        // Run full pipeline with skipChain=false (let it chain naturally)
+        var result = updateSTATCORE(targetSS, false);
+        
+        // Optionally update notes
+        if (updateNotes === true) {
+          updateAccountNotes(targetSS);
+        }
+        
+        var msg = result.result === 'Success' 
+          ? 'Full Pipeline: ' + result.records + ' records' + (updateNotes ? ' + Notes' : '')
+          : result.error;
+        
+        logs.push({ status: result.result, file: file.getName(), msg: msg });
+        processedCount++;
+        
+        Utilities.sleep(500); // Breathing room between files
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
   }
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
   return logs;
 }
 
 /**
- * runUpdateSYSCOREOnly
- * ACTION: Partial Pipeline - SYSCORE → DAGCORE (skips base STATCORE)
+ * FLEET DATA REFRESH: SYSCORE + DAGCORE (skips base STATCORE)
+ * Iterates through all fleet files
+ * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
+ */
+function runUpdateSYSCOREWithDAGCORE(updateNotes) {
+  assertAdminAccess();
+  var logs = [];
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var processedCount = 0;
+  var startTime = new Date();
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    
+    if ((new Date() - startTime) / 1000 > 300) {
+      logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'Timeout risk - stopped at ' + processedCount + ' files. Run again to continue.' });
+      break;
+    }
+    
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        
+        // Run SYSCORE (will chain to DAGCORE)
+        var result = runSYSCOREUpdates(false, targetSS);
+        
+        if (updateNotes === true) {
+          updateAccountNotes(targetSS);
+        }
+        
+        var msg = result.result === 'Success' 
+          ? 'SYSCORE+DAGCORE: ' + result.records + ' matched' + (updateNotes ? ' + Notes' : '')
+          : result.error;
+        
+        logs.push({ status: result.result, file: file.getName(), msg: msg });
+        processedCount++;
+        
+        Utilities.sleep(500);
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
+  }
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
+  return logs;
+}
+
+/**
+ * FLEET DATA REFRESH: SYSCORE Only (skips DAGCORE)
+ * Iterates through all fleet files
  * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
  */
 function runUpdateSYSCOREOnly(updateNotes) {
-  assertAdminAccess(); // Global function - requires admin
+  assertAdminAccess();
   var logs = [];
-  try {
-    // Call SYSCORE directly - it will chain to DAGCORE
-    runSYSCOREUpdates(); 
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var processedCount = 0;
+  var startTime = new Date();
+  
+  while (files.hasNext()) {
+    var file = files.next();
     
-    var msg = 'SYSCORE + DAGCORE Pipeline Executed';
-    
-    // Optionally update dynamic notes
-    if (updateNotes === true) {
-      updateAccountNotes();
-      msg += ' + Notes';
+    if ((new Date() - startTime) / 1000 > 300) {
+      logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'Timeout risk - stopped at ' + processedCount + ' files. Run again to continue.' });
+      break;
     }
     
-    logs.push({ 
-      status: 'Success', 
-      file: 'Global System', 
-      msg: msg 
-    });
-    
-  } catch (e) {
-    logs.push({ 
-      status: 'Error', 
-      file: 'Global System', 
-      msg: e.message 
-    });
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        
+        // Run SYSCORE with skipDagcore=true
+        var result = runSYSCOREUpdates(true, targetSS);
+        
+        if (updateNotes === true) {
+          updateAccountNotes(targetSS);
+        }
+        
+        var msg = result.result === 'Success' 
+          ? 'SYSCORE Only: ' + result.records + ' matched' + (updateNotes ? ' + Notes' : '')
+          : result.error;
+        
+        logs.push({ status: result.result, file: file.getName(), msg: msg });
+        processedCount++;
+        
+        Utilities.sleep(500);
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
   }
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
   return logs;
 }
 
 /**
- * runUpdateDAGCOREOnly
- * ACTION: DAGCORE Only - Refreshes DISTRO sheet
+ * FLEET DATA REFRESH: DAGCORE Only - Refreshes DISTRO sheet
+ * Iterates through all fleet files (fastest option)
  * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
  */
 function runUpdateDAGCOREOnly(updateNotes) {
-  assertAdminAccess(); // Global function - requires admin
+  assertAdminAccess();
   var logs = [];
-  try {
-    // Call DAGCORE directly - no chaining
-    runDAGCOREUpdates(); 
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var processedCount = 0;
+  var startTime = new Date();
+  
+  while (files.hasNext()) {
+    var file = files.next();
     
-    var msg = 'DAGCORE Only Executed (DISTRO refreshed)';
-    
-    // Optionally update dynamic notes
-    if (updateNotes === true) {
-      updateAccountNotes();
-      msg += ' + Notes';
+    if ((new Date() - startTime) / 1000 > 300) {
+      logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'Timeout risk - stopped at ' + processedCount + ' files. Run again to continue.' });
+      break;
     }
     
-    logs.push({ 
-      status: 'Success', 
-      file: 'Global System', 
-      msg: msg 
-    });
-    
-  } catch (e) {
-    logs.push({ 
-      status: 'Error', 
-      file: 'Global System', 
-      msg: e.message 
-    });
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getName().includes(TARGET_PHRASE)) {
+      
+      try {
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        
+        // Run DAGCORE only
+        var result = runDAGCOREUpdates(targetSS);
+        
+        if (updateNotes === true) {
+          updateAccountNotes(targetSS);
+        }
+        
+        var msg = result.result === 'Success' 
+          ? 'DAGCORE: ' + result.records + ' records' + (updateNotes ? ' + Notes' : '')
+          : result.error;
+        
+        logs.push({ status: result.result, file: file.getName(), msg: msg });
+        processedCount++;
+        
+        Utilities.sleep(500);
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
   }
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
   return logs;
 }
 

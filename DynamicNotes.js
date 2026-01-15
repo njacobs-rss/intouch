@@ -21,10 +21,11 @@ const SOURCE_SHEET_LIST_RANGE = 'C3:C23';
 /**
  * 1. MAIN FUNCTION: UPDATE NOTES BATCH
  * Runs on all sheets listed in SETUP!C3:C23
+ * @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
  */
-function updateAccountNotes() {
+function updateAccountNotes(targetSS) {
   console.time('Total Execution Time');
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
 
   console.log("--- 🟢 STEP 1: INITIALIZATION ---");
   

@@ -10,7 +10,9 @@
  */
 
 // === STEP 1: UPDATE BASE DATA (STATCORE) ===
-function updateSTATCORE() {
+// @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
+// @param {boolean} skipChain - If true, does NOT chain to SYSCORE/formulas (for fleet ops)
+function updateSTATCORE(targetSS, skipChain) {
   const startTime = new Date();
   const functionName = "updateSTATCORE";
   Logger.log(`[${functionName}] Starting at ${startTime.toLocaleTimeString()}`);
@@ -18,7 +20,7 @@ function updateSTATCORE() {
   let result = "Success";
   let recordsAdded = 0;
   let errorMessage = "";
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheetName = 'Statcore'; 
 
   try {
@@ -92,18 +94,22 @@ function updateSTATCORE() {
       refreshSheet.appendRow(['STATCORE', new Date(), recordsAdded, duration, result, errorMessage]);
     }
 
-    if (result === "Success") {
+    if (result === "Success" && skipChain !== true) {
       Utilities.sleep(1000); // Breathe
-      runSYSCOREUpdates();
-      ensureSTATCORE_Formulas();
+      runSYSCOREUpdates(false, ss);
+      ensureSTATCORE_Formulas(ss);
     }
   } catch (logError) {
     Logger.log("Logging error: " + logError.message);
   }
+  
+  return { result: result, records: recordsAdded, error: errorMessage };
 }
 
 // === STEP 2: UPDATE SUPPLEMENTAL DATA (SYSCORE) ===
-function runSYSCOREUpdates() {
+// @param {boolean} skipDagcore - If true, does NOT chain to runDAGCOREUpdates()
+// @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
+function runSYSCOREUpdates(skipDagcore, targetSS) {
   const startTime = new Date();
   const functionName = "runSYSCOREUpdates";
   Logger.log(`[${functionName}] Starting at ${startTime.toLocaleTimeString()}`);
@@ -111,7 +117,7 @@ function runSYSCOREUpdates() {
   let result = "Success";
   let recordsAdded = 0;
   let errorMessage = "";
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
 
   try {
     const sourceSpreadsheet = SpreadsheetApp.openById('1V4C9mIL4ISP4rx2tJcpPhflM-RIi4eft_xDZWAgWmGU');
@@ -211,12 +217,17 @@ function runSYSCOREUpdates() {
     refreshSheet.appendRow(['SYSCORE', new Date(), recordsAdded, duration, result, errorMessage]);
   }
 
-  // Continue pipeline
-  runDAGCOREUpdates();
+  // Continue pipeline (unless skipDagcore is true)
+  if (skipDagcore !== true) {
+    runDAGCOREUpdates(ss);
+  }
+  
+  return { result: result, records: recordsAdded, error: errorMessage };
 }
 
 // === STEP 3: UPDATE DISTRO (DAGCORE) ===
-function runDAGCOREUpdates() {
+// @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
+function runDAGCOREUpdates(targetSS) {
   const startTime = new Date();
   const functionName = "runDAGCOREUpdates";
   Logger.log(`[${functionName}] Starting at ${startTime.toLocaleTimeString()}`);
@@ -224,7 +235,7 @@ function runDAGCOREUpdates() {
   let result = "Success";
   let recordsAdded = 0;
   let errorMessage = "";
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
   const sheetName = 'SEND';
   const batchSize = 4000; // Optimized for 30k rows
 
@@ -287,10 +298,13 @@ function runDAGCOREUpdates() {
   }
   
   // REMOVED: Duplicate trigger for updateAccountNotes();
+  
+  return { result: result, records: recordsAdded, error: errorMessage };
 }
 
 // === HELPER: FORMULA REPAIR ===
-function ensureSTATCORE_Formulas() {
+// @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
+function ensureSTATCORE_Formulas(targetSS) {
   const startTime = new Date();
   Logger.log("Starting ensureSTATCORE_Formulas at " + startTime.toLocaleTimeString());
 
@@ -298,7 +312,7 @@ function ensureSTATCORE_Formulas() {
   let errorMessage = "";
   let recordsAdded = 1; 
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
 
   try {
     const sh = ss.getSheetByName('STATCORE');

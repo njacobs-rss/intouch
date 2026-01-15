@@ -268,6 +268,14 @@
       </label>
       
       <label class="radio-option">
+        <input type="radio" name="refresh-scope" value="syscore-only">
+        <div class="option-text">
+          <div class="option-title">SYSCORE Only</div>
+          <div class="option-desc">Refresh supplemental data, skip DISTRO</div>
+        </div>
+      </label>
+      
+      <label class="radio-option">
         <input type="radio" name="refresh-scope" value="dagcore">
         <div class="option-text">
           <div class="option-title">DAGCORE Only</div>
@@ -407,6 +415,9 @@
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSTATCORE(updateNotes);
         } 
         else if (scope === 'syscore') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSYSCOREWithDAGCORE(updateNotes);
+        } 
+        else if (scope === 'syscore-only') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSYSCOREOnly(updateNotes);
         } 
         else if (scope === 'dagcore') {

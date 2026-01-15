@@ -376,6 +376,17 @@
           <span class="icon">🚀</span> <span id="push-btn-text">Push to Fleet</span>
         </button>
       </div>
+      
+      <div id="test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:12px; border-radius:6px; margin-top:12px; text-align:center;">
+        <div style="font-weight:bold; margin-bottom:6px; font-size:13px;">✅ Test Push Complete!</div>
+        <div style="font-size:11px; margin-bottom:4px;">Successfully pushed to:</div>
+        <div id="test-success-filename" style="font-weight:600; color:#2c7a7b; margin-bottom:10px; font-size:12px;"></div>
+        <div style="font-size:10px; margin-bottom:8px;">Would you like to open the file to verify?</div>
+        <div class="confirm-btns" style="margin-top:0;">
+          <button class="btn-yes" onclick="openTestFile()">Open File</button>
+          <button class="btn-no" onclick="closeTestSuccessModal()">Done</button>
+        </div>
+      </div>
     </div>
 
     <hr class="section-divider">
@@ -476,17 +487,6 @@
       <div class="confirm-btns">
         <button class="btn-yes" onclick="executeRangePush(true)">Force Push All</button>
         <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
-      </div>
-    </div>
-
-    <div id="test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:15px; border-radius:6px; margin-top:20px; text-align:center;">
-      <div style="font-weight:bold; margin-bottom:8px; font-size:14px;">✅ Test Push Complete!</div>
-      <div style="font-size:12px; margin-bottom:5px;">Successfully pushed to:</div>
-      <div id="test-success-filename" style="font-weight:600; color:#2c7a7b; margin-bottom:12px;"></div>
-      <div style="font-size:11px; margin-bottom:10px;">Would you like to open the file to verify the results?</div>
-      <div class="confirm-btns">
-        <button class="btn-yes" onclick="openTestFile()">Open File</button>
-        <button class="btn-no" onclick="closeTestSuccessModal()">Done</button>
       </div>
     </div>
 

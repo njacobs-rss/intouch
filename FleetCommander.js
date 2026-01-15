@@ -857,7 +857,16 @@ function pushRangeToFleet(config, forceOverwrite) {
         // Write values first
         targetRange.setValues(valuesToWrite);
         
-        // Write formulas where needed
+        // Apply rich text BEFORE formulas (rich text would overwrite formulas if applied after)
+        if (richTextValues) {
+          try {
+            targetRange.setRichTextValues(richTextValues);
+          } catch (e) {
+            // Rich text application failed - continue without it
+          }
+        }
+        
+        // Write formulas LAST (must come after rich text to avoid being overwritten)
         if (hasAnyFormulas) {
           for (var r = 0; r < formulasToWrite.length; r++) {
             for (var c = 0; c < formulasToWrite[r].length; c++) {
@@ -865,15 +874,6 @@ function pushRangeToFleet(config, forceOverwrite) {
                 targetRange.getCell(r + 1, c + 1).setFormula(formulasToWrite[r][c]);
               }
             }
-          }
-        }
-        
-        // Apply rich text if available
-        if (richTextValues) {
-          try {
-            targetRange.setRichTextValues(richTextValues);
-          } catch (e) {
-            // Rich text application failed - continue without it
           }
         }
         
@@ -1046,7 +1046,16 @@ function pushRangeToSingleFile(config, fileId, forceOverwrite) {
     // Write values first
     targetRange.setValues(valuesToWrite);
     
-    // Write formulas where needed
+    // Apply rich text BEFORE formulas (rich text would overwrite formulas if applied after)
+    if (richTextValues) {
+      try {
+        targetRange.setRichTextValues(richTextValues);
+      } catch (e) {
+        // Rich text application failed - continue without it
+      }
+    }
+    
+    // Write formulas LAST (must come after rich text to avoid being overwritten)
     if (hasAnyFormulas) {
       for (var r = 0; r < formulasToWrite.length; r++) {
         for (var c = 0; c < formulasToWrite[r].length; c++) {
@@ -1054,15 +1063,6 @@ function pushRangeToSingleFile(config, fileId, forceOverwrite) {
             targetRange.getCell(r + 1, c + 1).setFormula(formulasToWrite[r][c]);
           }
         }
-      }
-    }
-    
-    // Apply rich text if available
-    if (richTextValues) {
-      try {
-        targetRange.setRichTextValues(richTextValues);
-      } catch (e) {
-        // Rich text application failed - continue without it
       }
     }
     

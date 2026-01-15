@@ -574,6 +574,36 @@ function getAllSheetNamesForTarget() {
 }
 
 /**
+ * HELPER: Get list of fleet files for single-file testing
+ * Returns array of {name, id} objects for files matching fleet criteria
+ */
+function getFleetFileList() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var fleetFiles = [];
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getId() !== ss.getId() && 
+        file.getName().includes(TARGET_PHRASE)) {
+      fleetFiles.push({
+        name: file.getName(),
+        id: file.getId()
+      });
+    }
+  }
+  
+  // Sort alphabetically by name
+  fleetFiles.sort(function(a, b) {
+    return a.name.localeCompare(b.name);
+  });
+  
+  return fleetFiles;
+}
+
+/**
  * CAPTURE: Get the currently selected range with all data
  * Returns values, formulas (where present), and rich text info
  */
@@ -862,6 +892,185 @@ function pushRangeToFleet(config, forceOverwrite) {
   
   if (logs.length === 0) {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
+  return logs;
+}
+
+/**
+ * VERIFY SINGLE FILE: Check headers for one specific fleet file (for testing)
+ * @param {Object} config - Configuration object with range and header info
+ * @param {string} fileId - The ID of the specific file to verify
+ * @returns {Array} logs - Array with single verification result
+ */
+function verifyRangeHeadersSingleFile(config, fileId) {
+  assertAdminAccess();
+  
+  var logs = [];
+  var targetSheetName = config.targetSheetName || config.sheetName;
+  var headerRow = parseInt(config.headerRow);
+  var targetRangeA1 = config.targetRangeA1 || config.rangeA1;
+  var sourceHeaders = config.firstRowHeaders;
+  
+  // If no header row specified, skip verification
+  if (!headerRow || isNaN(headerRow)) {
+    return [{ status: 'Warning', file: 'SYSTEM', msg: 'No header row specified - verification skipped' }];
+  }
+  
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    var targetSheet = targetSS.getSheetByName(targetSheetName);
+    
+    if (!targetSheet) {
+      logs.push({ status: 'Skipped', file: fileName, msg: 'Sheet "' + targetSheetName + '" not found' });
+      return logs;
+    }
+    
+    // Parse target range to get column positions
+    var rangeRef = parseA1Notation_(targetRangeA1);
+    var headerRange = targetSheet.getRange(headerRow, rangeRef.startCol, 1, rangeRef.numCols);
+    var targetHeaders = headerRange.getValues()[0].map(function(v) {
+      return v !== null && v !== undefined ? String(v).trim() : '';
+    });
+    
+    // Compare headers
+    var matches = true;
+    var mismatches = [];
+    for (var i = 0; i < sourceHeaders.length; i++) {
+      var srcHeader = String(sourceHeaders[i] || '').trim();
+      var tgtHeader = String(targetHeaders[i] || '').trim();
+      if (srcHeader !== tgtHeader) {
+        matches = false;
+        mismatches.push('Col ' + (i + 1) + ': "' + srcHeader + '" vs "' + tgtHeader + '"');
+      }
+    }
+    
+    if (matches) {
+      logs.push({ status: 'Success', file: fileName, msg: 'Headers match' });
+    } else {
+      logs.push({ status: 'Warning', file: fileName, msg: 'Mismatch: ' + mismatches.slice(0, 3).join(', ') + (mismatches.length > 3 ? '...' : '') });
+    }
+    
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.toString() });
+  }
+  
+  return logs;
+}
+
+/**
+ * PUSH SINGLE FILE: Replicate range data to one specific fleet file (for testing)
+ * @param {Object} config - Configuration with captured range data
+ * @param {string} fileId - The ID of the specific file to push to
+ * @param {boolean} forceOverwrite - If true, push even if headers don't match
+ * @returns {Array} logs - Array with single result
+ */
+function pushRangeToSingleFile(config, fileId, forceOverwrite) {
+  assertAdminAccess();
+  
+  var logs = [];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName(config.sheetName);
+  
+  var targetSheetName = config.targetSheetName || config.sheetName;
+  var targetRangeA1 = config.targetRangeA1 || config.rangeA1;
+  var headerRow = parseInt(config.headerRow);
+  var hasHeaderRow = headerRow && !isNaN(headerRow);
+  
+  // Get fresh data from source range (including rich text)
+  var sourceRange = sourceSheet.getRange(config.rangeA1);
+  var richTextValues = null;
+  try {
+    richTextValues = sourceRange.getRichTextValues();
+  } catch (e) {
+    // Rich text not available - continue without it
+  }
+  
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    var targetSheet = targetSS.getSheetByName(targetSheetName);
+    
+    ss.toast("Pushing range to " + fileName + "...", "Range Replicator (Test)", -1);
+    
+    if (!targetSheet) {
+      logs.push({ status: 'Skipped', file: fileName, msg: 'Sheet "' + targetSheetName + '" not found' });
+      return logs;
+    }
+    
+    // Parse target range
+    var rangeRef = parseA1Notation_(targetRangeA1);
+    var targetRange = targetSheet.getRange(rangeRef.startRow, rangeRef.startCol, config.numRows, config.numCols);
+    
+    // Verify headers if specified and not forcing
+    if (hasHeaderRow && !forceOverwrite) {
+      var headerRange = targetSheet.getRange(headerRow, rangeRef.startCol, 1, config.numCols);
+      var targetHeaders = headerRange.getValues()[0];
+      var headersMatch = true;
+      for (var i = 0; i < config.firstRowHeaders.length; i++) {
+        if (String(config.firstRowHeaders[i] || '').trim() !== String(targetHeaders[i] || '').trim()) {
+          headersMatch = false;
+          break;
+        }
+      }
+      if (!headersMatch) {
+        logs.push({ status: 'Skipped', file: fileName, msg: 'Header mismatch - use Force to override' });
+        return logs;
+      }
+    }
+    
+    // Build output arrays
+    var valuesToWrite = [];
+    var formulasToWrite = [];
+    var hasAnyFormulas = false;
+    
+    for (var r = 0; r < config.data.length; r++) {
+      var valueRow = [];
+      var formulaRow = [];
+      for (var c = 0; c < config.data[r].length; c++) {
+        var cell = config.data[r][c];
+        if (cell.type === 'formula') {
+          valueRow.push(''); // Placeholder
+          formulaRow.push(cell.value);
+          hasAnyFormulas = true;
+        } else {
+          valueRow.push(cell.value);
+          formulaRow.push('');
+        }
+      }
+      valuesToWrite.push(valueRow);
+      formulasToWrite.push(formulaRow);
+    }
+    
+    // Write values first
+    targetRange.setValues(valuesToWrite);
+    
+    // Write formulas where needed
+    if (hasAnyFormulas) {
+      for (var r = 0; r < formulasToWrite.length; r++) {
+        for (var c = 0; c < formulasToWrite[r].length; c++) {
+          if (formulasToWrite[r][c] !== '') {
+            targetRange.getCell(r + 1, c + 1).setFormula(formulasToWrite[r][c]);
+          }
+        }
+      }
+    }
+    
+    // Apply rich text if available
+    if (richTextValues) {
+      try {
+        targetRange.setRichTextValues(richTextValues);
+      } catch (e) {
+        // Rich text application failed - continue without it
+      }
+    }
+    
+    logs.push({ status: 'Success', file: fileName, msg: 'Range pushed (' + config.numRows + 'x' + config.numCols + ')' });
+    ss.toast("Test push complete.", "Range Replicator", 5);
+    
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.toString() });
   }
   
   return logs;

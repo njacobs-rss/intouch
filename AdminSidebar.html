@@ -358,12 +358,22 @@
       
       <input type="text" id="alt-range-input" placeholder="e.g., A5:F20" style="display:none; margin-bottom:12px;">
       
+      <div class="checkbox-wrapper" style="margin-bottom:8px; padding:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:4px;">
+        <input type="checkbox" id="test-mode-check" onchange="toggleTestMode()"> 
+        <span style="color:#c2410c; font-weight:600;">Test Mode (Single File)</span>
+      </div>
+      
+      <div id="test-file-wrapper" style="display:none; margin-bottom:12px;">
+        <label>Target Fleet File</label>
+        <select id="fleet-file-selector"><option value="">Loading fleet files...</option></select>
+      </div>
+      
       <div class="grid-2">
         <button class="btn-config btn-vertical" onclick="requestRangeAction('verify')" id="btn-verify">
           <span class="icon">✓</span> Verify Headers
         </button>
         <button class="btn-safe btn-vertical" onclick="requestRangeAction('push')" id="btn-push">
-          <span class="icon">🚀</span> Push to Fleet
+          <span class="icon">🚀</span> <span id="push-btn-text">Push to Fleet</span>
         </button>
       </div>
     </div>
@@ -469,6 +479,17 @@
       </div>
     </div>
 
+    <div id="test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:15px; border-radius:6px; margin-top:20px; text-align:center;">
+      <div style="font-weight:bold; margin-bottom:8px; font-size:14px;">✅ Test Push Complete!</div>
+      <div style="font-size:12px; margin-bottom:5px;">Successfully pushed to:</div>
+      <div id="test-success-filename" style="font-weight:600; color:#2c7a7b; margin-bottom:12px;"></div>
+      <div style="font-size:11px; margin-bottom:10px;">Would you like to open the file to verify the results?</div>
+      <div class="confirm-btns">
+        <button class="btn-yes" onclick="openTestFile()">Open File</button>
+        <button class="btn-no" onclick="closeTestSuccessModal()">Done</button>
+      </div>
+    </div>
+
     <div id="spinner">
       <div class="loader"></div>
       <div style="color:#666; font-size:12px;">Working...</div>
@@ -566,6 +587,7 @@
         document.getElementById('data-refresh-modal').style.display = 'none';
         document.getElementById('no-header-modal').style.display = 'none';
         document.getElementById('mismatch-modal').style.display = 'none';
+        document.getElementById('test-success-modal').style.display = 'none';
         document.getElementById('global-row-1').style.display = 'grid'; 
         document.getElementById('global-row-2').style.display = 'grid'; 
         document.getElementById('local-buttons').style.display = 'grid'; 
@@ -763,6 +785,50 @@
         }
       }
 
+      // Load fleet files for test mode dropdown
+      var fleetFilesLoaded = false;
+      function loadFleetFiles() {
+        if (fleetFilesLoaded) return;
+        google.script.run
+          .withSuccessHandler(function(files) {
+            var select = document.getElementById('fleet-file-selector');
+            select.innerHTML = '<option value="">— Select a file —</option>';
+            if (files && files.length > 0) {
+              files.forEach(function(file) {
+                var option = document.createElement('option');
+                option.value = file.id;
+                option.text = file.name;
+                select.add(option);
+              });
+              fleetFilesLoaded = true;
+            } else {
+              select.innerHTML = '<option value="">No fleet files found</option>';
+            }
+          })
+          .withFailureHandler(function(e) {
+            var select = document.getElementById('fleet-file-selector');
+            select.innerHTML = '<option value="">Error loading files</option>';
+            console.error("Failed to load fleet files:", e);
+          })
+          .getFleetFileList();
+      }
+
+      function toggleTestMode() {
+        var checkbox = document.getElementById('test-mode-check');
+        var wrapper = document.getElementById('test-file-wrapper');
+        var pushBtnText = document.getElementById('push-btn-text');
+        
+        if (checkbox.checked) {
+          wrapper.style.display = 'block';
+          pushBtnText.textContent = 'Test Push';
+          loadFleetFiles(); // Load fleet files on first enable
+        } else {
+          wrapper.style.display = 'none';
+          pushBtnText.textContent = 'Push to Fleet';
+          document.getElementById('fleet-file-selector').value = '';
+        }
+      }
+
       function captureRange() {
         document.getElementById('range-display').innerHTML = '<div style="text-align:center; color:#718096;">Capturing...</div>';
         
@@ -807,6 +873,12 @@
         // Validate captured data
         if (!capturedRangeData) {
           alert('⚠️ Please capture a range first.');
+          return;
+        }
+        
+        // Validate test mode file selection
+        if (isTestMode() && !getTestFileId()) {
+          alert('⚠️ Test Mode is enabled. Please select a target fleet file.');
           return;
         }
         
@@ -857,6 +929,7 @@
         document.getElementById('no-header-modal').style.display = 'none';
         document.getElementById('mismatch-modal').style.display = 'none';
         document.getElementById('confirm-modal').style.display = 'none';
+        document.getElementById('test-success-modal').style.display = 'none';
         showAllSections();
       }
 
@@ -865,6 +938,8 @@
         var altRangeChecked = document.getElementById('alt-range-check').checked;
         var altRange = document.getElementById('alt-range-input').value;
         var headerRow = document.getElementById('header-row-input').value;
+        var testModeChecked = document.getElementById('test-mode-check').checked;
+        var selectedFileId = document.getElementById('fleet-file-selector').value;
         
         return {
           sheetName: capturedRangeData.sheetName,
@@ -875,8 +950,18 @@
           numRows: capturedRangeData.numRows,
           numCols: capturedRangeData.numCols,
           data: capturedRangeData.data,
-          firstRowHeaders: capturedRangeData.firstRowHeaders
+          firstRowHeaders: capturedRangeData.firstRowHeaders,
+          testMode: testModeChecked,
+          testFileId: selectedFileId
         };
+      }
+      
+      function isTestMode() {
+        return document.getElementById('test-mode-check').checked;
+      }
+      
+      function getTestFileId() {
+        return document.getElementById('fleet-file-selector').value;
       }
 
       function executeRangeVerify() {
@@ -886,18 +971,30 @@
         
         var config = buildRangeConfig();
         
-        google.script.run
-          .withSuccessHandler(function(logs) {
-            document.getElementById('spinner').style.display = 'none';
-            showAllSections();
-            showLogs(logs);
-          })
-          .withFailureHandler(function(e) {
-            document.getElementById('spinner').style.display = 'none';
-            showAllSections();
-            alert('❌ Verification Error: ' + e.message);
-          })
-          .verifyRangeHeaders(config);
+        var successHandler = function(logs) {
+          document.getElementById('spinner').style.display = 'none';
+          showAllSections();
+          showLogs(logs);
+        };
+        
+        var failureHandler = function(e) {
+          document.getElementById('spinner').style.display = 'none';
+          showAllSections();
+          alert('❌ Verification Error: ' + e.message);
+        };
+        
+        // Use single-file or fleet-wide function based on test mode
+        if (isTestMode()) {
+          google.script.run
+            .withSuccessHandler(successHandler)
+            .withFailureHandler(failureHandler)
+            .verifyRangeHeadersSingleFile(config, getTestFileId());
+        } else {
+          google.script.run
+            .withSuccessHandler(successHandler)
+            .withFailureHandler(failureHandler)
+            .verifyRangeHeaders(config);
+        }
       }
 
       function executeRangeVerifyThenPush() {
@@ -907,36 +1004,52 @@
         
         var config = buildRangeConfig();
         
-        google.script.run
-          .withSuccessHandler(function(logs) {
-            document.getElementById('spinner').style.display = 'none';
-            
-            // Check for mismatches
-            var mismatches = logs.filter(function(log) {
-              return log.status === 'Warning' && log.msg.includes('Mismatch');
+        var successHandler = function(logs) {
+          document.getElementById('spinner').style.display = 'none';
+          
+          // Check for mismatches
+          var mismatches = logs.filter(function(log) {
+            return log.status === 'Warning' && log.msg.includes('Mismatch');
+          });
+          
+          if (mismatches.length > 0) {
+            // Show mismatch modal
+            var mismatchHtml = '';
+            mismatches.forEach(function(m) {
+              mismatchHtml += '<div style="padding:4px; border-bottom:1px solid #fecaca;">' +
+                '<strong>' + m.file + '</strong>: ' + m.msg + '</div>';
             });
-            
-            if (mismatches.length > 0) {
-              // Show mismatch modal
-              var mismatchHtml = '';
-              mismatches.forEach(function(m) {
-                mismatchHtml += '<div style="padding:4px; border-bottom:1px solid #fecaca;">' +
-                  '<strong>' + m.file + '</strong>: ' + m.msg + '</div>';
-              });
-              document.getElementById('mismatch-list').innerHTML = mismatchHtml;
-              document.getElementById('mismatch-modal').style.display = 'block';
-            } else {
-              // All good - proceed with push
-              executeRangePush(false);
-            }
-          })
-          .withFailureHandler(function(e) {
-            document.getElementById('spinner').style.display = 'none';
-            showAllSections();
-            alert('❌ Verification Error: ' + e.message);
-          })
-          .verifyRangeHeaders(config);
+            document.getElementById('mismatch-list').innerHTML = mismatchHtml;
+            document.getElementById('mismatch-modal').style.display = 'block';
+          } else {
+            // All good - proceed with push
+            executeRangePush(false);
+          }
+        };
+        
+        var failureHandler = function(e) {
+          document.getElementById('spinner').style.display = 'none';
+          showAllSections();
+          alert('❌ Verification Error: ' + e.message);
+        };
+        
+        // Use single-file or fleet-wide function based on test mode
+        if (isTestMode()) {
+          google.script.run
+            .withSuccessHandler(successHandler)
+            .withFailureHandler(failureHandler)
+            .verifyRangeHeadersSingleFile(config, getTestFileId());
+        } else {
+          google.script.run
+            .withSuccessHandler(successHandler)
+            .withFailureHandler(failureHandler)
+            .verifyRangeHeaders(config);
+        }
       }
+
+      // Store test file info for "Open File" functionality
+      var lastTestFileId = null;
+      var lastTestFileName = null;
 
       function executeRangePush(forceOverwrite) {
         document.getElementById('no-header-modal').style.display = 'none';
@@ -945,19 +1058,64 @@
         document.getElementById('log-area').style.display = 'none';
         
         var config = buildRangeConfig();
+        var testMode = isTestMode();
         
-        google.script.run
-          .withSuccessHandler(function(logs) {
-            document.getElementById('spinner').style.display = 'none';
+        // Store test file info before push
+        if (testMode) {
+          lastTestFileId = getTestFileId();
+          var selector = document.getElementById('fleet-file-selector');
+          lastTestFileName = selector.options[selector.selectedIndex].text;
+        }
+        
+        var successHandler = function(logs) {
+          document.getElementById('spinner').style.display = 'none';
+          
+          // Check if push was successful
+          var wasSuccess = logs && logs.length > 0 && logs[0].status === 'Success';
+          
+          // In test mode with success, show the test success modal
+          if (testMode && wasSuccess) {
+            document.getElementById('test-success-filename').textContent = lastTestFileName;
+            document.getElementById('test-success-modal').style.display = 'block';
+            // Also show logs below
+            showLogs(logs);
+          } else {
             showAllSections();
             showLogs(logs);
-          })
-          .withFailureHandler(function(e) {
-            document.getElementById('spinner').style.display = 'none';
-            showAllSections();
-            alert('❌ Push Error: ' + e.message);
-          })
-          .pushRangeToFleet(config, forceOverwrite);
+          }
+        };
+        
+        var failureHandler = function(e) {
+          document.getElementById('spinner').style.display = 'none';
+          showAllSections();
+          alert('❌ Push Error: ' + e.message);
+        };
+        
+        // Use single-file or fleet-wide function based on test mode
+        if (testMode) {
+          google.script.run
+            .withSuccessHandler(successHandler)
+            .withFailureHandler(failureHandler)
+            .pushRangeToSingleFile(config, lastTestFileId, forceOverwrite);
+        } else {
+          google.script.run
+            .withSuccessHandler(successHandler)
+            .withFailureHandler(failureHandler)
+            .pushRangeToFleet(config, forceOverwrite);
+        }
+      }
+
+      function openTestFile() {
+        if (lastTestFileId) {
+          var url = 'https://docs.google.com/spreadsheets/d/' + lastTestFileId + '/edit';
+          window.open(url, '_blank');
+        }
+        closeTestSuccessModal();
+      }
+
+      function closeTestSuccessModal() {
+        document.getElementById('test-success-modal').style.display = 'none';
+        showAllSections();
       }
     </script>
   </body>

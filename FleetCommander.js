@@ -266,21 +266,101 @@ function runUpdateSheet() {
 
 /**
  * [UPDATED] runUpdateSTATCORE
- * ACTION: Re-routed to local 'updateSTATCORE' function (in STATCORE.gs)
- * PREVIOUS: ITGlobal.updateSTATCORE() / InTouchLib.runStatcorePipeline()
+ * ACTION: Full Pipeline - STATCORE → SYSCORE → DAGCORE
+ * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
  */
-function runUpdateSTATCORE() {
+function runUpdateSTATCORE(updateNotes) {
   assertAdminAccess(); // Global function - requires admin
   var logs = [];
   try {
-    // 1. Call the local function directly from STATCORE.gs
-    // This ensures Fleet Commander uses the exact same logic as the nightly trigger
+    // Call the local function directly from STATCORE.gs
+    // This triggers the full chain: STATCORE → SYSCORE → DAGCORE
     updateSTATCORE(); 
+    
+    var msg = 'Full Pipeline Executed (STATCORE + SYSCORE + DAGCORE)';
+    
+    // Optionally update dynamic notes
+    if (updateNotes === true) {
+      updateAccountNotes();
+      msg += ' + Notes';
+    }
     
     logs.push({ 
       status: 'Success', 
       file: 'Global System', 
-      msg: 'Local Pipeline Executed' 
+      msg: msg 
+    });
+    
+  } catch (e) {
+    logs.push({ 
+      status: 'Error', 
+      file: 'Global System', 
+      msg: e.message 
+    });
+  }
+  return logs;
+}
+
+/**
+ * runUpdateSYSCOREOnly
+ * ACTION: Partial Pipeline - SYSCORE → DAGCORE (skips base STATCORE)
+ * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
+ */
+function runUpdateSYSCOREOnly(updateNotes) {
+  assertAdminAccess(); // Global function - requires admin
+  var logs = [];
+  try {
+    // Call SYSCORE directly - it will chain to DAGCORE
+    runSYSCOREUpdates(); 
+    
+    var msg = 'SYSCORE + DAGCORE Pipeline Executed';
+    
+    // Optionally update dynamic notes
+    if (updateNotes === true) {
+      updateAccountNotes();
+      msg += ' + Notes';
+    }
+    
+    logs.push({ 
+      status: 'Success', 
+      file: 'Global System', 
+      msg: msg 
+    });
+    
+  } catch (e) {
+    logs.push({ 
+      status: 'Error', 
+      file: 'Global System', 
+      msg: e.message 
+    });
+  }
+  return logs;
+}
+
+/**
+ * runUpdateDAGCOREOnly
+ * ACTION: DAGCORE Only - Refreshes DISTRO sheet
+ * @param {boolean} updateNotes - If true, also runs updateAccountNotes() after data refresh
+ */
+function runUpdateDAGCOREOnly(updateNotes) {
+  assertAdminAccess(); // Global function - requires admin
+  var logs = [];
+  try {
+    // Call DAGCORE directly - no chaining
+    runDAGCOREUpdates(); 
+    
+    var msg = 'DAGCORE Only Executed (DISTRO refreshed)';
+    
+    // Optionally update dynamic notes
+    if (updateNotes === true) {
+      updateAccountNotes();
+      msg += ' + Notes';
+    }
+    
+    logs.push({ 
+      status: 'Success', 
+      file: 'Global System', 
+      msg: msg 
     });
     
   } catch (e) {

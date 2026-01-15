@@ -151,6 +151,16 @@
       .confirm-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
       .btn-yes { background: #28a745; color: white; border: none; padding: 8px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
       .btn-no { background: #718096; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
+
+      /* Data Refresh Options Modal */
+      #data-refresh-modal { display: none; background: #e8f4fd; border: 1px solid #90cdf4; color: #2b6cb0; padding: 15px; border-radius: 6px; margin-top: 20px; }
+      #data-refresh-modal h3 { margin: 0 0 12px 0; font-size: 13px; text-align: center; }
+      .radio-option { display: flex; align-items: flex-start; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
+      .radio-option:hover { background: #f7fafc; border-color: #90cdf4; }
+      .radio-option input { margin-right: 10px; margin-top: 3px; }
+      .radio-option .option-text { flex: 1; }
+      .radio-option .option-title { font-weight: 600; font-size: 12px; color: #2d3748; }
+      .radio-option .option-desc { font-size: 10px; color: #718096; margin-top: 2px; }
       
       #spinner { display: none; text-align: center; margin: 30px 0; }
       .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3182ce; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; margin: 0 auto 10px auto; }
@@ -238,6 +248,44 @@
       </div>
     </div>
 
+    <div id="data-refresh-modal">
+      <h3>🌐 Select Data Refresh Scope</h3>
+      
+      <label class="radio-option">
+        <input type="radio" name="refresh-scope" value="full" checked>
+        <div class="option-text">
+          <div class="option-title">Full Pipeline (All Data)</div>
+          <div class="option-desc">STATCORE → SYSCORE → DAGCORE (Complete refresh)</div>
+        </div>
+      </label>
+      
+      <label class="radio-option">
+        <input type="radio" name="refresh-scope" value="syscore">
+        <div class="option-text">
+          <div class="option-title">SYSCORE + DAGCORE</div>
+          <div class="option-desc">Skip base STATCORE, refresh supplemental data only</div>
+        </div>
+      </label>
+      
+      <label class="radio-option">
+        <input type="radio" name="refresh-scope" value="dagcore">
+        <div class="option-text">
+          <div class="option-title">DAGCORE Only</div>
+          <div class="option-desc">Refresh DISTRO sheet only (fastest)</div>
+        </div>
+      </label>
+
+      <div class="checkbox-wrapper" style="margin-top: 12px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e2e8f0;">
+        <input type="checkbox" id="update-notes-check"> 
+        <span>Also update dynamic notes after refresh</span>
+      </div>
+
+      <div class="confirm-btns">
+        <button class="btn-yes" onclick="executeDataRefresh()">Run Selected</button>
+        <button class="btn-no" onclick="cancelAction()">Cancel</button>
+      </div>
+    </div>
+
     <div id="spinner">
       <div class="loader"></div>
       <div style="color:#666; font-size:12px;">Working...</div>
@@ -288,6 +336,16 @@
              }
         }
 
+        // Special handling for statcore - show options modal instead
+        if (actionType === 'statcore') {
+          document.getElementById('data-refresh-modal').style.display = 'block';
+          document.getElementById('global-row-1').style.display = 'none'; 
+          document.getElementById('global-row-2').style.display = 'none'; 
+          document.getElementById('local-buttons').style.display = 'none'; 
+          document.querySelector('.control-group').style.display = 'none';
+          return;
+        }
+
         if (actionType === 'safeUpdate') msg = `GLOBAL: Deploy "${sheetName}" to all external files? (Overwrites existing)`;
         if (actionType === 'copy') {
            if(!newName) { alert("Please enter a New Deploy Name."); return; }
@@ -295,7 +353,6 @@
         }
         if (actionType === 'delete') msg = `WARNING: MASS TERMINATE "${sheetName}" from all external files?`;
         if (actionType === 'config') msg = `GLOBAL: Update Template IDs in "SETUP" tab for all external files?`;
-        if (actionType === 'statcore') msg = `GLOBAL: Run data pipeline for all fleets?`;
         if (actionType === 'globalTabs') msg = `GLOBAL: Refresh AM Tabs in all external files? (Deletes & recreates employee tabs)`;
 
         if (actionType === 'createTabs') msg = `LOCAL: Refresh/Create AM Tabs based on Setup?`;
@@ -317,11 +374,44 @@
 
       function cancelAction() {
         document.getElementById('confirm-modal').style.display = 'none';
+        document.getElementById('data-refresh-modal').style.display = 'none';
         document.getElementById('global-row-1').style.display = 'grid'; 
         document.getElementById('global-row-2').style.display = 'grid'; 
         document.getElementById('local-buttons').style.display = 'grid'; 
         document.querySelector('.control-group').style.display = 'block';
         pendingAction = null;
+      }
+
+      // Data Refresh with scope selection
+      function executeDataRefresh() {
+        var scope = document.querySelector('input[name="refresh-scope"]:checked').value;
+        var updateNotes = document.getElementById('update-notes-check').checked;
+        
+        document.getElementById('data-refresh-modal').style.display = 'none';
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('log-area').style.display = 'none';
+        document.getElementById('log-content').innerHTML = '';
+
+        console.log("Running data refresh with scope: " + scope + ", updateNotes: " + updateNotes);
+
+        function onFailure(error) {
+          document.getElementById('spinner').style.display = 'none';
+          document.getElementById('global-row-1').style.display = 'grid'; 
+          document.getElementById('global-row-2').style.display = 'grid'; 
+          document.getElementById('local-buttons').style.display = 'grid'; 
+          document.querySelector('.control-group').style.display = 'block';
+          alert("❌ ERROR: " + error.message);
+        }
+
+        if (scope === 'full') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSTATCORE(updateNotes);
+        } 
+        else if (scope === 'syscore') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSYSCOREOnly(updateNotes);
+        } 
+        else if (scope === 'dagcore') {
+          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateDAGCOREOnly(updateNotes);
+        }
       }
 
       // 3. Execute Action (Send to Google Apps Script)
@@ -371,9 +461,6 @@
         else if (actionToRun === 'config') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheet();
         } 
-        else if (actionToRun === 'statcore') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSTATCORE();
-        }
         else if (actionToRun === 'globalTabs') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCreateEmployeeTabs();
         }

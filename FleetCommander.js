@@ -42,6 +42,9 @@ function getFilteredSheetNames() {
   
   // Default exclusions (Safety Net)
   var excludedNames = ['Setup', 'STATCORE', 'DISTRO', 'AdminSidebar', 'BI_Sidebar'];
+  
+  // Whitelist: These sheets should ALWAYS appear in dropdown, even if found in Setup columns
+  var whitelistedNames = ['Manager Lens'];
 
   if (setupSheet && setupSheet.getLastRow() > 2) {
     // Reads Columns A (1), B (2), and C (3) to catch ALL exclusion lists
@@ -55,9 +58,10 @@ function getFilteredSheetNames() {
     excludedNames = excludedNames.concat(sheetExclusions);
   }
 
-  // Return sheets that are NOT in the exclusion list
+  // Return sheets that are NOT in the exclusion list, OR are whitelisted
   return allSheets.filter(function(sheetName) {
-    return !excludedNames.includes(sheetName.trim());
+    var trimmedName = sheetName.trim();
+    return whitelistedNames.includes(trimmedName) || !excludedNames.includes(trimmedName);
   });
 }
 

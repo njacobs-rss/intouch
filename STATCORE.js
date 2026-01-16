@@ -140,7 +140,7 @@ function runSYSCOREUpdates(skipDagcore, targetSS) {
     const sourceDataRange = sourceSheet.getRange(1, 2, sourceLastRow, 13);
     const sourceValues = sourceDataRange.getValues();
     const sourceRichTexts = sourceDataRange.getRichTextValues();
-    SpreadsheetApp.flush(); // Clear buffer
+    // OPTIMIZATION: Removed unnecessary flush here
 
     const sourceMap = new Map();
 
@@ -271,7 +271,7 @@ function runDAGCOREUpdates(targetSS) {
       batchData.forEach((row) => {
         if (row[0] && statCoreValuesSet.has(row[0])) dataToWrite.push(row);
       });
-      SpreadsheetApp.flush(); // Clear Buffer
+      // OPTIMIZATION: Removed flush from read loop to improve speed
     }
 
     recordsAdded = dataToWrite.length;
@@ -280,7 +280,13 @@ function runDAGCOREUpdates(targetSS) {
     distroSheet.getRange(2, 1, distroLastRow, 54).clearContent(); // Clear safely
 
     if (dataToWrite.length > 0) {
-      distroSheet.getRange(2, 1, dataToWrite.length, 54).setValues(dataToWrite);
+      // OPTIMIZATION: Batch Write
+      Logger.log(`[${functionName}] Writing ${dataToWrite.length} rows to DISTRO in batches...`);
+      for (let i = 0; i < dataToWrite.length; i += batchSize) {
+        const batch = dataToWrite.slice(i, i + batchSize);
+        distroSheet.getRange(2 + i, 1, batch.length, 54).setValues(batch);
+        SpreadsheetApp.flush(); // Flush only during writes
+      }
     }
 
   } catch (error) {

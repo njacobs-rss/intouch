@@ -334,6 +334,110 @@
         margin-bottom: 12px;
         font-size: 10px;
       }
+
+      /* --- TOAST NOTIFICATIONS --- */
+      .toast-container {
+        position: fixed;
+        bottom: 12px;
+        right: 12px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 8px;
+        max-width: 280px;
+      }
+      .toast {
+        background: #2d3748;
+        color: white;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        animation: slideIn 0.3s ease;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .toast.toast-success { background: #059669; }
+      .toast.toast-error { background: #dc2626; }
+      .toast.toast-warning { background: #d97706; }
+      .toast.toast-info { background: #2563eb; }
+      .toast.toast-working { background: #4a5568; }
+      
+      .toast-icon {
+        font-size: 16px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .toast-content {
+        flex: 1;
+        min-width: 0;
+      }
+      .toast-title {
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .toast-message {
+        font-size: 11px;
+        opacity: 0.9;
+        word-break: break-word;
+      }
+      .toast-close {
+        background: none;
+        border: none;
+        color: white;
+        opacity: 0.6;
+        cursor: pointer;
+        padding: 0;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .toast-close:hover { opacity: 1; }
+      
+      .toast-progress {
+        margin-top: 8px;
+        font-size: 10px;
+        opacity: 0.8;
+      }
+      .toast-progress-bar {
+        height: 4px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 2px;
+        margin-top: 4px;
+        overflow: hidden;
+      }
+      .toast-progress-fill {
+        height: 100%;
+        background: white;
+        border-radius: 2px;
+        transition: width 0.3s ease;
+      }
+      
+      .toast-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+      }
+      .toast.removing {
+        animation: slideOut 0.3s ease forwards;
+      }
+
+      /* Hide old elements - we use toasts now */
+      #spinner { display: none !important; }
+      #log-area { display: none !important; }
+      #queue-status-modal { display: none !important; }
     </style>
   </head>
   <body>
@@ -606,7 +710,125 @@
       <div id="log-area"><div id="log-content"></div></div>
     </div>
 
+    <!-- TOAST NOTIFICATIONS CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
     <script>
+      // =============================================================
+      // TOAST NOTIFICATION SYSTEM
+      // =============================================================
+      var toastCounter = 0;
+      var activeToasts = {};
+      
+      function showToast(type, title, message, options) {
+        options = options || {};
+        var id = 'toast-' + (++toastCounter);
+        var container = document.getElementById('toast-container');
+        
+        var icons = {
+          success: '✅',
+          error: '❌',
+          warning: '⚠️',
+          info: 'ℹ️',
+          working: ''
+        };
+        
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.id = id;
+        
+        var iconHtml = type === 'working' 
+          ? '<div class="toast-spinner"></div>'
+          : '<span class="toast-icon">' + icons[type] + '</span>';
+        
+        var progressHtml = options.progress 
+          ? '<div class="toast-progress">' + options.progressText + 
+            '<div class="toast-progress-bar"><div class="toast-progress-fill" style="width:' + options.progress + '%"></div></div></div>'
+          : '';
+        
+        toast.innerHTML = iconHtml +
+          '<div class="toast-content">' +
+            '<div class="toast-title">' + title + '</div>' +
+            (message ? '<div class="toast-message">' + message + '</div>' : '') +
+            progressHtml +
+          '</div>' +
+          (options.persistent ? '' : '<button class="toast-close" onclick="removeToast(\'' + id + '\')">&times;</button>');
+        
+        container.appendChild(toast);
+        activeToasts[id] = toast;
+        
+        // Auto-remove non-persistent toasts
+        if (!options.persistent) {
+          var duration = options.duration || (type === 'error' ? 6000 : 4000);
+          setTimeout(function() { removeToast(id); }, duration);
+        }
+        
+        return id;
+      }
+      
+      function removeToast(id) {
+        var toast = document.getElementById(id);
+        if (toast) {
+          toast.classList.add('removing');
+          setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+            delete activeToasts[id];
+          }, 300);
+        }
+      }
+      
+      function updateToast(id, updates) {
+        var toast = document.getElementById(id);
+        if (!toast) return;
+        
+        if (updates.title) {
+          var titleEl = toast.querySelector('.toast-title');
+          if (titleEl) titleEl.textContent = updates.title;
+        }
+        if (updates.message) {
+          var msgEl = toast.querySelector('.toast-message');
+          if (msgEl) msgEl.textContent = updates.message;
+        }
+        if (updates.progress !== undefined) {
+          var fillEl = toast.querySelector('.toast-progress-fill');
+          if (fillEl) fillEl.style.width = updates.progress + '%';
+          var progText = toast.querySelector('.toast-progress');
+          if (progText && updates.progressText) {
+            progText.childNodes[0].textContent = updates.progressText;
+          }
+        }
+        if (updates.type) {
+          toast.className = 'toast toast-' + updates.type;
+          // Replace spinner with icon if changing from working
+          var spinner = toast.querySelector('.toast-spinner');
+          if (spinner && updates.type !== 'working') {
+            var icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            spinner.outerHTML = '<span class="toast-icon">' + icons[updates.type] + '</span>';
+          }
+        }
+      }
+      
+      function clearAllToasts() {
+        Object.keys(activeToasts).forEach(function(id) {
+          removeToast(id);
+        });
+      }
+
+      // Persistent working toast tracker
+      var workingToastId = null;
+      
+      function showWorkingToast(title, message) {
+        if (workingToastId) removeToast(workingToastId);
+        workingToastId = showToast('working', title || 'Working...', message, { persistent: true });
+        return workingToastId;
+      }
+      
+      function hideWorkingToast() {
+        if (workingToastId) {
+          removeToast(workingToastId);
+          workingToastId = null;
+        }
+      }
       // =============================================================
       // TAB MANAGEMENT
       // =============================================================
@@ -722,7 +944,7 @@
         // VALIDATION for Global Actions:
         if (['safeUpdate', 'copy', 'delete'].includes(actionType)) {
           if (sheetName === "Loading..." || sheetName === "") {
-            alert("⚠️ Please wait for the Sheet List to load, or check for errors.");
+            showToast('warning', 'Please Wait', 'Sheet list is still loading');
             return;
           }
         }
@@ -730,13 +952,12 @@
         // Special handling for statcore - show options modal
         if (actionType === 'statcore') {
           document.getElementById('data-refresh-modal').style.display = 'block';
-          hideCurrentTabContent();
           return;
         }
 
         if (actionType === 'safeUpdate') msg = `GLOBAL: Deploy "${sheetName}" to all external files? (Overwrites existing)`;
         if (actionType === 'copy') {
-          if(!newName) { alert("Please enter a New Deploy Name."); return; }
+          if(!newName) { showToast('warning', 'Missing Name', 'Please enter a New Deploy Name'); return; }
           msg = `GLOBAL: Deploy "${sheetName}" as NEW tab "${newName}" to all external files?`;
         }
         if (actionType === 'delete') msg = `WARNING: MASS TERMINATE "${sheetName}" from all external files?`;
@@ -750,23 +971,18 @@
 
         document.getElementById('confirm-text').innerText = msg;
         document.getElementById('confirm-modal').style.display = 'block';
-        hideCurrentTabContent();
         
         pendingAction = actionType;
       }
 
+      // Keep these for backward compatibility but they're mostly no-ops now
       function hideCurrentTabContent() {
-        if (currentTab === 'global') {
-          document.getElementById('global-content').style.display = 'none';
-        } else {
-          document.getElementById('local-buttons').style.display = 'none';
-        }
+        // Content stays visible - we use toasts now
       }
 
       function showCurrentTabContent() {
+        // Content stays visible - we use toasts now
         if (currentTab === 'global' && isAdmin) {
-          document.getElementById('global-content').style.display = 'block';
-        } else if (currentTab === 'local') {
           document.getElementById('local-buttons').style.display = 'grid';
         }
       }
@@ -786,37 +1002,35 @@
         var updateNotes = document.getElementById('update-notes-check').checked;
         
         document.getElementById('data-refresh-modal').style.display = 'none';
-        document.getElementById('spinner').style.display = 'block';
-        document.getElementById('log-area').style.display = 'none';
-        document.getElementById('log-content').innerHTML = '';
+        
+        var toastId = showToast('working', 'Starting ' + scope + ' refresh...', 'Building queue...', { persistent: true });
 
         function onQueueSuccess(result) {
-          document.getElementById('spinner').style.display = 'none';
+          removeToast(toastId);
           
           if (result.status === 'started' || result.status === 'continued') {
-            // Queue started - show status
-            showQueueStatus(result);
+            var pct = result.total ? Math.round((0 / result.total) * 100) : 0;
+            showToast('info', 'Queue Started', result.total + ' files queued. Auto-continues in background.', { duration: 6000 });
           } else if (result.status === 'in_progress') {
-            // Batch complete, more remaining
-            showQueueStatusWithLogs(result);
+            var total = result.processed + result.remaining;
+            var pct = Math.round((result.processed / total) * 100);
+            showToast('info', 'Batch Complete', result.processed + ' done, ' + result.remaining + ' remaining. Auto-continuing...', { duration: 5000 });
           } else if (result.status === 'complete') {
-            // All done
-            showQueueComplete(result);
-          } else if (result.status === 'error') {
-            showCurrentTabContent();
-            alert("❌ " + result.message);
-          } else {
-            showCurrentTabContent();
-            if (result.logs) {
-              showLogs(result.logs);
+            if (result.failed > 0) {
+              showToast('warning', 'Complete with Errors', result.processed + ' successful, ' + result.failed + ' failed', { duration: 8000 });
+            } else {
+              showToast('success', 'All Complete!', result.processed + ' files processed successfully');
             }
+          } else if (result.status === 'error') {
+            showToast('error', 'Error', result.message);
+          } else if (result.status === 'idle') {
+            showToast('info', 'No Active Queue', 'Start a new refresh to begin');
           }
         }
 
         function onFailure(error) {
-          document.getElementById('spinner').style.display = 'none';
-          showCurrentTabContent();
-          alert("❌ ERROR: " + error.message);
+          removeToast(toastId);
+          showToast('error', 'Error', error.message);
         }
 
         // Use queued refresh for all scopes
@@ -825,112 +1039,59 @@
       
       // === QUEUE MANAGEMENT FUNCTIONS ===
       
-      function showQueueStatus(result) {
-        var statusHtml = '<div style="margin-bottom:8px;">';
-        statusHtml += '<strong>Status:</strong> ' + (result.status === 'started' ? '🟢 Started' : '🔄 In Progress') + '</div>';
-        if (result.total) statusHtml += '<div><strong>Total Files:</strong> ' + result.total + '</div>';
-        if (result.message) statusHtml += '<div style="color:#059669; margin-top:5px;">' + result.message + '</div>';
-        statusHtml += '<div style="margin-top:8px; font-size:11px; color:#666;">The queue will auto-continue. You can close this sidebar.</div>';
-        
-        document.getElementById('queue-status-content').innerHTML = statusHtml;
-        document.getElementById('queue-status-modal').style.display = 'block';
-      }
-      
-      function showQueueStatusWithLogs(result) {
-        var statusHtml = '<div style="margin-bottom:8px;">';
-        statusHtml += '<strong>Status:</strong> 🔄 In Progress</div>';
-        statusHtml += '<div><strong>Processed:</strong> ' + result.processed + '</div>';
-        statusHtml += '<div><strong>Remaining:</strong> ' + result.remaining + '</div>';
-        statusHtml += '<div style="margin-top:8px; font-size:11px; color:#059669;">Next batch scheduled automatically.</div>';
-        
-        document.getElementById('queue-status-content').innerHTML = statusHtml;
-        document.getElementById('queue-status-modal').style.display = 'block';
-        
-        if (result.logs && result.logs.length > 0) {
-          showLogs(result.logs);
-        }
-      }
-      
-      function showQueueComplete(result) {
-        var statusHtml = '<div style="margin-bottom:8px;">';
-        statusHtml += '<strong>Status:</strong> ✅ Complete</div>';
-        statusHtml += '<div><strong>Successfully Processed:</strong> ' + result.processed + '</div>';
-        if (result.failed > 0) {
-          statusHtml += '<div style="color:#dc2626;"><strong>Failed:</strong> ' + result.failed + '</div>';
-          statusHtml += '<div style="font-size:11px; color:#666; margin-top:5px;">Failed files:</div>';
-          result.failedFiles.forEach(function(f) {
-            statusHtml += '<div style="font-size:10px; color:#dc2626; margin-left:8px;">• ' + f.name + ': ' + f.error + '</div>';
-          });
-        }
-        
-        document.getElementById('queue-status-content').innerHTML = statusHtml;
-        document.getElementById('queue-status-modal').style.display = 'block';
-        
-        if (result.logs && result.logs.length > 0) {
-          showLogs(result.logs);
-        }
-      }
-      
       function checkQueueStatus() {
-        document.getElementById('spinner').style.display = 'block';
-        hideCurrentTabContent();
+        var toastId = showToast('working', 'Checking queue...', '', { persistent: true });
         
         google.script.run
           .withSuccessHandler(function(status) {
-            document.getElementById('spinner').style.display = 'none';
+            removeToast(toastId);
             
             if (!status.active) {
-              showCurrentTabContent();
-              alert("No active queue. Start a new data refresh to create one.");
+              showToast('info', 'No Active Queue', 'Start a new data refresh to create one');
               return;
             }
             
-            var statusHtml = '<div style="margin-bottom:8px;">';
-            statusHtml += '<strong>Status:</strong> 🔄 Active Queue</div>';
-            statusHtml += '<div><strong>Scope:</strong> ' + status.scope + (status.updateNotes ? ' + Notes' : '') + '</div>';
-            statusHtml += '<div><strong>Total Files:</strong> ' + status.total + '</div>';
-            statusHtml += '<div><strong>Completed:</strong> ' + status.completed + '</div>';
-            statusHtml += '<div><strong>Remaining:</strong> ' + status.remaining + '</div>';
-            statusHtml += '<div><strong>Successfully Processed:</strong> ' + status.processed + '</div>';
-            if (status.failed > 0) {
-              statusHtml += '<div style="color:#dc2626;"><strong>Failed:</strong> ' + status.failed + '</div>';
-            }
-            statusHtml += '<div style="font-size:10px; color:#666; margin-top:8px;">Started: ' + status.startedAt + '</div>';
+            var pct = Math.round((status.completed / status.total) * 100);
+            var msg = status.completed + '/' + status.total + ' files (' + pct + '%)';
+            if (status.failed > 0) msg += ', ' + status.failed + ' failed';
             
-            document.getElementById('queue-status-content').innerHTML = statusHtml;
-            document.getElementById('queue-status-modal').style.display = 'block';
+            showToast('info', 'Queue: ' + status.scope, msg, { 
+              duration: 8000,
+              progress: pct,
+              progressText: status.remaining + ' remaining'
+            });
           })
           .withFailureHandler(function(error) {
-            document.getElementById('spinner').style.display = 'none';
-            showCurrentTabContent();
-            alert("❌ " + error.message);
+            removeToast(toastId);
+            showToast('error', 'Error', error.message);
           })
           .getFleetQueueStatus();
       }
       
       function continueQueue() {
-        document.getElementById('queue-status-modal').style.display = 'none';
-        document.getElementById('spinner').style.display = 'block';
+        var toastId = showToast('working', 'Processing batch...', '', { persistent: true });
         
         google.script.run
           .withSuccessHandler(function(result) {
-            document.getElementById('spinner').style.display = 'none';
+            removeToast(toastId);
             
             if (result.status === 'complete') {
-              showQueueComplete(result);
+              if (result.failed > 0) {
+                showToast('warning', 'Complete with Errors', result.processed + ' successful, ' + result.failed + ' failed');
+              } else {
+                showToast('success', 'All Complete!', result.processed + ' files processed');
+              }
             } else if (result.status === 'in_progress') {
-              showQueueStatusWithLogs(result);
+              showToast('info', 'Batch Complete', result.processed + ' done, ' + result.remaining + ' remaining');
             } else if (result.status === 'idle') {
-              showCurrentTabContent();
-              alert("No active queue to continue.");
+              showToast('info', 'No Active Queue', 'Nothing to continue');
             } else {
-              showQueueStatus(result);
+              showToast('info', 'Queue Running', result.message || 'Processing...');
             }
           })
           .withFailureHandler(function(error) {
-            document.getElementById('spinner').style.display = 'none';
-            showCurrentTabContent();
-            alert("❌ " + error.message);
+            removeToast(toastId);
+            showToast('error', 'Error', error.message);
           })
           .continueFleetQueue();
       }
@@ -938,99 +1099,117 @@
       function resetQueue() {
         if (!confirm("Reset the queue? This will stop any pending processing.")) return;
         
-        document.getElementById('queue-status-modal').style.display = 'none';
-        document.getElementById('spinner').style.display = 'block';
+        var toastId = showToast('working', 'Resetting queue...', '', { persistent: true });
         
         google.script.run
           .withSuccessHandler(function(result) {
-            document.getElementById('spinner').style.display = 'none';
-            showCurrentTabContent();
-            alert("✅ " + result.message);
+            removeToast(toastId);
+            showToast('success', 'Queue Reset', result.message);
           })
           .withFailureHandler(function(error) {
-            document.getElementById('spinner').style.display = 'none';
-            showCurrentTabContent();
-            alert("❌ " + error.message);
+            removeToast(toastId);
+            showToast('error', 'Error', error.message);
           })
           .resetFleetQueue();
       }
       
-      function closeQueueStatus() {
-        document.getElementById('queue-status-modal').style.display = 'none';
-        showCurrentTabContent();
-      }
+      // Keep for backward compatibility
+      function closeQueueStatus() {}
 
       function executeConfirmedAction() {
         var actionToRun = pendingAction; 
         
         if (!actionToRun) {
-          alert("Error: No action selected.");
+          showToast('error', 'Error', 'No action selected');
           cancelAction();
           return;
         }
 
         document.getElementById('confirm-modal').style.display = 'none';
-        document.getElementById('spinner').style.display = 'block';
-        document.getElementById('log-area').style.display = 'none';
-        document.getElementById('log-content').innerHTML = '';
+        
+        var actionLabels = {
+          safeUpdate: 'Deploying Update',
+          copy: 'Deploying New Tab',
+          delete: 'Deleting Tabs',
+          config: 'Updating IDs',
+          globalTabs: 'Refreshing AM Tabs',
+          createTabs: 'Creating Tabs',
+          deleteTabs: 'Deleting Tabs',
+          updateNotes: 'Updating Notes',
+          totalRefresh: 'Running Full Refresh'
+        };
+        
+        var toastId = showToast('working', actionLabels[actionToRun] || 'Working...', '', { persistent: true });
 
         var sheetName = document.getElementById('sheet-selector').value;
         var newName = document.getElementById('new-name-input').value;
         var hideCheck = document.getElementById('hide-check').checked;
 
         function onFailure(error) {
-          document.getElementById('spinner').style.display = 'none';
-          showCurrentTabContent();
+          removeToast(toastId);
           pendingAction = null; 
-          alert("❌ ERROR: " + error.message);
+          showToast('error', 'Error', error.message);
+        }
+        
+        function onLogsSuccess(logs) {
+          removeToast(toastId);
+          showLogsAsToast(logs);
+        }
+        
+        function onSimpleSuccess(msg) {
+          removeToast(toastId);
+          showToast('success', msg, '');
         }
 
         if (actionToRun === 'safeUpdate') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheetSafe(sheetName, hideCheck);
+          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runUpdateSheetSafe(sheetName, hideCheck);
         } else if (actionToRun === 'copy') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCopySheet(sheetName, newName, hideCheck);
+          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runCopySheet(sheetName, newName, hideCheck);
         } else if (actionToRun === 'delete') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runDeleteSheet(sheetName);
+          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runDeleteSheet(sheetName);
         } else if (actionToRun === 'config') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheet();
+          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runUpdateSheet();
         } else if (actionToRun === 'globalTabs') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCreateEmployeeTabs();
+          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runCreateEmployeeTabs();
         } else if (actionToRun === 'createTabs') {
-          google.script.run.withSuccessHandler(() => showSimpleSuccess('AM Tabs Refreshed')).withFailureHandler(onFailure).createEmployeeTabs();
+          google.script.run.withSuccessHandler(function() { onSimpleSuccess('AM Tabs Refreshed'); }).withFailureHandler(onFailure).createEmployeeTabs();
         } else if (actionToRun === 'deleteTabs') {
-          google.script.run.withSuccessHandler(() => showSimpleSuccess('Tabs Deleted')).withFailureHandler(onFailure).deleteEmployeeTabs();
+          google.script.run.withSuccessHandler(function() { onSimpleSuccess('Tabs Deleted'); }).withFailureHandler(onFailure).deleteEmployeeTabs();
         } else if (actionToRun === 'updateNotes') {
-          google.script.run.withSuccessHandler(() => showSimpleSuccess('Notes Updated')).withFailureHandler(onFailure).manualUpdateNotesOnly();
+          google.script.run.withSuccessHandler(function() { onSimpleSuccess('Notes Updated'); }).withFailureHandler(onFailure).manualUpdateNotesOnly();
         } else if (actionToRun === 'totalRefresh') {
-          google.script.run.withSuccessHandler(() => showSimpleSuccess('Local Refresh Complete')).withFailureHandler(onFailure).runMasterPipeline(); 
+          google.script.run.withSuccessHandler(function() { onSimpleSuccess('Local Refresh Complete'); }).withFailureHandler(onFailure).runMasterPipeline(); 
         }
 
         pendingAction = null;
       }
-
-      function showLogs(logs) {
-        document.getElementById('spinner').style.display = 'none';
-        showCurrentTabContent();
-        
-        var logArea = document.getElementById('log-area');
-        var logContent = document.getElementById('log-content');
-        logArea.style.display = 'block';
-
+      
+      // Show logs summary as toast
+      function showLogsAsToast(logs) {
         if (!logs || logs.length === 0) {
-          logContent.innerHTML = '<div style="padding:10px;">Action Complete (No logs returned).</div>';
+          showToast('success', 'Complete', 'Operation finished');
           return;
         }
+        
+        var success = logs.filter(function(l) { return l.status === 'Success'; }).length;
+        var errors = logs.filter(function(l) { return l.status === 'Error'; }).length;
+        var warnings = logs.filter(function(l) { return l.status === 'Warning'; }).length;
+        
+        var msg = success + ' success';
+        if (errors > 0) msg += ', ' + errors + ' errors';
+        if (warnings > 0) msg += ', ' + warnings + ' warnings';
+        
+        var type = errors > 0 ? 'warning' : 'success';
+        showToast(type, 'Operation Complete', msg, { duration: 5000 });
+      }
 
-        var html = '';
-        logs.forEach(function(log) {
-          var colorClass = 'status-' + (log.status ? log.status.toLowerCase() : 'error');
-          html += `<div class="log-entry"><span style="font-weight:500;">${log.file}</span><span class="${colorClass}">${log.status}: ${log.msg}</span></div>`;
-        });
-        logContent.innerHTML = html;
+      // Show logs - now just uses toast summary (log area hidden by CSS)
+      function showLogs(logs) {
+        showLogsAsToast(logs);
       }
 
       function showSimpleSuccess(msg) {
-        showLogs([{ file: 'Local Action', status: 'Success', msg: msg }]);
+        showToast('success', msg, '');
       }
 
       // =============================================================
@@ -1133,12 +1312,12 @@
 
       function requestRangeAction(actionType) {
         if (!capturedRangeData) {
-          alert('⚠️ Please capture a range first.');
+          showToast('warning', 'No Range', 'Please capture a range first');
           return;
         }
         
         if (isTestMode() && !getTestFileId()) {
-          alert('⚠️ Test Mode is enabled. Please select a target fleet file.');
+          showToast('warning', 'Select File', 'Test Mode enabled - please select a target file');
           return;
         }
         
@@ -1146,13 +1325,12 @@
         
         if (actionType === 'verify') {
           if (!headerRow) {
-            alert('⚠️ Please enter a Header Row number to verify against.');
+            showToast('warning', 'Header Row Required', 'Enter a header row number to verify');
             return;
           }
           executeRangeVerify();
         } else if (actionType === 'push') {
           if (!headerRow) {
-            hideCurrentTabContent();
             document.getElementById('no-header-modal').style.display = 'block';
           } else {
             executeRangeVerifyThenPush();
@@ -1165,7 +1343,6 @@
         document.getElementById('mismatch-modal').style.display = 'none';
         document.getElementById('confirm-modal').style.display = 'none';
         document.getElementById('test-success-modal').style.display = 'none';
-        showCurrentTabContent();
       }
 
       function buildRangeConfig() {
@@ -1200,22 +1377,26 @@
       }
 
       function executeRangeVerify() {
-        hideCurrentTabContent();
-        document.getElementById('spinner').style.display = 'block';
-        document.getElementById('log-area').style.display = 'none';
+        var toastId = showToast('working', 'Verifying headers...', '', { persistent: true });
         
         var config = buildRangeConfig();
         
         var successHandler = function(logs) {
-          document.getElementById('spinner').style.display = 'none';
-          showCurrentTabContent();
-          showLogs(logs);
+          removeToast(toastId);
+          
+          var success = logs.filter(function(l) { return l.status === 'Success'; }).length;
+          var warnings = logs.filter(function(l) { return l.status === 'Warning'; }).length;
+          
+          if (warnings > 0) {
+            showToast('warning', 'Header Mismatches', warnings + ' file(s) have different headers', { duration: 6000 });
+          } else {
+            showToast('success', 'Headers Verified', success + ' file(s) have matching headers');
+          }
         };
         
         var failureHandler = function(e) {
-          document.getElementById('spinner').style.display = 'none';
-          showCurrentTabContent();
-          alert('❌ Verification Error: ' + e.message);
+          removeToast(toastId);
+          showToast('error', 'Verification Error', e.message);
         };
         
         if (isTestMode()) {
@@ -1232,14 +1413,12 @@
       }
 
       function executeRangeVerifyThenPush() {
-        hideCurrentTabContent();
-        document.getElementById('spinner').style.display = 'block';
-        document.getElementById('log-area').style.display = 'none';
+        var toastId = showToast('working', 'Verifying before push...', '', { persistent: true });
         
         var config = buildRangeConfig();
         
         var successHandler = function(logs) {
-          document.getElementById('spinner').style.display = 'none';
+          removeToast(toastId);
           
           var mismatches = logs.filter(function(log) {
             return log.status === 'Warning' && log.msg.includes('Mismatch');
@@ -1259,9 +1438,8 @@
         };
         
         var failureHandler = function(e) {
-          document.getElementById('spinner').style.display = 'none';
-          showCurrentTabContent();
-          alert('❌ Verification Error: ' + e.message);
+          removeToast(toastId);
+          showToast('error', 'Verification Error', e.message);
         };
         
         if (isTestMode()) {
@@ -1283,8 +1461,6 @@
       function executeRangePush(forceOverwrite) {
         document.getElementById('no-header-modal').style.display = 'none';
         document.getElementById('mismatch-modal').style.display = 'none';
-        document.getElementById('spinner').style.display = 'block';
-        document.getElementById('log-area').style.display = 'none';
         
         var config = buildRangeConfig();
         var testMode = isTestMode();
@@ -1295,26 +1471,30 @@
           lastTestFileName = selector.options[selector.selectedIndex].text;
         }
         
+        var toastId = showToast('working', testMode ? 'Pushing to test file...' : 'Pushing to fleet...', '', { persistent: true });
+        
         var successHandler = function(logs) {
-          document.getElementById('spinner').style.display = 'none';
+          removeToast(toastId);
           
-          var wasSuccess = logs && logs.length > 0 && logs[0].status === 'Success';
+          var wasSuccess = logs && logs.length > 0 && logs.some(function(l) { return l.status === 'Success'; });
+          var errors = logs ? logs.filter(function(l) { return l.status === 'Error'; }).length : 0;
           
           if (testMode && wasSuccess) {
-            showCurrentTabContent();
             document.getElementById('test-success-filename').textContent = lastTestFileName;
             document.getElementById('test-success-modal').style.display = 'block';
-            showLogs(logs);
+            showToast('success', 'Test Push Complete', lastTestFileName);
+          } else if (wasSuccess && errors === 0) {
+            showToast('success', 'Push Complete', logs.length + ' file(s) updated');
+          } else if (errors > 0) {
+            showToast('warning', 'Push Complete with Errors', errors + ' file(s) failed');
           } else {
-            showCurrentTabContent();
-            showLogs(logs);
+            showToast('info', 'Push Complete', 'Operation finished');
           }
         };
         
         var failureHandler = function(e) {
-          document.getElementById('spinner').style.display = 'none';
-          showCurrentTabContent();
-          alert('❌ Push Error: ' + e.message);
+          removeToast(toastId);
+          showToast('error', 'Push Error', e.message);
         };
         
         if (testMode) {

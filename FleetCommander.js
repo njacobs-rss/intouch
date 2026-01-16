@@ -5,18 +5,26 @@
 // =============================================================
 
 // --- SECURITY GUARDRAIL ---
+var AUTHORIZED_USERS = [
+  'njacobs@opentable.com' 
+  // 'backup.admin@opentable.com' // Add others here if needed
+];
+
 function assertAdminAccess() {
-  // List authorized emails here (lowercase)
-  var AUTHORIZED_USERS = [
-    'njacobs@opentable.com' 
-    // 'backup.admin@opentable.com' // Add others here if needed
-  ];
-  
   var currentUser = Session.getActiveUser().getEmail().toLowerCase();
   
   if (!AUTHORIZED_USERS.includes(currentUser)) {
     throw new Error("⛔ ACCESS DENIED: User '" + currentUser + "' is not authorized to run Fleet Commands.");
   }
+}
+
+/**
+ * CHECK ADMIN: Returns true if current user is authorized for global operations
+ * Used by sidebar to control tab visibility (doesn't throw error)
+ */
+function checkAdminAccess() {
+  var currentUser = Session.getActiveUser().getEmail().toLowerCase();
+  return AUTHORIZED_USERS.includes(currentUser);
 }
 
 // CONFIGURATION
@@ -557,6 +565,517 @@ function runCreateEmployeeTabs() {
     }
   }
   return logs;
+}
+
+// =============================================================
+// SECTION: QUEUE-BASED FLEET PROCESSOR
+// PURPOSE: Reliable processing of large fleets with auto-continuation
+// =============================================================
+
+var QUEUE_CFG = {
+  batchSize: 3,                              // Files per execution (conservative for heavy pipelines)
+  maxExecutionTime: 4.5 * 60 * 1000,         // 4.5 minutes in ms (safety buffer)
+  propsKey: 'FLEET_QUEUE_STATE',             // Script property key for queue state
+  triggerName: 'processFleetQueueBatch',     // Handler for time-based trigger
+  // Source spreadsheet IDs (from STATCORE.js)
+  sources: {
+    statcore: { ssId: '1bh4XfKM8l5MoTHHQzjP22Lln9yWBljHzmGHan_qA9Qk', sheet: 'Statcore' },
+    syscore:  { ssId: '1V4C9mIL4ISP4rx2tJcpPhflM-RIi4eft_xDZWAgWmGU', sheet: 'SEND' },
+    dagcore:  { ssId: '1Rp42PivUzqnm3VzV15g_R9KcairXX9dWGOfIjeotzTQ', sheet: 'SEND' }
+  }
+};
+
+/**
+ * ENTRYPOINT: Start a queued fleet data refresh
+ * @param {string} scope - 'full', 'syscore', 'syscore-only', or 'dagcore'
+ * @param {boolean} updateNotes - Whether to update notes after each file
+ * @returns {Object} Status message
+ */
+function startQueuedFleetRefresh(scope, updateNotes) {
+  assertAdminAccess();
+  
+  var props = PropertiesService.getScriptProperties();
+  var existing = props.getProperty(QUEUE_CFG.propsKey);
+  
+  // If queue exists, just continue it
+  if (existing) {
+    Logger.log('Queue already exists. Running next batch...');
+    processFleetQueueBatch();
+    return { status: 'continued', message: 'Continuing existing queue...' };
+  }
+  
+  // Build new queue
+  var fileIds = [];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var files = DriveApp.getFolderById(TARGET_FOLDER_ID).getFiles();
+  
+  while (files.hasNext()) {
+    var file = files.next();
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getId() !== ss.getId() && 
+        file.getName().includes(TARGET_PHRASE)) {
+      fileIds.push({ id: file.getId(), name: file.getName() });
+    }
+  }
+  
+  if (fileIds.length === 0) {
+    return { status: 'error', message: 'No fleet files found matching criteria' };
+  }
+  
+  // Sort alphabetically for consistent ordering
+  fileIds.sort(function(a, b) { return a.name.localeCompare(b.name); });
+  
+  var state = {
+    fileIds: fileIds,
+    index: 0,
+    processed: 0,
+    failed: [],
+    scope: scope || 'full',
+    updateNotes: updateNotes || false,
+    startedAt: new Date().toISOString()
+  };
+  
+  props.setProperty(QUEUE_CFG.propsKey, JSON.stringify(state));
+  Logger.log('Queued ' + fileIds.length + ' fleet files for ' + scope + ' refresh.');
+  
+  // Start first batch immediately
+  processFleetQueueBatch();
+  
+  return { status: 'started', message: 'Started queue with ' + fileIds.length + ' files', total: fileIds.length };
+}
+
+/**
+ * BATCH WORKER: Process up to batchSize files per execution
+ * Called by trigger or manually
+ */
+function processFleetQueueBatch() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty(QUEUE_CFG.propsKey);
+  
+  if (!raw) {
+    Logger.log('No queue state found. Nothing to do.');
+    return { status: 'idle', message: 'No active queue' };
+  }
+  
+  var state = JSON.parse(raw);
+  var executionStart = new Date();
+  
+  // Preload shared source data ONCE for this batch
+  Logger.log('Preloading source data...');
+  var shared = preloadFleetSourceData_(state.scope);
+  Logger.log('Source data loaded.');
+  
+  var startIndex = state.index;
+  var endIndex = Math.min(state.index + QUEUE_CFG.batchSize, state.fileIds.length);
+  var batchLogs = [];
+  
+  for (var i = startIndex; i < endIndex; i++) {
+    // Check execution time
+    var elapsed = new Date() - executionStart;
+    if (elapsed > QUEUE_CFG.maxExecutionTime) {
+      Logger.log('Approaching timeout (' + Math.round(elapsed/1000) + 's). Stopping batch early.');
+      state.index = i;
+      props.setProperty(QUEUE_CFG.propsKey, JSON.stringify(state));
+      scheduleFleetQueueContinuation_(true);
+      return { status: 'timeout', message: 'Stopped early, scheduling continuation', processed: i - startIndex };
+    }
+    
+    var fileInfo = state.fileIds[i];
+    var fileStart = new Date();
+    
+    try {
+      var targetSS = SpreadsheetApp.openById(fileInfo.id);
+      Logger.log('(' + (i + 1) + '/' + state.fileIds.length + ') ' + fileInfo.name + ' — start');
+      
+      // Run the appropriate pipeline with preloaded data
+      var result = runOptimizedPipeline_(targetSS, state.scope, shared);
+      
+      // Optionally update notes
+      if (state.updateNotes) {
+        try {
+          updateAccountNotes(targetSS);
+        } catch (noteErr) {
+          Logger.log('Notes update failed: ' + noteErr.message);
+        }
+      }
+      
+      var duration = Math.round((new Date() - fileStart) / 1000);
+      state.processed++;
+      batchLogs.push({ status: 'Success', file: fileInfo.name, msg: result.msg + ' (' + duration + 's)' });
+      Logger.log('(' + (i + 1) + '/' + state.fileIds.length + ') ' + fileInfo.name + ' — done in ' + duration + 's');
+      
+    } catch (err) {
+      Logger.log('Failed on ' + fileInfo.name + ': ' + (err && err.message));
+      state.failed.push({ id: fileInfo.id, name: fileInfo.name, error: (err && err.message) || String(err) });
+      batchLogs.push({ status: 'Error', file: fileInfo.name, msg: (err && err.message) || String(err) });
+    }
+    
+    // Small pause between files
+    Utilities.sleep(300);
+  }
+  
+  state.index = endIndex;
+  props.setProperty(QUEUE_CFG.propsKey, JSON.stringify(state));
+  
+  var batchDuration = Math.round((new Date() - executionStart) / 1000);
+  Logger.log('Batch processed ' + (endIndex - startIndex) + ' files in ' + batchDuration + 's.');
+  
+  // Check if more files remain
+  if (state.index < state.fileIds.length) {
+    Logger.log('Remaining: ' + (state.fileIds.length - state.index) + '. Scheduling next batch...');
+    scheduleFleetQueueContinuation_(true);
+    return { 
+      status: 'in_progress', 
+      message: 'Batch complete, more files remaining',
+      processed: state.processed,
+      remaining: state.fileIds.length - state.index,
+      logs: batchLogs
+    };
+  } else {
+    // All done - clean up
+    props.deleteProperty(QUEUE_CFG.propsKey);
+    clearFleetQueueTriggers_();
+    
+    Logger.log('✓ Finished all files. Processed: ' + state.processed + '. Failed: ' + state.failed.length);
+    if (state.failed.length) {
+      Logger.log('=== FAILED FILES ===');
+      state.failed.forEach(function(f) { Logger.log('  • ' + f.name + ' — ' + f.error); });
+    }
+    
+    return { 
+      status: 'complete', 
+      message: 'All files processed',
+      processed: state.processed,
+      failed: state.failed.length,
+      failedFiles: state.failed,
+      logs: batchLogs
+    };
+  }
+}
+
+/**
+ * PRELOAD: Read all source data once per batch
+ * @param {string} scope - Pipeline scope
+ * @returns {Object} Preloaded data
+ */
+function preloadFleetSourceData_(scope) {
+  var shared = {};
+  
+  try {
+    // STATCORE source (for 'full' scope)
+    if (scope === 'full') {
+      var statSS = SpreadsheetApp.openById(QUEUE_CFG.sources.statcore.ssId);
+      var statSh = statSS.getSheetByName(QUEUE_CFG.sources.statcore.sheet);
+      var statLastRow = statSh.getLastRow();
+      var statLastCol = Math.min(statSh.getLastColumn(), 33); // A:AG
+      shared.statcoreData = (statLastRow > 0 && statLastCol > 0) 
+        ? statSh.getRange(1, 1, statLastRow, statLastCol).getValues()
+        : [];
+      Logger.log('STATCORE source: ' + statLastRow + ' rows loaded');
+    }
+    
+    // SYSCORE source (for 'full', 'syscore', 'syscore-only')
+    if (['full', 'syscore', 'syscore-only'].includes(scope)) {
+      var sysSS = SpreadsheetApp.openById(QUEUE_CFG.sources.syscore.ssId);
+      var sysSh = sysSS.getSheetByName(QUEUE_CFG.sources.syscore.sheet);
+      var sysLastRow = sysSh.getLastRow();
+      
+      shared.syscoreIds = sysLastRow > 0 ? sysSh.getRange(1, 1, sysLastRow, 1).getValues().flat() : [];
+      shared.syscoreData = sysLastRow > 0 ? sysSh.getRange(1, 2, sysLastRow, 13).getValues() : [];
+      shared.syscoreRich = sysLastRow > 0 ? sysSh.getRange(1, 2, sysLastRow, 13).getRichTextValues() : [];
+      Logger.log('SYSCORE source: ' + sysLastRow + ' rows loaded');
+    }
+    
+    // DAGCORE source (for 'full', 'syscore', 'dagcore')
+    if (['full', 'syscore', 'dagcore'].includes(scope)) {
+      var dagSS = SpreadsheetApp.openById(QUEUE_CFG.sources.dagcore.ssId);
+      var dagSh = dagSS.getSheetByName(QUEUE_CFG.sources.dagcore.sheet);
+      var dagLastRow = dagSh.getLastRow();
+      var dagLastCol = Math.min(dagSh.getLastColumn(), 54); // A:BB
+      
+      shared.dagcoreHeader = dagLastRow >= 2 ? dagSh.getRange(2, 1, 1, dagLastCol).getValues()[0] : [];
+      // Read DAGCORE data in memory for filtering (batched read)
+      shared.dagcoreData = [];
+      if (dagLastRow > 2) {
+        var batchSize = 5000;
+        for (var startRow = 3; startRow <= dagLastRow; startRow += batchSize) {
+          var endRow = Math.min(dagLastRow, startRow + batchSize - 1);
+          var numRows = endRow - startRow + 1;
+          var batch = dagSh.getRange(startRow, 1, numRows, dagLastCol).getValues();
+          shared.dagcoreData = shared.dagcoreData.concat(batch);
+        }
+      }
+      Logger.log('DAGCORE source: ' + shared.dagcoreData.length + ' rows loaded');
+    }
+    
+  } catch (e) {
+    Logger.log('Error preloading source data: ' + e.message);
+    throw e;
+  }
+  
+  return shared;
+}
+
+/**
+ * OPTIMIZED PIPELINE: Uses preloaded data
+ * @param {Spreadsheet} ss - Target spreadsheet
+ * @param {string} scope - Pipeline scope
+ * @param {Object} shared - Preloaded source data
+ * @returns {Object} Result
+ */
+function runOptimizedPipeline_(ss, scope, shared) {
+  var records = { statcore: 0, syscore: 0, dagcore: 0 };
+  
+  if (scope === 'full') {
+    records.statcore = writeStatcoreOptimized_(ss, shared);
+  }
+  
+  if (['full', 'syscore', 'syscore-only'].includes(scope)) {
+    records.syscore = writeSyscoreOptimized_(ss, shared);
+  }
+  
+  if (['full', 'syscore', 'dagcore'].includes(scope)) {
+    records.dagcore = writeDagcoreOptimized_(ss, shared);
+  }
+  
+  // Ensure formulas (always)
+  try {
+    ensureSTATCORE_Formulas(ss);
+  } catch (e) {
+    Logger.log('Formula repair failed: ' + e.message);
+  }
+  
+  var msg = scope + ': ';
+  if (scope === 'full') msg += records.statcore + ' STAT';
+  if (['full', 'syscore', 'syscore-only'].includes(scope)) msg += (scope === 'full' ? ', ' : '') + records.syscore + ' SYS';
+  if (['full', 'syscore', 'dagcore'].includes(scope)) msg += ', ' + records.dagcore + ' DAG';
+  
+  return { msg: msg, records: records };
+}
+
+/**
+ * OPTIMIZED STATCORE WRITE: Uses preloaded data
+ */
+function writeStatcoreOptimized_(ss, shared) {
+  var targetSheet = ss.getSheetByName('STATCORE');
+  if (!targetSheet) throw new Error("Sheet 'STATCORE' not found.");
+  
+  var setupSheet = ss.getSheetByName('SETUP');
+  if (!setupSheet) throw new Error("Sheet 'SETUP' not found.");
+  
+  var nameList = setupSheet.getRange('B3:B16').getValues().flat().filter(Boolean);
+  
+  var data = shared.statcoreData;
+  if (!data || !data.length) return 0;
+  
+  var header = data[0];
+  var filtered = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (row[13] && nameList.includes(row[13])) {
+      filtered.push(row);
+    }
+  }
+  
+  // Write header
+  targetSheet.getRange(2, 1, 1, Math.min(header.length, 33)).setValues([header.slice(0, 33)]);
+  
+  // Clear and write data
+  var lastRow = Math.max(targetSheet.getLastRow(), 3);
+  targetSheet.getRange(3, 1, lastRow - 2, 33).clearContent();
+  
+  if (filtered.length > 0) {
+    var writeWidth = Math.min(33, filtered[0].length);
+    var block = filtered.map(function(r) { return r.slice(0, writeWidth); });
+    targetSheet.getRange(3, 1, block.length, writeWidth).setValues(block);
+    SpreadsheetApp.flush();
+  }
+  
+  return filtered.length;
+}
+
+/**
+ * OPTIMIZED SYSCORE WRITE: Uses preloaded data
+ */
+function writeSyscoreOptimized_(ss, shared) {
+  var currentSheet = ss.getSheetByName('STATCORE');
+  if (!currentSheet) return 0;
+  
+  // Build source map from preloaded data
+  var sourceMap = new Map();
+  for (var i = 0; i < shared.syscoreIds.length; i++) {
+    var id = String(shared.syscoreIds[i]);
+    if (id) {
+      var processedRow = shared.syscoreData[i].map(function(cellValue, j) {
+        var richText = shared.syscoreRich[i] ? shared.syscoreRich[i][j] : null;
+        var linkUrl = richText ? richText.getLinkUrl() : null;
+        return linkUrl ? '=HYPERLINK("' + linkUrl + '", "' + cellValue + '")' : cellValue;
+      });
+      sourceMap.set(id, processedRow);
+    }
+  }
+  
+  // Get target IDs
+  var targetLastRow = currentSheet.getLastRow();
+  if (targetLastRow < 3) return 0;
+  
+  var targetIds = currentSheet.getRange(3, 1, targetLastRow - 2, 1).getValues().flat();
+  
+  // Build aligned output
+  var matchCount = 0;
+  var alignedData = targetIds.map(function(targetId) {
+    var key = String(targetId);
+    if (sourceMap.has(key)) {
+      matchCount++;
+      return sourceMap.get(key);
+    }
+    return new Array(13).fill('');
+  });
+  
+  // Write header (AH2:AT2)
+  if (shared.syscoreData.length > 0) {
+    currentSheet.getRange(2, 34, 1, 13).setValues([shared.syscoreData[0]]);
+  }
+  
+  // Clear and write data
+  var clearDepth = Math.max(targetLastRow, currentSheet.getLastRow());
+  if (clearDepth >= 3) {
+    currentSheet.getRange(3, 34, clearDepth - 2, 13).clearContent();
+  }
+  
+  if (alignedData.length > 0) {
+    currentSheet.getRange(3, 34, alignedData.length, 13).setValues(alignedData);
+    SpreadsheetApp.flush();
+  }
+  
+  return matchCount;
+}
+
+/**
+ * OPTIMIZED DAGCORE WRITE: Uses preloaded data
+ */
+function writeDagcoreOptimized_(ss, shared) {
+  var statCoreSheet = ss.getSheetByName('STATCORE');
+  var distroSheet = ss.getSheetByName('DISTRO');
+  if (!statCoreSheet || !distroSheet) return 0;
+  
+  // Get STATCORE keys
+  var statLastRow = statCoreSheet.getLastRow();
+  var statKeys = new Set();
+  if (statLastRow >= 3) {
+    statCoreSheet.getRange(3, 1, statLastRow - 2, 1).getValues().flat().forEach(function(k) {
+      if (k) statKeys.add(k);
+    });
+  }
+  
+  // Filter DAGCORE data
+  var dataToWrite = [];
+  shared.dagcoreData.forEach(function(row) {
+    if (row[0] && statKeys.has(row[0])) {
+      dataToWrite.push(row);
+    }
+  });
+  
+  // Write header
+  if (shared.dagcoreHeader.length > 0) {
+    distroSheet.getRange(1, 1, 1, shared.dagcoreHeader.length).setValues([shared.dagcoreHeader]);
+  }
+  
+  // Clear and write data
+  var distroLastRow = Math.max(distroSheet.getLastRow(), 2);
+  var colWidth = Math.max(shared.dagcoreHeader.length, 54);
+  distroSheet.getRange(2, 1, distroLastRow - 1, colWidth).clearContent();
+  
+  if (dataToWrite.length > 0) {
+    distroSheet.getRange(2, 1, dataToWrite.length, dataToWrite[0].length).setValues(dataToWrite);
+    SpreadsheetApp.flush();
+  }
+  
+  return dataToWrite.length;
+}
+
+/**
+ * SCHEDULER: Create time-based trigger for continuation
+ */
+function scheduleFleetQueueContinuation_(soon) {
+  // Clear existing triggers first
+  clearFleetQueueTriggers_();
+  
+  try {
+    var delaySeconds = soon ? 20 : 60;
+    ScriptApp.newTrigger(QUEUE_CFG.triggerName)
+      .timeBased()
+      .after(delaySeconds * 1000)
+      .create();
+    Logger.log('Next batch scheduled in ' + delaySeconds + ' seconds.');
+  } catch (e) {
+    Logger.log('Failed to create trigger: ' + e.message);
+    Logger.log('Run continueFleetQueue() manually to continue.');
+  }
+}
+
+/**
+ * Clear all fleet queue triggers
+ */
+function clearFleetQueueTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === QUEUE_CFG.triggerName) {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+}
+
+// === QUEUE CONTROL FUNCTIONS (for sidebar/manual use) ===
+
+/**
+ * Continue processing the queue manually
+ */
+function continueFleetQueue() {
+  return processFleetQueueBatch();
+}
+
+/**
+ * Get current queue status
+ */
+function getFleetQueueStatus() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty(QUEUE_CFG.propsKey);
+  
+  if (!raw) {
+    return { active: false, message: 'No active queue' };
+  }
+  
+  var state = JSON.parse(raw);
+  return {
+    active: true,
+    total: state.fileIds.length,
+    completed: state.index,
+    remaining: state.fileIds.length - state.index,
+    processed: state.processed,
+    failed: state.failed.length,
+    scope: state.scope,
+    updateNotes: state.updateNotes,
+    startedAt: state.startedAt,
+    failedFiles: state.failed
+  };
+}
+
+/**
+ * Reset/clear the queue and triggers
+ */
+function resetFleetQueue() {
+  assertAdminAccess();
+  PropertiesService.getScriptProperties().deleteProperty(QUEUE_CFG.propsKey);
+  clearFleetQueueTriggers_();
+  Logger.log('Queue and triggers cleared.');
+  return { status: 'reset', message: 'Queue cleared. Run startQueuedFleetRefresh() to start fresh.' };
+}
+
+/**
+ * Wrapper for sidebar to start queued refresh
+ */
+function runQueuedDataRefresh(scope, updateNotes) {
+  return startQueuedFleetRefresh(scope, updateNotes);
 }
 
 // =============================================================

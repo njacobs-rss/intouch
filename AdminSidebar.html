@@ -6,7 +6,7 @@
       /* --- GLOBAL RESET & TYPOGRAPHY --- */
       body { 
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-        padding: 12px; 
+        padding: 0; 
         background-color: #f8fafc; 
         color: #333; 
         margin: 0;
@@ -22,7 +22,79 @@
         text-transform: uppercase;
       }
 
-      /* --- INPUT CONTROL GROUP (THE COCKPIT) --- */
+      /* --- TAB NAVIGATION --- */
+      .tab-nav {
+        display: flex;
+        background: #2d3748;
+        padding: 0;
+        margin: 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .tab-btn {
+        flex: 1;
+        padding: 14px 8px;
+        border: none;
+        background: #2d3748;
+        color: #a0aec0;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 3px solid transparent;
+      }
+      .tab-btn:hover {
+        background: #4a5568;
+        color: #e2e8f0;
+      }
+      .tab-btn.active {
+        background: #4a5568;
+        color: #fff;
+        border-bottom-color: #48bb78;
+      }
+      .tab-btn.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .tab-btn .tab-icon {
+        display: block;
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      
+      /* --- TAB PANELS --- */
+      .tab-panel {
+        display: none;
+        padding: 12px;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      /* --- ACCESS DENIED MESSAGE --- */
+      .access-denied {
+        text-align: center;
+        padding: 40px 20px;
+        color: #718096;
+      }
+      .access-denied .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      .access-denied h3 {
+        color: #4a5568;
+        margin: 0 0 8px 0;
+        font-size: 16px;
+      }
+      .access-denied p {
+        margin: 0;
+        font-size: 12px;
+      }
+
+      /* --- INPUT CONTROL GROUP --- */
       .control-group { 
         background: white; 
         padding: 12px; 
@@ -63,8 +135,6 @@
       .checkbox-wrapper input { margin-right: 6px; }
 
       /* --- BUTTON GRIDS --- */
-      
-      /* Row of 3 (Dense) */
       .grid-3 {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
@@ -72,7 +142,6 @@
         margin-bottom: 8px;
       }
       
-      /* Row of 2 */
       .grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -80,7 +149,6 @@
         margin-bottom: 8px;
       }
 
-      /* Standard Stack */
       .grid-1 {
         display: grid;
         grid-template-columns: 1fr;
@@ -99,8 +167,6 @@
         background: white;
         transition: all 0.2s ease;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        
-        /* Flex setup for centering */
         display: flex; 
         justify-content: center;
         align-items: center;
@@ -112,15 +178,13 @@
         background: #fafbfc;
       }
 
-      /* Vertical Button (Icon Top, Text Bottom) - For Global Grid */
       .btn-vertical {
         flex-direction: column;
         text-align: center;
-        height: 100%; /* Fill grid cell */
+        height: 100%;
       }
       .btn-vertical .icon { margin-bottom: 5px; margin-right: 0; font-size: 18px; }
 
-      /* Horizontal Button (Icon Left) - For Local List */
       .btn-horizontal {
         flex-direction: row;
         text-align: left;
@@ -129,12 +193,10 @@
       .btn-horizontal .icon { margin-right: 10px; font-size: 16px; }
 
       /* --- COLOR CODING --- */
-      .btn-safe   { border-top: 3px solid #27ae60; } /* Green Top for Vertical */
-      .btn-copy   { border-top: 3px solid #2980b9; } /* Blue Top */
-      .btn-del    { border-top: 3px solid #c0392b; } /* Red Top */
-      .btn-config { border-top: 3px solid #f39c12; } /* Orange Top */
-      
-      /* Local buttons keep side borders */
+      .btn-safe   { border-top: 3px solid #27ae60; }
+      .btn-copy   { border-top: 3px solid #2980b9; }
+      .btn-del    { border-top: 3px solid #c0392b; }
+      .btn-config { border-top: 3px solid #f39c12; }
       .btn-local  { border-left: 4px solid #8e44ad; } 
       .btn-warn   { border-left: 4px solid #d35400; } 
 
@@ -146,13 +208,12 @@
         margin: 20px 0;
       }
 
-      /* --- UTILS --- */
+      /* --- MODALS --- */
       #confirm-modal { display: none; background: #fff8e1; border: 1px solid #ffe58f; color: #b7791f; padding: 15px; border-radius: 6px; margin-top: 20px; text-align: center; }
       .confirm-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
       .btn-yes { background: #28a745; color: white; border: none; padding: 8px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
       .btn-no { background: #718096; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
 
-      /* Data Refresh Options Modal */
       #data-refresh-modal { display: none; background: #e8f4fd; border: 1px solid #90cdf4; color: #2b6cb0; padding: 15px; border-radius: 6px; margin-top: 20px; }
       #data-refresh-modal h3 { margin: 0 0 12px 0; font-size: 13px; text-align: center; }
       .radio-option { display: flex; align-items: flex-start; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
@@ -243,7 +304,6 @@
         width: 70px;
       }
 
-      /* No Header Warning Modal */
       #no-header-modal { 
         display: none; 
         background: #fef3c7; 
@@ -255,7 +315,6 @@
         text-align: center; 
       }
 
-      /* Header Mismatch Modal */
       #mismatch-modal { 
         display: none; 
         background: #fed7d7; 
@@ -279,232 +338,335 @@
   </head>
   <body>
 
-    <h2>🚀 Global Functions (All Sheets)</h2>
-    
-    <div class="control-group">
-      <label>Target Sheet (For Global Ops)</label>
-      <select id="sheet-selector"><option>Loading...</option></select>
-      
-      <label>New Deploy Name (Copy Only)</label>
-      <input type="text" id="new-name-input" placeholder="Enter new tab name...">
-      
-      <div class="checkbox-wrapper">
-        <input type="checkbox" id="hide-check"> 
-        <span>Hide sheet after deployment?</span>
-      </div>
-    </div>
-
-    <div class="grid-3" id="global-row-1">
-      <button class="btn-safe btn-vertical" onclick="requestAction('safeUpdate')">
-        <span class="icon">📑</span> Deploy Update (All)
+    <!-- TAB NAVIGATION -->
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tab-local-btn" onclick="switchTab('local')">
+        <span class="tab-icon">📍</span>
+        Local
       </button>
-
-      <button class="btn-copy btn-vertical" onclick="requestAction('copy')">
-        <span class="icon">📑</span> Deploy New (All)
-      </button>
-
-      <button class="btn-del btn-vertical" onclick="requestAction('delete')">
-        <span class="icon">🚫</span> Mass Terminate (All)
+      <button class="tab-btn" id="tab-global-btn" onclick="switchTab('global')">
+        <span class="tab-icon">🚀</span>
+        Global Ops
       </button>
     </div>
 
-    <div class="grid-3" id="global-row-2">
-      <button class="btn-local btn-vertical" onclick="requestAction('statcore')">
-        <span class="icon">🌐</span> Global Data Refresh (All)
-      </button>
+    <!-- GLOBAL TAB PANEL -->
+    <div class="tab-panel" id="tab-global">
+      
+      <!-- Access Denied Message (shown to non-admins) -->
+      <div class="access-denied" id="global-access-denied" style="display:none;">
+        <div class="icon">🔒</div>
+        <h3>Admin Access Required</h3>
+        <p>Global operations are restricted to authorized administrators.</p>
+      </div>
 
-      <button class="btn-config btn-vertical" onclick="requestAction('config')">
-        <span class="icon">⚙️</span> Update Setup IDs (Global)
-      </button>
+      <!-- Global Content (shown to admins) -->
+      <div id="global-content">
+        <h2>🚀 Fleet Operations</h2>
+        
+        <div class="control-group" id="sheet-deploy-controls">
+          <label>Target Sheet (For Deploy Ops)</label>
+          <select id="sheet-selector"><option>Loading...</option></select>
+          
+          <label>New Deploy Name (Copy Only)</label>
+          <input type="text" id="new-name-input" placeholder="Enter new tab name...">
+          
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="hide-check"> 
+            <span>Hide sheet after deployment?</span>
+          </div>
+        </div>
 
-      <button class="btn-safe btn-vertical" onclick="requestAction('globalTabs')">
-        <span class="icon">👥</span> Refresh AM Tabs (All)
-      </button>
+        <div class="grid-3" id="global-row-1">
+          <button class="btn-safe btn-vertical" onclick="requestAction('safeUpdate')">
+            <span class="icon">📑</span> Deploy Update
+          </button>
+
+          <button class="btn-copy btn-vertical" onclick="requestAction('copy')">
+            <span class="icon">📑</span> Deploy New
+          </button>
+
+          <button class="btn-del btn-vertical" onclick="requestAction('delete')">
+            <span class="icon">🚫</span> Mass Delete
+          </button>
+        </div>
+
+        <div class="grid-3" id="global-row-2">
+          <button class="btn-local btn-vertical" onclick="requestAction('statcore')">
+            <span class="icon">🌐</span> Data Refresh
+          </button>
+
+          <button class="btn-config btn-vertical" onclick="requestAction('config')">
+            <span class="icon">⚙️</span> Update IDs
+          </button>
+
+          <button class="btn-safe btn-vertical" onclick="requestAction('globalTabs')">
+            <span class="icon">👥</span> AM Tabs
+          </button>
+        </div>
+        
+        <div style="margin-top:8px; text-align:center;">
+          <button style="background:#3b82f6; color:white; padding:6px 16px; border:none; border-radius:4px; cursor:pointer; font-size:11px;" onclick="checkQueueStatus()">
+            📋 Check Queue Status
+          </button>
+        </div>
+
+        <hr class="section-divider">
+
+        <h2 id="range-replicator-header">📋 Range Replicator</h2>
+        
+        <div class="control-group" id="range-replicator-section">
+          <div class="range-display" id="range-display">
+            <div class="range-label">No range captured</div>
+            <div class="range-info">
+              <span>Sheet: —</span>
+              <span>Range: —</span>
+              <span>Size: — × —</span>
+            </div>
+          </div>
+          
+          <button class="btn-copy btn-horizontal" onclick="captureRange()" style="width:100%; margin-bottom:12px;">
+            <span class="icon">📷</span> Capture Selection
+          </button>
+          
+          <div class="inline-input-group">
+            <div>
+              <label>Header Row (for verify)</label>
+              <input type="number" id="header-row-input" placeholder="Row #" min="1">
+            </div>
+            <div style="flex:2;">
+              <label>Target Sheet</label>
+              <select id="target-sheet-selector"><option value="">— Same as source —</option></select>
+            </div>
+          </div>
+          
+          <div class="checkbox-wrapper" style="margin-bottom:8px;">
+            <input type="checkbox" id="alt-range-check" onchange="toggleAltRange()"> 
+            <span>Use different target range</span>
+          </div>
+          
+          <input type="text" id="alt-range-input" placeholder="e.g., A5:F20" style="display:none; margin-bottom:12px;">
+          
+          <div class="checkbox-wrapper" style="margin-bottom:8px; padding:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:4px;">
+            <input type="checkbox" id="test-mode-check" onchange="toggleTestMode()"> 
+            <span style="color:#c2410c; font-weight:600;">Test Mode (Single File)</span>
+          </div>
+          
+          <div id="test-file-wrapper" style="display:none; margin-bottom:12px;">
+            <label>Target Fleet File</label>
+            <select id="fleet-file-selector"><option value="">Loading fleet files...</option></select>
+          </div>
+          
+          <div class="grid-2">
+            <button class="btn-config btn-vertical" onclick="requestRangeAction('verify')" id="btn-verify">
+              <span class="icon">✓</span> Verify Headers
+            </button>
+            <button class="btn-safe btn-vertical" onclick="requestRangeAction('push')" id="btn-push">
+              <span class="icon">🚀</span> <span id="push-btn-text">Push to Fleet</span>
+            </button>
+          </div>
+          
+          <div id="test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:12px; border-radius:6px; margin-top:12px; text-align:center;">
+            <div style="font-weight:bold; margin-bottom:6px; font-size:13px;">✅ Test Push Complete!</div>
+            <div style="font-size:11px; margin-bottom:4px;">Successfully pushed to:</div>
+            <div id="test-success-filename" style="font-weight:600; color:#2c7a7b; margin-bottom:10px; font-size:12px;"></div>
+            <div style="font-size:10px; margin-bottom:8px;">Would you like to open the file to verify?</div>
+            <div class="confirm-btns" style="margin-top:0;">
+              <button class="btn-yes" onclick="openTestFile()">Open File</button>
+              <button class="btn-no" onclick="closeTestSuccessModal()">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <hr class="section-divider">
-
-    <h2 id="range-replicator-header">📋 Range Replicator</h2>
-    
-    <div class="control-group" id="range-replicator-section">
-      <div class="range-display" id="range-display">
-        <div class="range-label">No range captured</div>
-        <div class="range-info">
-          <span>Sheet: —</span>
-          <span>Range: —</span>
-          <span>Size: — × —</span>
-        </div>
-      </div>
+    <!-- LOCAL TAB PANEL -->
+    <div class="tab-panel active" id="tab-local">
+      <h2>📍 Local Functions (This File)</h2>
       
-      <button class="btn-copy btn-horizontal" onclick="captureRange()" style="width:100%; margin-bottom:12px;">
-        <span class="icon">📷</span> Capture Selection
-      </button>
-      
-      <div class="inline-input-group">
-        <div>
-          <label>Header Row (for verify)</label>
-          <input type="number" id="header-row-input" placeholder="Row #" min="1">
-        </div>
-        <div style="flex:2;">
-          <label>Target Sheet</label>
-          <select id="target-sheet-selector"><option value="">— Same as source —</option></select>
-        </div>
-      </div>
-      
-      <div class="checkbox-wrapper" style="margin-bottom:8px;">
-        <input type="checkbox" id="alt-range-check" onchange="toggleAltRange()"> 
-        <span>Use different target range</span>
-      </div>
-      
-      <input type="text" id="alt-range-input" placeholder="e.g., A5:F20" style="display:none; margin-bottom:12px;">
-      
-      <div class="checkbox-wrapper" style="margin-bottom:8px; padding:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:4px;">
-        <input type="checkbox" id="test-mode-check" onchange="toggleTestMode()"> 
-        <span style="color:#c2410c; font-weight:600;">Test Mode (Single File)</span>
-      </div>
-      
-      <div id="test-file-wrapper" style="display:none; margin-bottom:12px;">
-        <label>Target Fleet File</label>
-        <select id="fleet-file-selector"><option value="">Loading fleet files...</option></select>
-      </div>
-      
-      <div class="grid-2">
-        <button class="btn-config btn-vertical" onclick="requestRangeAction('verify')" id="btn-verify">
-          <span class="icon">✓</span> Verify Headers
+      <div class="grid-1" id="local-buttons">
+        <button class="btn-local btn-horizontal" onclick="requestAction('createTabs')">
+          <span class="icon">⬆️</span> Refresh AM Tabs
         </button>
-        <button class="btn-safe btn-vertical" onclick="requestRangeAction('push')" id="btn-push">
-          <span class="icon">🚀</span> <span id="push-btn-text">Push to Fleet</span>
+
+        <button class="btn-local btn-horizontal" onclick="requestAction('updateNotes')">
+          <span class="icon">📝</span> Update Notes Only
+        </button>
+
+        <button class="btn-warn btn-horizontal" onclick="requestAction('totalRefresh')">
+          <span class="icon">📊</span> Force Local Refresh
+        </button>
+
+        <button class="btn-warn btn-horizontal" onclick="requestAction('deleteTabs')">
+          <span class="icon">❌</span> Delete AM Tabs
         </button>
       </div>
-      
-      <div id="test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:12px; border-radius:6px; margin-top:12px; text-align:center;">
-        <div style="font-weight:bold; margin-bottom:6px; font-size:13px;">✅ Test Push Complete!</div>
-        <div style="font-size:11px; margin-bottom:4px;">Successfully pushed to:</div>
-        <div id="test-success-filename" style="font-weight:600; color:#2c7a7b; margin-bottom:10px; font-size:12px;"></div>
-        <div style="font-size:10px; margin-bottom:8px;">Would you like to open the file to verify?</div>
-        <div class="confirm-btns" style="margin-top:0;">
-          <button class="btn-yes" onclick="openTestFile()">Open File</button>
-          <button class="btn-no" onclick="closeTestSuccessModal()">Done</button>
+    </div>
+
+    <!-- SHARED MODALS (outside tab panels) -->
+    <div style="padding: 0 12px 12px 12px;">
+      <div id="confirm-modal">
+        <div style="font-weight:bold; margin-bottom:5px;">⚠️ Confirm Action</div>
+        <div id="confirm-text" style="font-size:13px;"></div>
+        <div class="confirm-btns">
+          <button class="btn-yes" onclick="executeConfirmedAction()">Run</button>
+          <button class="btn-no" onclick="cancelAction()">Cancel</button>
         </div>
       </div>
-    </div>
 
-    <hr class="section-divider">
+      <div id="data-refresh-modal">
+        <h3>🌐 Select Data Refresh Scope</h3>
+        
+        <label class="radio-option">
+          <input type="radio" name="refresh-scope" value="full" checked>
+          <div class="option-text">
+            <div class="option-title">Full Pipeline (All Data)</div>
+            <div class="option-desc">STATCORE → SYSCORE → DAGCORE (Complete refresh)</div>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="refresh-scope" value="syscore">
+          <div class="option-text">
+            <div class="option-title">SYSCORE + DAGCORE</div>
+            <div class="option-desc">Skip base STATCORE, refresh supplemental data only</div>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="refresh-scope" value="syscore-only">
+          <div class="option-text">
+            <div class="option-title">SYSCORE Only</div>
+            <div class="option-desc">Refresh supplemental data, skip DISTRO</div>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="refresh-scope" value="dagcore">
+          <div class="option-text">
+            <div class="option-title">DAGCORE Only</div>
+            <div class="option-desc">Refresh DISTRO sheet only (fastest)</div>
+          </div>
+        </label>
 
-    <h2>📍 Local Functions (This File)</h2>
-    
-    <div class="grid-1" id="local-buttons">
-      <button class="btn-local btn-horizontal" onclick="requestAction('createTabs')">
-        <span class="icon">⬆️</span> Refresh AM Tabs
-      </button>
-
-      <button class="btn-local btn-horizontal" onclick="requestAction('updateNotes')">
-        <span class="icon">📝</span> Update Notes Only
-      </button>
-
-      <button class="btn-warn btn-horizontal" onclick="requestAction('totalRefresh')">
-        <span class="icon">📊</span> Force Local Refresh
-      </button>
-
-      <button class="btn-warn btn-horizontal" onclick="requestAction('deleteTabs')">
-        <span class="icon">❌</span> Delete AM Tabs
-      </button>
-    </div>
-
-    <div id="confirm-modal">
-      <div style="font-weight:bold; margin-bottom:5px;">⚠️ Confirm Action</div>
-      <div id="confirm-text" style="font-size:13px;"></div>
-      <div class="confirm-btns">
-        <button class="btn-yes" onclick="executeConfirmedAction()">Run</button>
-        <button class="btn-no" onclick="cancelAction()">Cancel</button>
-      </div>
-    </div>
-
-    <div id="data-refresh-modal">
-      <h3>🌐 Select Data Refresh Scope</h3>
-      
-      <label class="radio-option">
-        <input type="radio" name="refresh-scope" value="full" checked>
-        <div class="option-text">
-          <div class="option-title">Full Pipeline (All Data)</div>
-          <div class="option-desc">STATCORE → SYSCORE → DAGCORE (Complete refresh)</div>
+        <div class="checkbox-wrapper" style="margin-top: 12px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e2e8f0;">
+          <input type="checkbox" id="update-notes-check"> 
+          <span>Also update dynamic notes after refresh</span>
         </div>
-      </label>
-      
-      <label class="radio-option">
-        <input type="radio" name="refresh-scope" value="syscore">
-        <div class="option-text">
-          <div class="option-title">SYSCORE + DAGCORE</div>
-          <div class="option-desc">Skip base STATCORE, refresh supplemental data only</div>
+
+        <div class="confirm-btns">
+          <button class="btn-yes" onclick="executeDataRefresh()">Start Queued Refresh</button>
+          <button class="btn-no" onclick="cancelAction()">Cancel</button>
         </div>
-      </label>
-      
-      <label class="radio-option">
-        <input type="radio" name="refresh-scope" value="syscore-only">
-        <div class="option-text">
-          <div class="option-title">SYSCORE Only</div>
-          <div class="option-desc">Refresh supplemental data, skip DISTRO</div>
+        
+        <div style="font-size:10px; color:#666; margin-top:8px; text-align:center;">
+          Queued mode processes files in batches with auto-continuation
         </div>
-      </label>
+      </div>
       
-      <label class="radio-option">
-        <input type="radio" name="refresh-scope" value="dagcore">
-        <div class="option-text">
-          <div class="option-title">DAGCORE Only</div>
-          <div class="option-desc">Refresh DISTRO sheet only (fastest)</div>
+      <div id="queue-status-modal" style="display:none; background:#f0f9ff; border:2px solid #3b82f6; border-radius:6px; padding:12px; margin-bottom:10px;">
+        <h4 style="margin:0 0 10px 0; color:#1e40af;">📋 Queue Status</h4>
+        <div id="queue-status-content" style="font-size:12px; line-height:1.6;"></div>
+        <div class="confirm-btns" style="margin-top:10px;">
+          <button class="btn-yes" onclick="continueQueue()">Continue Now</button>
+          <button class="btn-no" onclick="resetQueue()">Reset Queue</button>
+          <button style="background:#6b7280; color:white; padding:6px 12px; border:none; border-radius:4px; cursor:pointer;" onclick="closeQueueStatus()">Close</button>
         </div>
-      </label>
-
-      <div class="checkbox-wrapper" style="margin-top: 12px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e2e8f0;">
-        <input type="checkbox" id="update-notes-check"> 
-        <span>Also update dynamic notes after refresh</span>
       </div>
 
-      <div class="confirm-btns">
-        <button class="btn-yes" onclick="executeDataRefresh()">Run Selected</button>
-        <button class="btn-no" onclick="cancelAction()">Cancel</button>
+      <div id="no-header-modal">
+        <div style="font-weight:bold; margin-bottom:5px;">⚠️ No Header Row Specified</div>
+        <div style="font-size:12px; margin-bottom:10px;">
+          Without a header row, the system cannot verify that target sheets have matching column structures. 
+          Proceed anyway?
+        </div>
+        <div class="confirm-btns">
+          <button class="btn-yes" onclick="executeRangePush(true)">Push Anyway</button>
+          <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
+        </div>
       </div>
+
+      <div id="mismatch-modal">
+        <h3>⚠️ Header Mismatches Found</h3>
+        <div class="mismatch-list" id="mismatch-list"></div>
+        <div style="font-size:11px; margin-bottom:10px; text-align:center;">
+          Force push to all files anyway? Files with mismatches will be overwritten.
+        </div>
+        <div class="confirm-btns">
+          <button class="btn-yes" onclick="executeRangePush(true)">Force Push All</button>
+          <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="spinner">
+        <div class="loader"></div>
+        <div style="color:#666; font-size:12px;">Working...</div>
+      </div>
+
+      <div id="log-area"><div id="log-content"></div></div>
     </div>
-
-    <div id="no-header-modal">
-      <div style="font-weight:bold; margin-bottom:5px;">⚠️ No Header Row Specified</div>
-      <div style="font-size:12px; margin-bottom:10px;">
-        Without a header row, the system cannot verify that target sheets have matching column structures. 
-        Proceed anyway?
-      </div>
-      <div class="confirm-btns">
-        <button class="btn-yes" onclick="executeRangePush(true)">Push Anyway</button>
-        <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
-      </div>
-    </div>
-
-    <div id="mismatch-modal">
-      <h3>⚠️ Header Mismatches Found</h3>
-      <div class="mismatch-list" id="mismatch-list"></div>
-      <div style="font-size:11px; margin-bottom:10px; text-align:center;">
-        Force push to all files anyway? Files with mismatches will be overwritten.
-      </div>
-      <div class="confirm-btns">
-        <button class="btn-yes" onclick="executeRangePush(true)">Force Push All</button>
-        <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
-      </div>
-    </div>
-
-    <div id="spinner">
-      <div class="loader"></div>
-      <div style="color:#666; font-size:12px;">Working...</div>
-    </div>
-
-    <div id="log-area"><div id="log-content"></div></div>
 
     <script>
-      // 1. Initialize Dropdown with Failure Handler
+      // =============================================================
+      // TAB MANAGEMENT
+      // =============================================================
+      var currentTab = 'local';
+      var isAdmin = false;
+
+      function switchTab(tabId) {
+        // If switching to global tab and not admin, show denied message
+        if (tabId === 'global' && !isAdmin) {
+          // Still switch tabs but show access denied
+        }
+        
+        currentTab = tabId;
+        
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+          btn.classList.remove('active');
+        });
+        document.getElementById('tab-' + tabId + '-btn').classList.add('active');
+        
+        // Update tab panels
+        document.querySelectorAll('.tab-panel').forEach(function(panel) {
+          panel.classList.remove('active');
+        });
+        document.getElementById('tab-' + tabId).classList.add('active');
+        
+        // Hide log area when switching tabs
+        document.getElementById('log-area').style.display = 'none';
+      }
+
+      // Check admin access on load
+      google.script.run
+        .withSuccessHandler(function(adminStatus) {
+          isAdmin = adminStatus;
+          if (!isAdmin) {
+            // Hide global content, show access denied (for when user clicks Global tab)
+            document.getElementById('global-content').style.display = 'none';
+            document.getElementById('global-access-denied').style.display = 'block';
+          }
+        })
+        .withFailureHandler(function(e) {
+          console.error("Failed to check admin status:", e);
+          // Default to non-admin on error
+          isAdmin = false;
+          document.getElementById('global-content').style.display = 'none';
+          document.getElementById('global-access-denied').style.display = 'block';
+        })
+        .checkAdminAccess();
+
+      // =============================================================
+      // INITIALIZATION
+      // =============================================================
+      
+      // Initialize sheet dropdown
       google.script.run
         .withSuccessHandler(populateDropdown)
         .withFailureHandler(function(e) {
-             var select = document.getElementById('sheet-selector');
-             select.innerHTML = '<option value="">Error loading list</option>';
-             console.error(e);
+          var select = document.getElementById('sheet-selector');
+          select.innerHTML = '<option value="">Error loading list</option>';
+          console.error(e);
         })
         .getFilteredSheetNames();
 
@@ -512,11 +674,11 @@
         var select = document.getElementById('sheet-selector');
         select.innerHTML = ''; 
         if (!names || names.length === 0) {
-           var option = document.createElement('option');
-           option.text = "No available sheets"; 
-           option.value = ""; 
-           select.add(option); 
-           return;
+          var option = document.createElement('option');
+          option.text = "No available sheets"; 
+          option.value = ""; 
+          select.add(option); 
+          return;
         }
         names.forEach(function(name) {
           var option = document.createElement('option');
@@ -524,7 +686,32 @@
         });
       }
 
-      // 2. Request Action
+      // Initialize target sheet dropdown for Range Replicator
+      google.script.run
+        .withSuccessHandler(populateTargetSheetDropdown)
+        .withFailureHandler(function(e) { console.error("Failed to load sheet names:", e); })
+        .getAllSheetNamesForTarget();
+
+      function populateTargetSheetDropdown(names) {
+        var select = document.getElementById('target-sheet-selector');
+        var firstOption = select.options[0];
+        select.innerHTML = '';
+        select.add(firstOption);
+        
+        if (names && names.length > 0) {
+          names.forEach(function(name) {
+            var option = document.createElement('option');
+            option.value = name;
+            option.text = name;
+            select.add(option);
+          });
+        }
+      }
+
+      // =============================================================
+      // ACTION HANDLING
+      // =============================================================
+      
       let pendingAction = null;
 
       function requestAction(actionType) {
@@ -534,29 +721,23 @@
 
         // VALIDATION for Global Actions:
         if (['safeUpdate', 'copy', 'delete'].includes(actionType)) {
-             if (sheetName === "Loading..." || sheetName === "") {
-                  alert("⚠️ Please wait for the Sheet List to load, or check for errors.");
-                  return;
-             }
+          if (sheetName === "Loading..." || sheetName === "") {
+            alert("⚠️ Please wait for the Sheet List to load, or check for errors.");
+            return;
+          }
         }
 
-        // Special handling for statcore - show options modal instead
+        // Special handling for statcore - show options modal
         if (actionType === 'statcore') {
           document.getElementById('data-refresh-modal').style.display = 'block';
-          document.getElementById('global-row-1').style.display = 'none'; 
-          document.getElementById('global-row-2').style.display = 'none'; 
-          document.getElementById('local-buttons').style.display = 'none'; 
-          document.querySelector('.control-group').style.display = 'none';
-          document.getElementById('range-replicator-section').style.display = 'none';
-          document.getElementById('range-replicator-header').style.display = 'none';
-          document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'none'; });
+          hideCurrentTabContent();
           return;
         }
 
         if (actionType === 'safeUpdate') msg = `GLOBAL: Deploy "${sheetName}" to all external files? (Overwrites existing)`;
         if (actionType === 'copy') {
-           if(!newName) { alert("Please enter a New Deploy Name."); return; }
-           msg = `GLOBAL: Deploy "${sheetName}" as NEW tab "${newName}" to all external files?`;
+          if(!newName) { alert("Please enter a New Deploy Name."); return; }
+          msg = `GLOBAL: Deploy "${sheetName}" as NEW tab "${newName}" to all external files?`;
         }
         if (actionType === 'delete') msg = `WARNING: MASS TERMINATE "${sheetName}" from all external files?`;
         if (actionType === 'config') msg = `GLOBAL: Update Template IDs in "SETUP" tab for all external files?`;
@@ -569,17 +750,25 @@
 
         document.getElementById('confirm-text').innerText = msg;
         document.getElementById('confirm-modal').style.display = 'block';
-        
-        // Hide all control sections during confirmation
-        document.getElementById('global-row-1').style.display = 'none'; 
-        document.getElementById('global-row-2').style.display = 'none'; 
-        document.getElementById('local-buttons').style.display = 'none'; 
-        document.querySelector('.control-group').style.display = 'none';
-        document.getElementById('range-replicator-section').style.display = 'none';
-        document.getElementById('range-replicator-header').style.display = 'none';
-        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'none'; });
+        hideCurrentTabContent();
         
         pendingAction = actionType;
+      }
+
+      function hideCurrentTabContent() {
+        if (currentTab === 'global') {
+          document.getElementById('global-content').style.display = 'none';
+        } else {
+          document.getElementById('local-buttons').style.display = 'none';
+        }
+      }
+
+      function showCurrentTabContent() {
+        if (currentTab === 'global' && isAdmin) {
+          document.getElementById('global-content').style.display = 'block';
+        } else if (currentTab === 'local') {
+          document.getElementById('local-buttons').style.display = 'grid';
+        }
       }
 
       function cancelAction() {
@@ -588,21 +777,10 @@
         document.getElementById('no-header-modal').style.display = 'none';
         document.getElementById('mismatch-modal').style.display = 'none';
         document.getElementById('test-success-modal').style.display = 'none';
-        document.getElementById('global-row-1').style.display = 'grid'; 
-        document.getElementById('global-row-2').style.display = 'grid'; 
-        document.getElementById('local-buttons').style.display = 'grid'; 
-        document.querySelector('.control-group').style.display = 'block';
-        // Show Range Replicator sections
-        var rangeSection = document.getElementById('range-replicator-section');
-        var rangeHeader = document.getElementById('range-replicator-header');
-        if (rangeSection) rangeSection.style.display = 'block';
-        if (rangeHeader) rangeHeader.style.display = 'block';
-        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
-        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
+        showCurrentTabContent();
         pendingAction = null;
       }
 
-      // Data Refresh with scope selection
       function executeDataRefresh() {
         var scope = document.querySelector('input[name="refresh-scope"]:checked').value;
         var updateNotes = document.getElementById('update-notes-check').checked;
@@ -612,36 +790,176 @@
         document.getElementById('log-area').style.display = 'none';
         document.getElementById('log-content').innerHTML = '';
 
-        console.log("Running data refresh with scope: " + scope + ", updateNotes: " + updateNotes);
+        function onQueueSuccess(result) {
+          document.getElementById('spinner').style.display = 'none';
+          
+          if (result.status === 'started' || result.status === 'continued') {
+            // Queue started - show status
+            showQueueStatus(result);
+          } else if (result.status === 'in_progress') {
+            // Batch complete, more remaining
+            showQueueStatusWithLogs(result);
+          } else if (result.status === 'complete') {
+            // All done
+            showQueueComplete(result);
+          } else if (result.status === 'error') {
+            showCurrentTabContent();
+            alert("❌ " + result.message);
+          } else {
+            showCurrentTabContent();
+            if (result.logs) {
+              showLogs(result.logs);
+            }
+          }
+        }
 
         function onFailure(error) {
           document.getElementById('spinner').style.display = 'none';
-          document.getElementById('global-row-1').style.display = 'grid'; 
-          document.getElementById('global-row-2').style.display = 'grid'; 
-          document.getElementById('local-buttons').style.display = 'grid'; 
-          document.querySelector('.control-group').style.display = 'block';
-          document.getElementById('range-replicator-section').style.display = 'block';
-          document.getElementById('range-replicator-header').style.display = 'block';
-          document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
-          document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
+          showCurrentTabContent();
           alert("❌ ERROR: " + error.message);
         }
 
-        if (scope === 'full') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSTATCORE(updateNotes);
-        } 
-        else if (scope === 'syscore') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSYSCOREWithDAGCORE(updateNotes);
-        } 
-        else if (scope === 'syscore-only') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSYSCOREOnly(updateNotes);
-        } 
-        else if (scope === 'dagcore') {
-          google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateDAGCOREOnly(updateNotes);
+        // Use queued refresh for all scopes
+        google.script.run.withSuccessHandler(onQueueSuccess).withFailureHandler(onFailure).runQueuedDataRefresh(scope, updateNotes);
+      }
+      
+      // === QUEUE MANAGEMENT FUNCTIONS ===
+      
+      function showQueueStatus(result) {
+        var statusHtml = '<div style="margin-bottom:8px;">';
+        statusHtml += '<strong>Status:</strong> ' + (result.status === 'started' ? '🟢 Started' : '🔄 In Progress') + '</div>';
+        if (result.total) statusHtml += '<div><strong>Total Files:</strong> ' + result.total + '</div>';
+        if (result.message) statusHtml += '<div style="color:#059669; margin-top:5px;">' + result.message + '</div>';
+        statusHtml += '<div style="margin-top:8px; font-size:11px; color:#666;">The queue will auto-continue. You can close this sidebar.</div>';
+        
+        document.getElementById('queue-status-content').innerHTML = statusHtml;
+        document.getElementById('queue-status-modal').style.display = 'block';
+      }
+      
+      function showQueueStatusWithLogs(result) {
+        var statusHtml = '<div style="margin-bottom:8px;">';
+        statusHtml += '<strong>Status:</strong> 🔄 In Progress</div>';
+        statusHtml += '<div><strong>Processed:</strong> ' + result.processed + '</div>';
+        statusHtml += '<div><strong>Remaining:</strong> ' + result.remaining + '</div>';
+        statusHtml += '<div style="margin-top:8px; font-size:11px; color:#059669;">Next batch scheduled automatically.</div>';
+        
+        document.getElementById('queue-status-content').innerHTML = statusHtml;
+        document.getElementById('queue-status-modal').style.display = 'block';
+        
+        if (result.logs && result.logs.length > 0) {
+          showLogs(result.logs);
         }
       }
+      
+      function showQueueComplete(result) {
+        var statusHtml = '<div style="margin-bottom:8px;">';
+        statusHtml += '<strong>Status:</strong> ✅ Complete</div>';
+        statusHtml += '<div><strong>Successfully Processed:</strong> ' + result.processed + '</div>';
+        if (result.failed > 0) {
+          statusHtml += '<div style="color:#dc2626;"><strong>Failed:</strong> ' + result.failed + '</div>';
+          statusHtml += '<div style="font-size:11px; color:#666; margin-top:5px;">Failed files:</div>';
+          result.failedFiles.forEach(function(f) {
+            statusHtml += '<div style="font-size:10px; color:#dc2626; margin-left:8px;">• ' + f.name + ': ' + f.error + '</div>';
+          });
+        }
+        
+        document.getElementById('queue-status-content').innerHTML = statusHtml;
+        document.getElementById('queue-status-modal').style.display = 'block';
+        
+        if (result.logs && result.logs.length > 0) {
+          showLogs(result.logs);
+        }
+      }
+      
+      function checkQueueStatus() {
+        document.getElementById('spinner').style.display = 'block';
+        hideCurrentTabContent();
+        
+        google.script.run
+          .withSuccessHandler(function(status) {
+            document.getElementById('spinner').style.display = 'none';
+            
+            if (!status.active) {
+              showCurrentTabContent();
+              alert("No active queue. Start a new data refresh to create one.");
+              return;
+            }
+            
+            var statusHtml = '<div style="margin-bottom:8px;">';
+            statusHtml += '<strong>Status:</strong> 🔄 Active Queue</div>';
+            statusHtml += '<div><strong>Scope:</strong> ' + status.scope + (status.updateNotes ? ' + Notes' : '') + '</div>';
+            statusHtml += '<div><strong>Total Files:</strong> ' + status.total + '</div>';
+            statusHtml += '<div><strong>Completed:</strong> ' + status.completed + '</div>';
+            statusHtml += '<div><strong>Remaining:</strong> ' + status.remaining + '</div>';
+            statusHtml += '<div><strong>Successfully Processed:</strong> ' + status.processed + '</div>';
+            if (status.failed > 0) {
+              statusHtml += '<div style="color:#dc2626;"><strong>Failed:</strong> ' + status.failed + '</div>';
+            }
+            statusHtml += '<div style="font-size:10px; color:#666; margin-top:8px;">Started: ' + status.startedAt + '</div>';
+            
+            document.getElementById('queue-status-content').innerHTML = statusHtml;
+            document.getElementById('queue-status-modal').style.display = 'block';
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('spinner').style.display = 'none';
+            showCurrentTabContent();
+            alert("❌ " + error.message);
+          })
+          .getFleetQueueStatus();
+      }
+      
+      function continueQueue() {
+        document.getElementById('queue-status-modal').style.display = 'none';
+        document.getElementById('spinner').style.display = 'block';
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            document.getElementById('spinner').style.display = 'none';
+            
+            if (result.status === 'complete') {
+              showQueueComplete(result);
+            } else if (result.status === 'in_progress') {
+              showQueueStatusWithLogs(result);
+            } else if (result.status === 'idle') {
+              showCurrentTabContent();
+              alert("No active queue to continue.");
+            } else {
+              showQueueStatus(result);
+            }
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('spinner').style.display = 'none';
+            showCurrentTabContent();
+            alert("❌ " + error.message);
+          })
+          .continueFleetQueue();
+      }
+      
+      function resetQueue() {
+        if (!confirm("Reset the queue? This will stop any pending processing.")) return;
+        
+        document.getElementById('queue-status-modal').style.display = 'none';
+        document.getElementById('spinner').style.display = 'block';
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            document.getElementById('spinner').style.display = 'none';
+            showCurrentTabContent();
+            alert("✅ " + result.message);
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('spinner').style.display = 'none';
+            showCurrentTabContent();
+            alert("❌ " + error.message);
+          })
+          .resetFleetQueue();
+      }
+      
+      function closeQueueStatus() {
+        document.getElementById('queue-status-modal').style.display = 'none';
+        showCurrentTabContent();
+      }
 
-      // 3. Execute Action (Send to Google Apps Script)
       function executeConfirmedAction() {
         var actionToRun = pendingAction; 
         
@@ -651,80 +969,48 @@
           return;
         }
 
-        // A. UI Updates (Hide menus, show spinner)
         document.getElementById('confirm-modal').style.display = 'none';
         document.getElementById('spinner').style.display = 'block';
         document.getElementById('log-area').style.display = 'none';
         document.getElementById('log-content').innerHTML = '';
 
-        // B. Gather Data
         var sheetName = document.getElementById('sheet-selector').value;
         var newName = document.getElementById('new-name-input').value;
         var hideCheck = document.getElementById('hide-check').checked;
 
-        console.log("Attempting to run action: " + actionToRun);
-
-        // C. Define Failure Handler
         function onFailure(error) {
           document.getElementById('spinner').style.display = 'none';
-          document.getElementById('global-row-1').style.display = 'grid'; 
-          document.getElementById('global-row-2').style.display = 'grid'; 
-          document.getElementById('local-buttons').style.display = 'grid'; 
-          document.querySelector('.control-group').style.display = 'block';
-          document.getElementById('range-replicator-section').style.display = 'block';
-          document.getElementById('range-replicator-header').style.display = 'block';
-          document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
-          document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
+          showCurrentTabContent();
           pendingAction = null; 
           alert("❌ ERROR: " + error.message);
         }
 
-        // D. Run the specific function using 'actionToRun' variable
         if (actionToRun === 'safeUpdate') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheetSafe(sheetName, hideCheck);
-        } 
-        else if (actionToRun === 'copy') {
+        } else if (actionToRun === 'copy') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCopySheet(sheetName, newName, hideCheck);
-        } 
-        else if (actionToRun === 'delete') {
+        } else if (actionToRun === 'delete') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runDeleteSheet(sheetName);
-        } 
-        else if (actionToRun === 'config') {
+        } else if (actionToRun === 'config') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runUpdateSheet();
-        } 
-        else if (actionToRun === 'globalTabs') {
+        } else if (actionToRun === 'globalTabs') {
           google.script.run.withSuccessHandler(showLogs).withFailureHandler(onFailure).runCreateEmployeeTabs();
-        }
-        else if (actionToRun === 'createTabs') {
+        } else if (actionToRun === 'createTabs') {
           google.script.run.withSuccessHandler(() => showSimpleSuccess('AM Tabs Refreshed')).withFailureHandler(onFailure).createEmployeeTabs();
-        } 
-        else if (actionToRun === 'deleteTabs') {
+        } else if (actionToRun === 'deleteTabs') {
           google.script.run.withSuccessHandler(() => showSimpleSuccess('Tabs Deleted')).withFailureHandler(onFailure).deleteEmployeeTabs();
-        } 
-        else if (actionToRun === 'updateNotes') {
+        } else if (actionToRun === 'updateNotes') {
           google.script.run.withSuccessHandler(() => showSimpleSuccess('Notes Updated')).withFailureHandler(onFailure).manualUpdateNotesOnly();
-        } 
-        else if (actionToRun === 'totalRefresh') {
+        } else if (actionToRun === 'totalRefresh') {
           google.script.run.withSuccessHandler(() => showSimpleSuccess('Local Refresh Complete')).withFailureHandler(onFailure).runMasterPipeline(); 
         }
 
-        // Clear global variable after launch
         pendingAction = null;
       }
 
       function showLogs(logs) {
         document.getElementById('spinner').style.display = 'none';
-        document.getElementById('global-row-1').style.display = 'grid'; 
-        document.getElementById('global-row-2').style.display = 'grid'; 
-        document.getElementById('local-buttons').style.display = 'grid'; 
-        document.querySelector('.control-group').style.display = 'block';
-        // Restore Range Replicator sections
-        var rangeSection = document.getElementById('range-replicator-section');
-        var rangeHeader = document.getElementById('range-replicator-header');
-        if (rangeSection) rangeSection.style.display = 'block';
-        if (rangeHeader) rangeHeader.style.display = 'block';
-        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
-        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
+        showCurrentTabContent();
         
         var logArea = document.getElementById('log-area');
         var logContent = document.getElementById('log-content');
@@ -753,29 +1039,6 @@
       
       let capturedRangeData = null;
 
-      // Initialize target sheet dropdown
-      google.script.run
-        .withSuccessHandler(populateTargetSheetDropdown)
-        .withFailureHandler(function(e) { console.error("Failed to load sheet names:", e); })
-        .getAllSheetNamesForTarget();
-
-      function populateTargetSheetDropdown(names) {
-        var select = document.getElementById('target-sheet-selector');
-        // Keep the first "same as source" option
-        var firstOption = select.options[0];
-        select.innerHTML = '';
-        select.add(firstOption);
-        
-        if (names && names.length > 0) {
-          names.forEach(function(name) {
-            var option = document.createElement('option');
-            option.value = name;
-            option.text = name;
-            select.add(option);
-          });
-        }
-      }
-
       function toggleAltRange() {
         var checkbox = document.getElementById('alt-range-check');
         var input = document.getElementById('alt-range-input');
@@ -785,7 +1048,6 @@
         }
       }
 
-      // Load fleet files for test mode dropdown
       var fleetFilesLoaded = false;
       function loadFleetFiles() {
         if (fleetFilesLoaded) return;
@@ -821,7 +1083,7 @@
         if (checkbox.checked) {
           wrapper.style.display = 'block';
           pushBtnText.textContent = 'Test Push';
-          loadFleetFiles(); // Load fleet files on first enable
+          loadFleetFiles();
         } else {
           wrapper.style.display = 'none';
           pushBtnText.textContent = 'Push to Fleet';
@@ -870,13 +1132,11 @@
       }
 
       function requestRangeAction(actionType) {
-        // Validate captured data
         if (!capturedRangeData) {
           alert('⚠️ Please capture a range first.');
           return;
         }
         
-        // Validate test mode file selection
         if (isTestMode() && !getTestFileId()) {
           alert('⚠️ Test Mode is enabled. Please select a target fleet file.');
           return;
@@ -890,39 +1150,14 @@
             return;
           }
           executeRangeVerify();
-        } 
-        else if (actionType === 'push') {
+        } else if (actionType === 'push') {
           if (!headerRow) {
-            // Show no-header warning modal
-            hideAllSections();
+            hideCurrentTabContent();
             document.getElementById('no-header-modal').style.display = 'block';
           } else {
-            // Run verify first, then push based on results
             executeRangeVerifyThenPush();
           }
         }
-      }
-
-      function hideAllSections() {
-        document.getElementById('global-row-1').style.display = 'none';
-        document.getElementById('global-row-2').style.display = 'none';
-        document.getElementById('local-buttons').style.display = 'none';
-        document.querySelector('.control-group').style.display = 'none';
-        document.getElementById('range-replicator-section').style.display = 'none';
-        document.getElementById('range-replicator-header').style.display = 'none';
-        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'none'; });
-        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'none'; });
-      }
-
-      function showAllSections() {
-        document.getElementById('global-row-1').style.display = 'grid';
-        document.getElementById('global-row-2').style.display = 'grid';
-        document.getElementById('local-buttons').style.display = 'grid';
-        document.querySelector('.control-group').style.display = 'block';
-        document.getElementById('range-replicator-section').style.display = 'block';
-        document.getElementById('range-replicator-header').style.display = 'block';
-        document.querySelectorAll('.section-divider').forEach(function(el) { el.style.display = 'block'; });
-        document.querySelectorAll('h2').forEach(function(el) { el.style.display = 'block'; });
       }
 
       function cancelRangeAction() {
@@ -930,7 +1165,7 @@
         document.getElementById('mismatch-modal').style.display = 'none';
         document.getElementById('confirm-modal').style.display = 'none';
         document.getElementById('test-success-modal').style.display = 'none';
-        showAllSections();
+        showCurrentTabContent();
       }
 
       function buildRangeConfig() {
@@ -965,7 +1200,7 @@
       }
 
       function executeRangeVerify() {
-        hideAllSections();
+        hideCurrentTabContent();
         document.getElementById('spinner').style.display = 'block';
         document.getElementById('log-area').style.display = 'none';
         
@@ -973,17 +1208,16 @@
         
         var successHandler = function(logs) {
           document.getElementById('spinner').style.display = 'none';
-          showAllSections();
+          showCurrentTabContent();
           showLogs(logs);
         };
         
         var failureHandler = function(e) {
           document.getElementById('spinner').style.display = 'none';
-          showAllSections();
+          showCurrentTabContent();
           alert('❌ Verification Error: ' + e.message);
         };
         
-        // Use single-file or fleet-wide function based on test mode
         if (isTestMode()) {
           google.script.run
             .withSuccessHandler(successHandler)
@@ -998,7 +1232,7 @@
       }
 
       function executeRangeVerifyThenPush() {
-        hideAllSections();
+        hideCurrentTabContent();
         document.getElementById('spinner').style.display = 'block';
         document.getElementById('log-area').style.display = 'none';
         
@@ -1007,13 +1241,11 @@
         var successHandler = function(logs) {
           document.getElementById('spinner').style.display = 'none';
           
-          // Check for mismatches
           var mismatches = logs.filter(function(log) {
             return log.status === 'Warning' && log.msg.includes('Mismatch');
           });
           
           if (mismatches.length > 0) {
-            // Show mismatch modal
             var mismatchHtml = '';
             mismatches.forEach(function(m) {
               mismatchHtml += '<div style="padding:4px; border-bottom:1px solid #fecaca;">' +
@@ -1022,18 +1254,16 @@
             document.getElementById('mismatch-list').innerHTML = mismatchHtml;
             document.getElementById('mismatch-modal').style.display = 'block';
           } else {
-            // All good - proceed with push
             executeRangePush(false);
           }
         };
         
         var failureHandler = function(e) {
           document.getElementById('spinner').style.display = 'none';
-          showAllSections();
+          showCurrentTabContent();
           alert('❌ Verification Error: ' + e.message);
         };
         
-        // Use single-file or fleet-wide function based on test mode
         if (isTestMode()) {
           google.script.run
             .withSuccessHandler(successHandler)
@@ -1047,7 +1277,6 @@
         }
       }
 
-      // Store test file info for "Open File" functionality
       var lastTestFileId = null;
       var lastTestFileName = null;
 
@@ -1060,7 +1289,6 @@
         var config = buildRangeConfig();
         var testMode = isTestMode();
         
-        // Store test file info before push
         if (testMode) {
           lastTestFileId = getTestFileId();
           var selector = document.getElementById('fleet-file-selector');
@@ -1070,28 +1298,25 @@
         var successHandler = function(logs) {
           document.getElementById('spinner').style.display = 'none';
           
-          // Check if push was successful
           var wasSuccess = logs && logs.length > 0 && logs[0].status === 'Success';
           
-          // In test mode with success, show the test success modal
           if (testMode && wasSuccess) {
+            showCurrentTabContent();
             document.getElementById('test-success-filename').textContent = lastTestFileName;
             document.getElementById('test-success-modal').style.display = 'block';
-            // Also show logs below
             showLogs(logs);
           } else {
-            showAllSections();
+            showCurrentTabContent();
             showLogs(logs);
           }
         };
         
         var failureHandler = function(e) {
           document.getElementById('spinner').style.display = 'none';
-          showAllSections();
+          showCurrentTabContent();
           alert('❌ Push Error: ' + e.message);
         };
         
-        // Use single-file or fleet-wide function based on test mode
         if (testMode) {
           google.script.run
             .withSuccessHandler(successHandler)
@@ -1115,7 +1340,6 @@
 
       function closeTestSuccessModal() {
         document.getElementById('test-success-modal').style.display = 'none';
-        showAllSections();
       }
     </script>
   </body>

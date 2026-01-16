@@ -16,7 +16,7 @@ Welcome to **InTouch AI**, your all-in-one tool for account management, meeting 
    - [Pricing Simulator](#pricing-simulator)
    - [Bucket Summary](#bucket-summary)
 4. [Menu Options](#menu-options)
-5. [Fleet Commander (Admin Panel)](#fleet-commander-admin-panel)
+5. [Fleet Commander (Managers & Admins)](#fleet-commander-admin-panel)
 6. [Understanding Your Data](#understanding-your-data)
 7. [Frequently Asked Questions](#frequently-asked-questions)
 
@@ -223,59 +223,83 @@ Get a quick snapshot of any Account Manager's entire portfolio.
 
 ### Admin Functions Menu
 
-| Option | What It Does |
-|--------|--------------|
-| **Open Fleet Commander** | Opens the admin panel for system maintenance (see below) |
-| **AM Tabs → Create All From Setup** | Creates personal tabs for each AM listed in the Setup sheet |
-| **AM Tabs → Delete All From Setup** | Removes all AM personal tabs |
-| **AM Tabs → Create Single Tab** | Creates a tab for the name entered in cell F2 of Setup |
-| **Focus20 → Add RIDs from Smart Select** | Manually trigger Focus 20 tagging |
-| **Focus20 → Remove RIDs from Smart Select** | Clear Focus 20 tags from selected accounts |
-| **Update Notes Only** | Refreshes the sticky notes on accounts based on current rules |
-| **Force Master Pipeline** | Manually runs the full data refresh (normally runs nightly) |
-| **Reset Nightly Trigger** | Resets the automatic nightly refresh schedule |
+> **Note:** Most options in this menu are intended for team managers and system administrators. Regular users primarily use the **Focus20** options.
+
+| Option | What It Does | Who Uses It |
+|--------|--------------|-------------|
+| **Open Fleet Commander** | Opens the admin panel for system maintenance | Managers & Admins |
+| **AM Tabs → Create All From Setup** | Creates personal tabs for each AM listed in the Setup sheet | Managers |
+| **AM Tabs → Delete All From Setup** | Removes all AM personal tabs | Managers |
+| **AM Tabs → Create Single Tab** | Creates a tab for the name entered in cell F2 of Setup | Managers |
+| **Focus20 → Add RIDs from Smart Select** | Manually trigger Focus 20 tagging | All Users |
+| **Focus20 → Remove RIDs from Smart Select** | Clear Focus 20 tags from selected accounts | All Users |
+| **Update Notes Only** | Refreshes the sticky notes on accounts based on current rules | Managers |
+| **Force Master Pipeline** | Manually runs the full data refresh (normally runs nightly) | Managers & Admins |
+| **Reset Nightly Trigger** | Resets the automatic nightly refresh schedule | System Admins |
 
 ---
 
 ## Fleet Commander (Admin Panel)
 
-> **Note:** The Global Operations tab is only available to authorized administrators.
+> ⚠️ **For Team Managers & System Administrators Only**
+> 
+> Fleet Commander is a powerful administration tool designed for team managers and system administrators. If you're a regular user (Account Manager), you won't need to use this panel for your day-to-day work. The features described below can affect multiple spreadsheets and should only be used by authorized personnel.
 
-### Local Tab (Available to Everyone)
+To open Fleet Commander: **Admin Functions** → **Open Fleet Commander**
 
-These actions only affect the current spreadsheet:
+---
 
-| Button | What It Does |
-|--------|--------------|
-| **Refresh AM Tabs** | Recreates all Account Manager tabs based on the Setup sheet |
-| **Update Notes Only** | Refreshes sticky notes on all accounts |
-| **Force Local Refresh** | Runs the complete data pipeline: updates account data, system info, and notes |
-| **Delete AM Tabs** | Removes all Account Manager personal tabs |
+### Local Tab (Manager Functions)
 
-### Global Ops Tab (Administrators Only)
+These actions affect **only the current spreadsheet** and are intended for team managers maintaining their team's file:
 
-These actions affect all spreadsheets in the fleet:
+| Button | What It Does | When to Use |
+|--------|--------------|-------------|
+| **Refresh AM Tabs** | Recreates all Account Manager tabs based on the Setup sheet | When adding/removing team members |
+| **Update Notes Only** | Refreshes sticky notes on all accounts | When notes appear stale or after rule changes |
+| **Force Local Refresh** | Runs the complete data pipeline: updates account data, system info, and notes | When data seems outdated or after system issues |
+| **Delete AM Tabs** | Removes all Account Manager personal tabs | Before recreating tabs or during cleanup |
 
-| Button | What It Does |
-|--------|--------------|
-| **Deploy Update** | Pushes an updated version of a sheet to all fleet files |
-| **Deploy New** | Copies a new sheet to all fleet files |
-| **Mass Delete** | Removes a specific sheet from all fleet files |
-| **Data Refresh** | Refreshes account data across all fleet files (with options for full or partial refresh) |
-| **Update IDs** | Syncs template IDs across all files |
-| **AM Tabs** | Recreates AM tabs in all fleet files |
+---
 
-#### Range Replicator (Administrators Only)
+### Global Ops Tab (System Administrators Only)
 
-A precision tool for pushing specific cell ranges across the fleet:
+> 🔒 **Restricted Access** - This tab is only visible to authorized system administrators. These actions affect **all spreadsheets across the entire fleet** and should be used with caution.
 
+| Button | What It Does | Impact |
+|--------|--------------|--------|
+| **Deploy Update** | Pushes an updated version of a sheet to all fleet files | Overwrites existing sheets in all files |
+| **Deploy New** | Copies a new sheet to all fleet files | Adds new tabs to all files |
+| **Mass Delete** | Removes a specific sheet from all fleet files | Permanently deletes tabs from all files |
+| **Data Refresh** | Refreshes account data across all fleet files (with scope options) | Updates data in all files - can take several minutes |
+| **Update IDs** | Syncs template IDs across all files | Updates configuration in all files |
+| **AM Tabs** | Recreates AM tabs in all fleet files | Rebuilds employee tabs in all files |
+
+#### Data Refresh Options
+
+When running a fleet-wide data refresh, administrators can choose the scope:
+
+| Option | What It Refreshes | Speed |
+|--------|-------------------|-------|
+| **Full Pipeline** | All data sources (complete refresh) | Slowest |
+| **SYSCORE + DAGCORE** | Supplemental and performance data only | Medium |
+| **SYSCORE Only** | Supplemental data only | Faster |
+| **DAGCORE Only** | Performance data only | Fastest |
+
+---
+
+### Range Replicator (System Administrators Only)
+
+A precision tool for pushing specific cell ranges (formulas, values, formatting) across the entire fleet:
+
+**How to Use:**
 1. Select a range of cells in your spreadsheet
 2. Click **Capture Selection** to lock in your selection
 3. Optionally specify a header row for verification
-4. Use **Verify Headers** to check if other files have matching structure
+4. Use **Verify Headers** to check if target files have matching column structure
 5. Use **Push to Fleet** to copy that exact range to all fleet files
 
-**Test Mode:** Enable this to push to just one file first before going fleet-wide.
+**Test Mode:** Enable this to push to just one file first before going fleet-wide. Always recommended before a full fleet push.
 
 ---
 

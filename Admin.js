@@ -144,8 +144,14 @@ function createSingleEmployeeTab() {
   // REMOVED: forcePortfolioRecalc();
 }
 
-function createEmployeeTabs() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+/**
+ * Creates employee tabs based on names in SETUP!B3:B
+ * @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
+ */
+function createEmployeeTabs(targetSS) {
+  var ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
+  var isActiveSpreadsheet = !targetSS; // Only do UI ops if running on active spreadsheet
+  
   var setupSheet = ss.getSheetByName("Setup");
   var launcherSheet = ss.getSheetByName("Launcher");
   if (!setupSheet || !launcherSheet) throw new Error('Missing Setup or Launcher sheet');
@@ -159,13 +165,18 @@ function createEmployeeTabs() {
   firstNames.forEach((name, i) => {
     var copy = launcherSheet.copyTo(ss).setName(getUniqueSheetName(ss, name));
     copy.getRange("B2").setValue(employeeNames[i]);
-    ss.setActiveSheet(copy);
-    ss.moveActiveSheet(1);
+    if (isActiveSpreadsheet) {
+      ss.setActiveSheet(copy);
+      ss.moveActiveSheet(1);
+    }
   });
 
-  ss.setActiveSheet(setupSheet);
+  if (isActiveSpreadsheet) {
+    ss.setActiveSheet(setupSheet);
+  }
   
-  manualUpdateNotesOnly();
+  // Call updateAccountNotes with targetSS for fleet compatibility
+  updateAccountNotes(ss);
   // REMOVED: forcePortfolioRecalc(); 
   
   return "Tabs created successfully.";

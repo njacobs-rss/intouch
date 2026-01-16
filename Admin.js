@@ -152,6 +152,12 @@ function createEmployeeTabs(targetSS) {
   var ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
   var isActiveSpreadsheet = !targetSS; // Only do UI ops if running on active spreadsheet
   
+  // GLOBAL MODE: First deploy fresh Launcher from master to target
+  if (!isActiveSpreadsheet) {
+    var masterSS = SpreadsheetApp.getActiveSpreadsheet();
+    deploySheetToTarget_(masterSS, ss, "Launcher", false); // false = don't hide
+  }
+  
   var setupSheet = ss.getSheetByName("Setup");
   var launcherSheet = ss.getSheetByName("Launcher");
   if (!setupSheet || !launcherSheet) throw new Error('Missing Setup or Launcher sheet');
@@ -180,6 +186,62 @@ function createEmployeeTabs(targetSS) {
   // REMOVED: forcePortfolioRecalc(); 
   
   return "Tabs created successfully.";
+}
+
+/**
+ * HELPER: Deploys a sheet from source to target spreadsheet (safe update)
+ * Uses rename-and-replace strategy to preserve formula references
+ * @param {Spreadsheet} sourceSS - Source spreadsheet with the template
+ * @param {Spreadsheet} targetSS - Target spreadsheet to update
+ * @param {string} sheetName - Name of the sheet to deploy
+ * @param {boolean} hideSheet - Whether to hide the sheet after deployment
+ */
+function deploySheetToTarget_(sourceSS, targetSS, sheetName, hideSheet) {
+  var sourceTemplate = sourceSS.getSheetByName(sheetName);
+  if (!sourceTemplate) {
+    throw new Error("Source sheet '" + sheetName + "' not found in master spreadsheet.");
+  }
+
+  var sourceProtections = sourceTemplate.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  var oldSheet = targetSS.getSheetByName(sheetName);
+
+  if (oldSheet) {
+    // 1. Rename old sheet to preserve formula references temporarily
+    var tempName = sheetName + "_OLD_" + new Date().getTime();
+    oldSheet.setName(tempName);
+
+    // 2. Copy new sheet in
+    var newSheet = sourceTemplate.copyTo(targetSS).setName(sheetName);
+
+    // 3. Handle Visibility
+    if (hideSheet === true) {
+      newSheet.hideSheet();
+    } else {
+      newSheet.showSheet();
+    }
+
+    // 4. Restore Protections
+    for (var i = 0; i < sourceProtections.length; i++) {
+      var p = sourceProtections[i];
+      newSheet.getRange(p.getRange().getA1Notation()).protect().setDescription(p.getDescription());
+    }
+
+    // 5. Update formulas to point to the new sheet name
+    targetSS.createTextFinder(tempName).matchFormulaText(true).replaceAllWith(sheetName);
+
+    // 6. Delete the old sheet
+    targetSS.deleteSheet(oldSheet);
+  } else {
+    // Sheet doesn't exist in target - just copy it fresh
+    var newSheet = sourceTemplate.copyTo(targetSS).setName(sheetName);
+    if (hideSheet === true) {
+      newSheet.hideSheet();
+    }
+    for (var i = 0; i < sourceProtections.length; i++) {
+      var p = sourceProtections[i];
+      newSheet.getRange(p.getRange().getA1Notation()).protect().setDescription(p.getDescription());
+    }
+  }
 }
 
 function deleteEmployeeTabs() {

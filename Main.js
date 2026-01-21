@@ -36,8 +36,13 @@ function onOpen(e) {
     .addItem('Add RIDs from Smart Select', 'moveTrueAccountsToFocus20')
     .addItem('Remove RIDs from Smart Select', 'removeTrueAccountsFromFocus20Optimized');
 
+  const inFocusSubMenu = ui.createMenu('InFocus')
+    .addItem('Reset Current Tab to Default', 'resetToDefault')
+    .addItem('Clear AI Filter Formula', 'clearAIFilter');
+
   adminMenu.addSubMenu(amTabsSubMenu)
            .addSubMenu(focus20SubMenu)
+           .addSubMenu(inFocusSubMenu)
            .addSeparator()
            .addItem('Update Notes Only', 'manualUpdateNotesOnly')
            .addItem('Force Master Pipeline', 'runMasterPipeline')

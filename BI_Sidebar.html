@@ -175,14 +175,81 @@
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
     #sim-results { border-left: 4px solid #ccc; }
+
+    /* =========================================
+       INFOCUS TAB STYLES
+       ========================================= */
+    .focus-status { 
+      background: #f8fafc; 
+      padding: 8px; 
+      border-radius: 4px; 
+      margin-bottom: 4px; 
+    }
+
+    .focus-state-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .focus-state-badge.default { 
+      background: #e0f2fe; 
+      color: #0369a1; 
+    }
+
+    .focus-state-badge.filtered { 
+      background: #fef3c7; 
+      color: #92400e; 
+    }
+
+    .focus-summary {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #166534;
+      line-height: 1.4;
+    }
+
+    .focus-confidence {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .focus-confidence.high { background: #dcfce7; color: #166534; }
+    .focus-confidence.medium { background: #fef9c3; color: #854d0e; }
+    .focus-confidence.low { background: #fee2e2; color: #991b1b; }
+
+    .focus-error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+
+    #focus-query:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    }
   </style>
 </head>
 <body>
 
   <div class="tab-nav">
     <button class="tab-btn active" data-tab="tab-prep">MEETING PREP</button>
-    <button class="tab-btn" data-tab="tab-calc">PRICING SIMULATOR</button>
-    <button class="tab-btn" data-tab="tab-summary">BUCKET SUMMARY</button>
+    <button class="tab-btn" data-tab="tab-focus">INFOCUS</button>
+    <button class="tab-btn" data-tab="tab-calc">SIMULATOR</button>
+    <button class="tab-btn" data-tab="tab-summary">SUMMARY</button>
   </div>
 
   <div id="tab-prep" class="tab-content active">
@@ -195,6 +262,80 @@
         <button class="btn btn-primary" id="btn-ai" onclick="runAI()" disabled>✨ Launch AI Brief</button>
         <button class="btn btn-sec" onclick="runDeck()">📄 Create Presentation</button>
      </div>
+  </div>
+
+  <!-- =========================================
+       TAB: INFOCUS (AI Natural Language Filter)
+       ========================================= -->
+  <div id="tab-focus" class="tab-content">
+    <div class="card">
+      <h3>AI Filter</h3>
+      <div id="focus-status" class="focus-status">
+        <div class="detail-row">
+          <span>Sheet:</span>
+          <span id="focus-sheet-name">--</span>
+        </div>
+        <div class="detail-row">
+          <span>Manager:</span>
+          <span id="focus-manager-name">--</span>
+        </div>
+        <div class="detail-row">
+          <span>Accounts:</span>
+          <span id="focus-account-count">--</span>
+        </div>
+        <div class="detail-row">
+          <span>State:</span>
+          <span id="focus-state" class="focus-state-badge">Default</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Natural Language Query</h3>
+      <textarea id="focus-query" 
+                placeholder="Example: Show me Pro accounts at risk&#10;&#10;Try: Active accounts with expired contracts&#10;Accounts with zero bookings last month&#10;Top revenue accounts in pending status" 
+                rows="4" 
+                style="width:100%; resize:vertical; font-family:inherit; font-size:12px; padding:8px; border:1px solid #cbd5e1; border-radius:4px;"></textarea>
+      
+      <button class="btn btn-primary" id="btn-run-focus" onclick="runInFocusFilter()" style="margin-top:8px;">
+        <span id="focus-btn-text">🎯 Apply Filter</span>
+      </button>
+      
+      <div id="focus-error" class="focus-error" style="display:none;"></div>
+    </div>
+
+    <div id="focus-results" class="card" style="display:none;">
+      <h3>Filter Results</h3>
+      <div id="focus-logic-summary" class="focus-summary"></div>
+      <div class="detail-row" style="margin-top:8px;">
+        <span>Confidence:</span>
+        <span id="focus-confidence" class="focus-confidence">--</span>
+      </div>
+      <div class="detail-row">
+        <span>Matched:</span>
+        <span id="focus-matched-count">--</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Actions</h3>
+      <button class="btn btn-sec" id="btn-reset-focus" onclick="resetInFocus()">
+        🔄 Reset to Default Order
+      </button>
+      <button class="btn" id="btn-refresh-status" onclick="refreshInFocusStatus()" style="margin-top:4px; background:#f1f5f9; color:#64748b;">
+        ↻ Refresh Status
+      </button>
+    </div>
+
+    <div class="card" style="background:#fffbeb; border-color:#fcd34d;">
+      <div style="font-size:11px; color:#92400e;">
+        <strong>How InFocus Works:</strong><br>
+        1. Enter a natural language query<br>
+        2. AI generates a filter formula for STATCORE<br>
+        3. Matching accounts are shown in your dashboard<br>
+        4. Use "Reset" to restore the original sort order
+      </div>
+    </div>
   </div>
 
   <div id="tab-calc" class="tab-content">
@@ -648,6 +789,11 @@
           document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
           btn.classList.add('active');
           document.getElementById(btn.dataset.tab).classList.add('active');
+          
+          // Refresh InFocus status when switching to that tab
+          if (btn.dataset.tab === 'tab-focus') {
+            refreshInFocusStatus();
+          }
         });
       });
     }
@@ -790,6 +936,201 @@
         discoRate: discoRate
       });
     }
+
+    // =========================================================
+    // --- INFOCUS FUNCTIONS (TAB 2) ---
+    // =========================================================
+
+    function refreshInFocusStatus() {
+      google.script.run
+        .withSuccessHandler(updateInFocusStatusUI)
+        .withFailureHandler(handleInFocusError)
+        .getInFocusStatus();
+    }
+
+    function updateInFocusStatusUI(status) {
+      document.getElementById('focus-sheet-name').innerText = status.sheetName || '--';
+      document.getElementById('focus-manager-name').innerText = status.managerName || '--';
+      document.getElementById('focus-account-count').innerText = status.accountCount || '0';
+      
+      const stateEl = document.getElementById('focus-state');
+      if (status.isFiltered) {
+        stateEl.innerText = 'Filtered';
+        stateEl.className = 'focus-state-badge filtered';
+      } else {
+        stateEl.innerText = 'Default';
+        stateEl.className = 'focus-state-badge default';
+      }
+
+      // Enable/disable buttons based on manager name
+      const hasManager = status.managerName && status.managerName.trim() !== '';
+      document.getElementById('btn-run-focus').disabled = !hasManager;
+      document.getElementById('btn-reset-focus').disabled = !hasManager;
+    }
+
+    function handleInFocusError(error) {
+      console.error('[InFocus] Error:', error);
+      showInFocusError(error.message || 'An error occurred');
+    }
+
+    function showInFocusError(message) {
+      const errorEl = document.getElementById('focus-error');
+      errorEl.innerText = '⚠️ ' + message;
+      errorEl.style.display = 'block';
+      setTimeout(() => { errorEl.style.display = 'none'; }, 8000);
+    }
+
+    function clearInFocusError() {
+      document.getElementById('focus-error').style.display = 'none';
+    }
+
+    function runInFocusFilter() {
+      const query = document.getElementById('focus-query').value.trim();
+      if (!query) {
+        showInFocusError('Please enter a filter query.');
+        return;
+      }
+
+      clearInFocusError();
+      setInFocusLoading(true);
+      document.getElementById('focus-results').style.display = 'none';
+
+      // Step 1: Validate the sheet
+      google.script.run
+        .withSuccessHandler(function(validation) {
+          if (!validation.isValid) {
+            setInFocusLoading(false);
+            showInFocusError(validation.error);
+            return;
+          }
+
+          // Step 2: Build AI prompt and process
+          google.script.run
+            .withSuccessHandler(handleInFocusPrompt)
+            .withFailureHandler(function(err) {
+              setInFocusLoading(false);
+              handleInFocusError(err);
+            })
+            .buildInFocusPrompt(query);
+        })
+        .withFailureHandler(function(err) {
+          setInFocusLoading(false);
+          handleInFocusError(err);
+        })
+        .validateInFocusSheet();
+    }
+
+    function handleInFocusPrompt(prompt) {
+      // For now, show the prompt and ask user to proceed
+      // In production, this would call a Gemini API
+      console.log('[InFocus] Generated prompt:', prompt);
+      
+      // Simulated response - in production, replace with actual Gemini API call
+      // For MVP, we'll show a manual workflow
+      setInFocusLoading(false);
+      
+      // Show prompt in a simple way for manual testing
+      const shouldProceed = confirm(
+        'AI Prompt generated. In production, this would automatically call Gemini.\n\n' +
+        'For testing, click OK to proceed with a sample filter (Status = Active), or Cancel to abort.'
+      );
+
+      if (shouldProceed) {
+        // For testing: inject a sample formula
+        const testFormula = '=ARRAYFORMULA(IF(A3:A="", "", IF(I3:I="Active", TRUE, FALSE)))';
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              // Now sync the filtered accounts
+              runSyncFilteredAccounts();
+            } else {
+              showInFocusError(result.message);
+            }
+          })
+          .withFailureHandler(handleInFocusError)
+          .injectAIFormula(testFormula);
+      }
+    }
+
+    function runSyncFilteredAccounts() {
+      setInFocusLoading(true, 'Applying filter...');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          setInFocusLoading(false);
+          
+          if (result.success) {
+            // Show results
+            document.getElementById('focus-results').style.display = 'block';
+            document.getElementById('focus-logic-summary').innerText = result.message;
+            document.getElementById('focus-matched-count').innerText = result.count + ' accounts';
+            
+            // Update confidence display
+            const confEl = document.getElementById('focus-confidence');
+            confEl.innerText = 'High';
+            confEl.className = 'focus-confidence high';
+            
+            // Refresh status
+            refreshInFocusStatus();
+          } else {
+            showInFocusError(result.message);
+          }
+        })
+        .withFailureHandler(handleInFocusError)
+        .syncFilteredAccounts();
+    }
+
+    function resetInFocus() {
+      clearInFocusError();
+      setInFocusLoading(true, 'Resetting to default...');
+      document.getElementById('focus-results').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          setInFocusLoading(false);
+          
+          if (result.success) {
+            // Clear the helper column
+            google.script.run.clearAIFilter();
+            
+            // Show success message
+            document.getElementById('focus-results').style.display = 'block';
+            document.getElementById('focus-logic-summary').innerText = result.message;
+            document.getElementById('focus-matched-count').innerText = result.count + ' accounts';
+            
+            const confEl = document.getElementById('focus-confidence');
+            confEl.innerText = 'Default';
+            confEl.className = 'focus-confidence high';
+            
+            // Refresh status
+            refreshInFocusStatus();
+          } else {
+            showInFocusError(result.message);
+          }
+        })
+        .withFailureHandler(handleInFocusError)
+        .resetToDefault();
+    }
+
+    function setInFocusLoading(isLoading, message) {
+      const btn = document.getElementById('btn-run-focus');
+      const btnText = document.getElementById('focus-btn-text');
+      const resetBtn = document.getElementById('btn-reset-focus');
+      
+      btn.disabled = isLoading;
+      resetBtn.disabled = isLoading;
+      
+      if (isLoading) {
+        btnText.innerText = message || 'Processing...';
+      } else {
+        btnText.innerText = '🎯 Apply Filter';
+      }
+    }
+
+    // =========================================================
+    // --- SIMULATOR FUNCTIONS (TAB 3 - RESTORED) ---
+    // =========================================================
 
     function renderSimTable(data) {
       const box = document.getElementById('sim-results');

@@ -41,7 +41,37 @@ function syncFilteredAccounts() {
     }
     Logger.log(`[${functionName}] Manager: ${managerName}`);
     
-    // --- STEP 2: READ STATCORE ---
+    // --- STEP 2: PRESERVE NOTES + BUILD ALLOWED RID SET ---
+    const targetStartRow = 3; // C3
+    const activeLastRow = Math.max(activeSheet.getLastRow(), targetStartRow);
+    const targetRowCount = activeLastRow - targetStartRow + 1;
+    
+    // Read existing RIDs and Notes
+    const existingDataRange = activeSheet.getRange(targetStartRow, 3, targetRowCount, 1); // Col C
+    const existingRids = existingDataRange.getValues().flat();
+    const existingNotes = existingDataRange.getNotes().flat();
+    
+    const cleanRid = (rid) => {
+      const s = String(rid || "").trim();
+      if (!s || s === "null" || s === "undefined") return "";
+      return s;
+    };
+    
+    // Build Note Map: RID -> Note
+    const noteMap = new Map();
+    const allowedRidSet = new Set();
+    existingRids.forEach((rid, i) => {
+      const clean = cleanRid(rid);
+      if (clean) {
+        allowedRidSet.add(clean);
+        if (existingNotes[i]) {
+          noteMap.set(clean, existingNotes[i]);
+        }
+      }
+    });
+    Logger.log(`[${functionName}] Preserved ${noteMap.size} notes. Allowed RIDs: ${allowedRidSet.size}`);
+    
+    // --- STEP 3: READ STATCORE ---
     const statcoreSheet = ss.getSheetByName(INFOCUS_CONFIG.MASTER_DATA.sheetName);
     if (!statcoreSheet) {
       throw new Error("Sheet '" + INFOCUS_CONFIG.MASTER_DATA.sheetName + "' not found.");
@@ -79,7 +109,7 @@ function syncFilteredAccounts() {
     
     // Filter rows where Helper = TRUE AND (AM1 or AM2 matches)
     const normalizedManager = normalize(managerName);
-    const filteredRids = [];
+    let filteredRids = [];
     
     allData.forEach(row => {
       const helperVal = row[helperColIdx];
@@ -91,11 +121,32 @@ function syncFilteredAccounts() {
       const isManagerMatch = (am1Val === normalizedManager || am2Val === normalizedManager);
       
       if (isHelperTrue && isManagerMatch) {
-        filteredRids.push(String(row[ridIdx]));
+        const rid = cleanRid(row[ridIdx]);
+        if (rid) filteredRids.push(rid);
       }
     });
     
     Logger.log(`[${functionName}] Filtered RIDs count: ${filteredRids.length}`);
+
+    // Fallback: If manager match yields zero, intersect helper TRUE with current dashboard RIDs
+    if (filteredRids.length === 0 && allowedRidSet.size > 0) {
+      Logger.log(`[${functionName}] No manager matches. Falling back to dashboard RID intersection.`);
+      const fallbackRids = [];
+      
+      allData.forEach(row => {
+        const helperVal = row[helperColIdx];
+        const isHelperTrue = (helperVal === true || String(helperVal).toUpperCase() === 'TRUE');
+        if (!isHelperTrue) return;
+        
+        const rid = cleanRid(row[ridIdx]);
+        if (rid && allowedRidSet.has(rid)) {
+          fallbackRids.push(rid);
+        }
+      });
+      
+      filteredRids = fallbackRids;
+      Logger.log(`[${functionName}] Fallback RIDs count: ${filteredRids.length}`);
+    }
     
     if (filteredRids.length === 0) {
       return { 
@@ -104,26 +155,6 @@ function syncFilteredAccounts() {
         message: "No accounts matched the filter criteria. Check that Col BE has TRUE values for matching accounts." 
       };
     }
-    
-    // --- STEP 3: PRESERVE NOTES ---
-    const targetColLetter = INFOCUS_CONFIG.TARGET.dataCol;
-    const targetStartRow = 3; // C3
-    const activeLastRow = Math.max(activeSheet.getLastRow(), targetStartRow);
-    const targetRowCount = activeLastRow - targetStartRow + 1;
-    
-    // Read existing RIDs and Notes
-    const existingDataRange = activeSheet.getRange(targetStartRow, 3, targetRowCount, 1); // Col C
-    const existingRids = existingDataRange.getValues().flat().map(String);
-    const existingNotes = existingDataRange.getNotes().flat();
-    
-    // Build Note Map: RID -> Note
-    const noteMap = new Map();
-    existingRids.forEach((rid, i) => {
-      if (rid && existingNotes[i]) {
-        noteMap.set(rid, existingNotes[i]);
-      }
-    });
-    Logger.log(`[${functionName}] Preserved ${noteMap.size} notes.`);
     
     // --- STEP 4: CLEAR AND WRITE ---
     // Clear existing values and notes

@@ -46,59 +46,41 @@ const INFOCUS_CONFIG = {
  * Maps field names to their locations and definitions
  */
 const DATA_KEY_SCHEMA = `
-SECTION, INTOUCH NAME, POSSIBLE VARIABLES, DEFINITION, COLUMN HEADER
-STATCORE, RID, , Unique restaurant identifier, RID
-STATCORE, Current Term End Date, , Contract term end date, CURRENT_TERM_END_DATE
-STATCORE, Account ID, , Salesforce Account ID, ACCOUNT_SFDC_ID
-STATCORE, Parent Account ID, , Salesforce Parent Account ID, PARENT_ID
-STATCORE, Account Name, , Restaurant Name, RNAME
-STATCORE, Parent Account, , Group/Brand Name, GROUPNAME
-STATCORE, Metro, , Metro Area, METROAREANAME
-STATCORE, Macroname, , Macro Area (City District), MACRONAME
-STATCORE, Neighborhood, , Neighborhood, NBHOODNAME
-STATCORE, Status, "Active, Pending Cancellation, Hibernated", Lifecycle status, STATUS
-STATCORE, Account_Status, "Active Customer, Termination Pending, Locked Out", SFDC Status, ACCOUNT_STATUS
-STATCORE, Restaurant Status, "Reserve Now, Closed Temporarily, Seasonal", Operational Posture, CHARM_STATUS
-STATCORE, Target Zipcode, "FALSE, TRUE", Target ZIP flag, TARGET_ZIPCODE
-STATCORE, Account Manager, , Assigned AM, ACCOUNT_AM
-STATCORE, Inside Sales Representative, , Assigned ISR, ACCOUNT_ISR
-STATCORE, Payment Method, "Non - Auto Pay, Auto Pay - Credit Card", Billing config, PAYMENT_METHOD
-STATCORE, Ordering Systems, , Third-party ordering systems, ORDERING_SYSTEMS
-STATCORE, Total Due, , Outstanding Balance, TOTAL_DUE
-STATCORE, Past Due, , Overdue Amount, PAST_DUE
-STATCORE, Customer Since, , Partnership Start Date, CUSTOMER_SINCE
-STATCORE, Exclusive Pricing, "Freemium, Pro/Core, Basic/OTC, Flex 1.0", Pricing Model, EP_CURRENT
-STATCORE, Price, , Per-cover price, Standard Cover Price
-STATCORE, System Status, "Reserve Now, Decline Online, Hibernated", Aggregated Rule Status, Derived from CHARM/ACCOUNT/STATUS
-STATCORE, System Type, "Core, Pro, Basic, Guest Center, Network Access", System Type, DR_SYS_TYPE
-STATCORE, Standard / Direct Cvrs, , Direct Source Covers, DIRECT_SEATED_COVERS
-STATCORE, Google / Direct Cvrs, , Google Covers (Split), GOOGLE_SEATED_COVERS
-STATCORE, Standard Exposure Cvrs, , Non-promoted Covers, STANDARD_EXPERIENCE_SEATED_COVERS
-STATCORE, Instant Booking, Instant Booking, IB Live Flag, ACTIVE_INSTANT_BOOKING_EXPERIENCES
-STATCORE, Private Dining, "FALSE, TRUE", PD Eligibility, UNPUBLISH_DATE rule
-STATCORE, System Of Record, "OpenTable, Resy, SevenRooms, Toast", Primary System, SYSTEM_OF_RECORD
-STATCORE, Stripe Status, "Enabled, Restricted, Rejected", Stripe Status, STRIPE_STATUS
-STATCORE, Rest. Quality, "Normal, Top [NOM], Elite[NOM], Icon⭐", Quality/Awards, RESTAURANT_QUALITY
-STATCORE, Contract Alerts, "EXPIRED MM-YY, EXP. IN - XXD", Contract expiration warning, Contract Alerts
-STATCORE, Zero Activity, "0-Fullbook, 0-Online, 0-Restref, 0-InHouse", Zero bookings flag (L30 Days), No Bookings
-DISTRO, Shift w/MAX CAP, Yes, Capacity Enforced, Capacity flags
-DISTRO, Active XP, Yes, Active Experience, ACTIVE_XP
-DISTRO, Active PI, "PR/CP, BP", PI Campaigns Active, PI activity flags
-DISTRO, CVR Last Month – RestRef, , RestRef Covers (LM), RESTREF_SEATED_COVERS
-DISTRO, CVR Last Month – Direct, , Direct Covers (LM), DIRECT_SEATED_COVERS
-DISTRO, CVR Last Month – Discovery, , Discovery Covers (LM), DISCOVERY_SEATED_COVERS
-DISTRO, CVR Last Month – Phone/Walkin, , Phone/Walkin Covers (LM), PHONE / WALKIN_SEATED_COVERS
-DISTRO, CVR Last Month – Network, , Direct + Discovery Covers (LM), NETWORK_SEATED_COVERS
-DISTRO, CVR Last Month – Fullbook, , All Sources Covers (LM), FULLBOOK_COVERS
-DISTRO, CVR Last Month – Google, , Google Covers (LM), GOOGLE_SEATED_COVERS
-DISTRO, CVRs Last Month – Total PI, , Total PI Covers (LM), PI_SEATED_COVERS
-DISTRO, CVRs 12m Avg. – FullBook, , 12m Avg Fullbook, FULLBOOK_COVERS (12m avg)
-DISTRO, Revenue – Total 12m Avg., , 12m Avg Total Revenue, TOTAL_REVENUE (12m avg)
-DISTRO, Revenue – Subs Last Month, , Subscription Revenue (LM), RECOGNIZED_SUBSCRIPTION_REVENUE
-DISTRO, Revenue – Total Last Month, , Total Revenue (LM), TOTAL_REVENUE (monthly)
-DISTRO, CVR - Network YoY%, , Network Covers Year-Over-Year %, Derived
-DISTRO, CVR - Fullbook YoY%, , Fullbook Covers Year-Over-Year %, Derived
-DISTRO, PI Rev Share %, , % Revenue from PI, Derived
+SECTION, COLUMN, INTOUCH NAME, POSSIBLE VARIABLES, DEFINITION
+STATCORE, A, RID, , Unique restaurant identifier
+STATCORE, K, Current Term End Date, , Contract term end date (use for expired contracts)
+STATCORE, C, Account ID, , Salesforce Account ID
+STATCORE, D, Parent Account ID, , Salesforce Parent Account ID
+STATCORE, E, Account Name, , Restaurant Name
+STATCORE, F, Parent Account, , Group/Brand Name
+STATCORE, G, Metro, , Metro Area (city/region name)
+STATCORE, H, Macroname, , Macro Area (City District)
+STATCORE, I, Status, "Active, Pending Cancellation, Hibernated", Lifecycle status
+STATCORE, J, Account_Status, "Active Customer, Termination Pending, Locked Out", SFDC Status
+STATCORE, L, Restaurant Status, "Reserve Now, Closed Temporarily, Seasonal", Operational Posture
+STATCORE, M, Target Zipcode, "FALSE, TRUE", Target ZIP flag
+STATCORE, N, Account Manager, , Assigned AM
+STATCORE, O, Inside Sales Representative, , Assigned ISR
+STATCORE, P, Payment Method, "Non - Auto Pay, Auto Pay - Credit Card", Billing config
+STATCORE, Q, Ordering Systems, , Third-party ordering systems
+STATCORE, R, Total Due, , Outstanding Balance
+STATCORE, S, Past Due, , Overdue Amount
+STATCORE, T, Customer Since, , Partnership Start Date
+STATCORE, U, Exclusive Pricing, "Freemium, Pro/Core, Basic/OTC, Flex 1.0", Pricing Model
+STATCORE, V, Price, , Per-cover price
+STATCORE, W, System Status, "Reserve Now, Decline Online, Hibernated", Aggregated Rule Status
+STATCORE, X, System Type, "Core, Pro, Basic, Guest Center, Network Access", System Type
+STATCORE, Y, Standard / Direct Cvrs, , Direct Source Covers
+STATCORE, Z, Google / Direct Cvrs, , Google Covers (Split)
+STATCORE, AA, Standard Exposure Cvrs, , Non-promoted Covers
+STATCORE, AB, Instant Booking, "TRUE, FALSE", IB Live Flag
+STATCORE, AC, Private Dining, "TRUE, FALSE", PD Eligibility
+STATCORE, AD, System Of Record, "OpenTable, Resy, SevenRooms, Toast", Primary System
+STATCORE, AE, Stripe Status, "Enabled, Restricted, Rejected", Stripe Status
+STATCORE, AF, Rest. Quality, "Normal, Top, Elite, Icon", Quality/Awards
+STATCORE, AG, Contract Alerts, "EXPIRED MM-YY, EXP. IN - XXD", Contract expiration warning text
+STATCORE, AH, No Bookings, "0-Fullbook, 0-Online, 0-Restref, 0-InHouse", Zero bookings flag (L30 Days) - NOT EMPTY means no bookings
+STATCORE, AU, Last Updated, , AM engagement date (when AM last logged task/meeting)
 `;
 
 // =============================================================
@@ -590,16 +572,17 @@ function buildInFocusPrompt(userQuery) {
 The formula must evaluate each row and return TRUE for rows that match the user's criteria, FALSE otherwise.`;
 
   // B. Data Map
-  const dataMapPrompt = `## DATA SCHEMA
-Use the following field definitions when building your formula:
+  const dataMapPrompt = `## DATA SCHEMA (with Column Letters)
+The schema below shows: SECTION, COLUMN LETTER, FIELD NAME, POSSIBLE VALUES, DEFINITION
+ALWAYS use the COLUMN LETTER from this schema - do NOT guess column positions.
 
 ${DATA_KEY_SCHEMA}
 
 **Important**: 
 - STATCORE data starts at Row 3 (Row 2 is headers)
 - Use ARRAYFORMULA to apply logic to all rows
-- Column A contains RID (unique identifier)
-- Return TRUE/FALSE for each row`;
+- Return TRUE/FALSE for each row
+- Reference columns as: G3:G (not G:G) to start from row 3`;
 
   // C. Temporal Anchor
   const datePrompt = `## DATE CONTEXT
@@ -618,10 +601,11 @@ When the user mentions:
 Apply these interpretations:
 
 **Status Terms:**
-- "Active" = STATUS column = 'Active' (ignore 'Pending Cancellation')
-- "At Risk" = Contract Alerts contains 'EXP' OR No Bookings is not empty
-- "Churning" / "Canceling" = STATUS contains 'Pending' or 'Cancel'
-- "Expired" = Current Term End Date < TODAY()
+- "Active" = Column I (Status) = 'Active' (ignore 'Pending Cancellation')
+- "At Risk" = Column AG (Contract Alerts) contains 'EXP' OR Column AH (No Bookings) is not empty
+- "Churning" / "Canceling" = Column I (Status) contains 'Pending' or 'Cancel'
+- "Expired" / "Expired contracts" = Column K (Current Term End Date) < TODAY()
+  Formula pattern: K3:K < TODAY()
 
 **Product Terms:**
 - "Pro" = System Type = 'Pro' OR Exclusive Pricing contains 'Pro'
@@ -666,6 +650,8 @@ IMPORTANT: Be concise. Return ONLY the JSON below - no explanation, no reasoning
 
 **Example formulas (replace [VALUE] with user's input):**
 - Metro filter: =ARRAYFORMULA(IF(A3:A="", "", G3:G="[METRO_NAME]"))
+- Expired contracts: =ARRAYFORMULA(IF(A3:A="", "", K3:K<TODAY()))
+- Metro AND expired: =ARRAYFORMULA(IF(A3:A="", "", (G3:G="[METRO_NAME]")*(K3:K<TODAY())))
 - Column is empty: =ARRAYFORMULA(IF(A3:A="", "", AU3:AU=""))
 - Column is NOT empty: =ARRAYFORMULA(IF(A3:A="", "", AH3:AH<>""))
 - Metro AND no engagement: =ARRAYFORMULA(IF(A3:A="", "", (G3:G="[METRO_NAME]")*(AU3:AU="")))

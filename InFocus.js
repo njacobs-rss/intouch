@@ -640,18 +640,19 @@ If the user asks for Revenue/Covers data that lives in DISTRO:
   // E. Output Format
   const outputPrompt = `## OUTPUT FORMAT
 
-Return ONLY a valid JSON object with this exact structure:
+IMPORTANT: Be concise. Return ONLY the JSON below - no explanation, no reasoning, no markdown.
+
 {
-  "formula": "=ARRAYFORMULA(IF(A3:A=\"\", \"\", [YOUR LOGIC HERE]))",
-  "logic_summary": "Brief description of what the filter does",
-  "confidence": "High|Medium|Low"
+  "formula": "=ARRAYFORMULA(IF(A3:A=\"\", \"\", [YOUR LOGIC]))",
+  "logic_summary": "One sentence max",
+  "confidence": "High"
 }
 
-**Formula Requirements:**
-- Must be an ARRAYFORMULA that returns TRUE/FALSE
-- Must handle empty rows (return "" or FALSE for blank rows)
-- Must start with =ARRAYFORMULA
-- Do NOT wrap in additional quotes or escape characters`;
+**Rules:**
+- ARRAYFORMULA returning TRUE/FALSE
+- Handle empty rows
+- No markdown code blocks
+- No extra text before or after the JSON`;
 
   // Full Prompt Assembly
   const fullPrompt = `${rolePrompt}
@@ -752,7 +753,7 @@ function callGeminiAPI(userQuery) {
         temperature: 0.2,  // Lower temperature for more deterministic formula output
         topP: 0.8,
         topK: 40,
-        maxOutputTokens: 1024
+        maxOutputTokens: 8192  // Increased for Gemini 3 Pro reasoning
       }
     };
     

@@ -738,8 +738,8 @@ function callGeminiAPI(userQuery) {
     // Build the full prompt
     const fullPrompt = buildInFocusPrompt(userQuery);
     
-    // Gemini API endpoint (using gemini-1.5-flash for speed)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Gemini API endpoint (using Gemini 3 Pro)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
     
     // Request payload
     const payload = {
@@ -932,8 +932,8 @@ function testGeminiConnection() {
     }
     Logger.log('API Key: Found');
     
-    // Test Gemini API
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Test Gemini API (Gemini 3 Pro)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: 'Say "InFocus Ready" in exactly 2 words.' }] }]
     };

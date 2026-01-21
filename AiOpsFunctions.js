@@ -828,6 +828,459 @@ function showExportSuccessModal_(fileName, url, duration) {
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Export Successful');
 }
 
+// =============================================================
+// SECTION 5: KNOWLEDGE HUB - AI ASSISTANT
+// =============================================================
+
+/**
+ * System instruction encoding InTouch domain knowledge for the AI
+ * This is the "brain" that makes the AI understand InTouch
+ */
+const INTOUCH_SYSTEM_INSTRUCTION = `You are an InTouch expert assistant helping OpenTable Account Managers navigate and use InTouch effectively. InTouch is OpenTable's centralized account management platform - a Google Sheets-based toolkit that brings together account health, contract status, booking activity, and engagement history.
+
+## YOUR ROLE
+- Answer questions about InTouch features, metrics, and workflows
+- Provide step-by-step guidance for common tasks
+- Explain metrics and their interpretation
+- Help troubleshoot issues
+- Be concise and actionable - AMs are busy
+
+## CORE FEATURES YOU MUST KNOW
+
+### iQ Column (Account Health)
+- Shows account health as checkmark (✔ = healthy) or red number (# of flags)
+- Red 1 = moderate priority, Red 2 = high priority, Red 3+ = urgent
+- ALWAYS hover over red cells to see the specific flags
+- Located near the left side of the data grid
+
+### Smart Select
+- Checkbox column on the far left of AM tabs
+- Used for: Adding/removing accounts from Focus20, creating temporary working lists
+- Check boxes → click + to add to Focus20, X to remove
+
+### Focus20
+- Priority account list with date stamps showing when added
+- Target: 10-20 accounts, refreshed weekly
+- Mix of renewals, at-risk accounts, and growth opportunities
+- Visible to managers in their views
+
+### RESET Button
+- Location: Above column E in the control row
+- Does THREE things: clears filters, restores default columns, clears Smart Select checkboxes
+- CRITICAL: Use this instead of standard Google Sheets filters
+- Standard Google filters break InTouch because headers are in Row 2, not Row 1
+
+### Dynamic Column Headers
+- Double-click column headers to change which metric displays
+- Single-click sorts; double-click opens dropdown
+- Common views: Renewals (Term End Date, Contract Alerts), Risk (No Bookings, Health Flags), Growth (Discovery%, Active PI/XP)
+
+### Meeting Prep (AI Panel)
+- Access: InTouch✔ai → Open InTouch AI Panel → Meeting Prep tab
+- Launch AI Brief: Copies data to clipboard, opens Gemini for analysis
+- Create Presentation: Generates QBR deck via BizInsights/State of the Plate
+
+### Pricing Simulator
+- Access: InTouch✔ai → Open InTouch AI Panel → Pricing Simulator tab
+- Models current vs hypothetical pricing scenarios
+- Scope: Individual (single RID) or Group (parent account)
+- Results are DIRECTIONAL only - validate with pricing policy before committing
+
+### Bucket Summary
+- Access: InTouch✔ai → Open InTouch AI Panel → Bucket Summary tab
+- Portfolio snapshot: install base, contract status, product adoption
+- Great for 1:1 prep and self-assessment
+
+## CHANNEL HIERARCHY (CRITICAL MATH)
+
+Network = Direct + Discovery (EXACT - this is absolute)
+Fullbook = Network + RestRef + Phone/Walk-In
+
+Google is an ATTRIBUTION OVERLAY within Direct/Discovery - NOT a separate additive channel
+NEVER add Google separately to Fullbook calculations
+
+## KEY METRICS INTERPRETATION
+
+### Discovery% (Disco % Current)
+- Percentage of Network covers from marketplace vs direct
+- Low Discovery% on high-volume account = growth opportunity
+- Declining trend may indicate availability or content issues
+
+### No Bookings >30 Days
+- Primary early warning for churn risk
+- 0-Fullbook = complete booking stoppage (urgent)
+- 0-Network = may be RestRef/phone-dependent
+
+### Last Engaged Date
+- Coverage indicator; long gaps correlate with churn risk
+- <30 days = active, 30-60 = monitor, 60-90 = at risk, >90 = critical
+
+### Contract Alerts
+- EXPIRED = urgent same-week outreach
+- Term Pending = plan renewal conversation
+
+## NAVIGATION PATHS (Use these exact paths)
+
+| Action | Path |
+|--------|------|
+| Open AI Panel | InTouch✔ai → Open InTouch AI Panel |
+| Meeting Prep | InTouch✔ai → Open InTouch AI Panel → Meeting Prep tab |
+| Pricing Simulator | InTouch✔ai → Open InTouch AI Panel → Pricing Simulator tab |
+| Bucket Summary | InTouch✔ai → Open InTouch AI Panel → Bucket Summary tab |
+| Add to Focus20 | Check Smart Select → Click + button |
+| Remove from Focus20 | Check Smart Select → Click X button |
+| RESET view | Click RESET button (above column E) |
+| Change column metric | Double-click column header → Select from dropdown |
+| Fleet Commander | Admin Functions → Open Fleet Commander |
+
+## TROUBLESHOOTING QUICK FIXES
+
+| Problem | Solution |
+|---------|----------|
+| Sheet looks empty/broken | Click RESET immediately |
+| Only few accounts visible | Smart Select might be filtered - click RESET |
+| iQ notes outdated | Ask manager to run "Update Notes Only" |
+| Focus20 +/X not working | Use Admin Functions → Focus20 menu as fallback |
+| AI Panel won't open | Check popup blocker, refresh browser |
+
+## CRITICAL RULES (NEVER VIOLATE)
+- NEVER recommend using Data → Create a filter (breaks the sheet)
+- NEVER add Google covers separately to Fullbook (it's already in Network)
+- ALWAYS tell users to click RESET when they describe view problems
+- Focus20 should be 10-20 accounts and refreshed weekly, not static
+- System fixes come BEFORE pricing changes (diagnose system type first)
+
+## RESPONSE FORMAT
+- Be concise - use bullet points for steps
+- Include exact navigation paths when relevant
+- Use InTouch terminology (iQ, Smart Select, Focus20, RESET, etc.)
+- If asked about something not in InTouch, say so clearly
+- For "how do I" questions, give numbered steps
+- For metric questions, explain what it means AND how to use it`;
+
+/**
+ * Get the Gemini API key from script properties
+ * @returns {string} The API key
+ * @private
+ */
+function getGeminiApiKey_() {
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) {
+    throw new Error('GEMINI_API_KEY not found in Script Properties. Go to Project Settings > Script Properties to add it.');
+  }
+  return key;
+}
+
+/**
+ * Main function to ask the InTouch Guide AI
+ * Called from the frontend Knowledge Hub chat
+ * @param {string} userQuery - The user's question
+ * @param {string} conversationHistory - Optional JSON string of previous messages
+ * @returns {Object} Response object with success status and answer
+ */
+function askInTouchGuide(userQuery, conversationHistory) {
+  const startTime = new Date();
+  const requestId = Utilities.getUuid().substring(0, 8);
+  
+  console.log('=== INTOUCH GUIDE REQUEST [' + requestId + '] ===');
+  console.log('Query: ' + userQuery);
+  
+  try {
+    // Validate input
+    if (!userQuery || userQuery.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Please enter a question',
+        requestId: requestId
+      };
+    }
+    
+    const apiKey = getGeminiApiKey_();
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    
+    // Build conversation contents
+    const contents = [];
+    
+    // Add conversation history if provided
+    if (conversationHistory) {
+      try {
+        const history = JSON.parse(conversationHistory);
+        for (const msg of history) {
+          contents.push({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.content }]
+          });
+        }
+      } catch (e) {
+        console.log('Warning: Could not parse conversation history: ' + e.message);
+      }
+    }
+    
+    // Add current user query
+    contents.push({
+      role: 'user',
+      parts: [{ text: userQuery }]
+    });
+    
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: INTOUCH_SYSTEM_INSTRUCTION }]
+      },
+      contents: contents,
+      generationConfig: {
+        maxOutputTokens: 1024,
+        temperature: 0.3,  // Lower for factual accuracy
+        topP: 0.9
+      }
+    };
+    
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode !== 200) {
+      const errorText = response.getContentText();
+      console.log('API ERROR: ' + errorText);
+      throw new Error('Gemini API error: ' + responseCode);
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!answer) {
+      console.log('No answer in response: ' + JSON.stringify(data));
+      throw new Error('No response generated');
+    }
+    
+    const durationMs = new Date() - startTime;
+    console.log('Answer generated (' + answer.length + ' chars) in ' + durationMs + 'ms');
+    
+    return {
+      success: true,
+      answer: answer,
+      requestId: requestId,
+      durationMs: durationMs
+    };
+    
+  } catch (error) {
+    console.log('INTOUCH GUIDE ERROR [' + requestId + ']: ' + error.message);
+    
+    return {
+      success: false,
+      error: error.message,
+      requestId: requestId,
+      durationMs: new Date() - startTime
+    };
+  }
+}
+
+// =============================================================
+// SECTION 6: KNOWLEDGE HUB - FEEDBACK SYSTEM
+// =============================================================
+// All feedback from sidebars and webapps goes to the master KH_Feedback sheet
+// =============================================================
+
+/**
+ * Feedback logging sheet configuration
+ */
+const KH_FEEDBACK_CONFIG = {
+  SHEET_NAME: 'KH_Feedback',
+  HEADERS: ['Timestamp', 'User', 'Source', 'Query', 'Response', 'Rating', 'Correction', 'Status']
+};
+
+/**
+ * Log user feedback on AI responses
+ * Called from the frontend when user rates or corrects a response
+ * @param {Object} feedback - Feedback object with query, response, rating, correction
+ * @returns {Object} Result object with success status
+ */
+function logKnowledgeHubFeedback(feedback) {
+  const startTime = new Date();
+  
+  try {
+    if (!feedback || (!feedback.rating && !feedback.correction)) {
+      return { success: false, error: 'No feedback provided' };
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(KH_FEEDBACK_CONFIG.SHEET_NAME);
+    
+    // Create feedback sheet if it doesn't exist
+    if (!sheet) {
+      sheet = ss.insertSheet(KH_FEEDBACK_CONFIG.SHEET_NAME);
+      sheet.getRange(1, 1, 1, KH_FEEDBACK_CONFIG.HEADERS.length)
+        .setValues([KH_FEEDBACK_CONFIG.HEADERS])
+        .setFontWeight('bold')
+        .setBackground('#f3f4f6');
+      sheet.setFrozenRows(1);
+      sheet.setColumnWidth(4, 300); // Query
+      sheet.setColumnWidth(5, 400); // Response
+      sheet.setColumnWidth(7, 300); // Correction
+    }
+    
+    // Get user email
+    let userEmail = 'anonymous';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || 'anonymous';
+    } catch (e) {}
+    
+    // Truncate long content for storage
+    const truncate = (str, maxLen) => {
+      if (!str) return '';
+      return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+    };
+    
+    // Determine source based on spreadsheet name or default to Sidebar
+    let source = 'Sidebar';
+    try {
+      const ssName = ss.getName();
+      if (ssName) source = ssName.substring(0, 30); // Truncate long names
+    } catch (e) {}
+    
+    // Add feedback row with source identifier
+    const row = [
+      new Date(),
+      userEmail,
+      source,
+      truncate(feedback.query || '', 500),
+      truncate(feedback.response || '', 1000),
+      feedback.rating || '',
+      truncate(feedback.correction || '', 1000),
+      feedback.correction ? 'needs_review' : 'logged'
+    ];
+    
+    sheet.appendRow(row);
+    
+    console.log('KH Feedback logged: ' + feedback.rating + (feedback.correction ? ' + correction' : ''));
+    
+    return {
+      success: true,
+      message: feedback.correction ? 'Thank you! Your correction has been submitted for review.' : 'Thanks for your feedback!',
+      durationMs: new Date() - startTime
+    };
+    
+  } catch (error) {
+    console.error('KH Feedback Error: ' + error.message);
+    return {
+      success: false,
+      error: error.message,
+      durationMs: new Date() - startTime
+    };
+  }
+}
+
+/**
+ * Get pending feedback corrections for review
+ * Use this to review and improve the system instruction
+ * @returns {Array} Array of feedback entries needing review
+ */
+function getKHFeedbackForReview() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(KH_FEEDBACK_CONFIG.SHEET_NAME);
+    
+    if (!sheet || sheet.getLastRow() < 2) {
+      return { success: true, data: [], message: 'No feedback yet' };
+    }
+    
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, KH_FEEDBACK_CONFIG.HEADERS.length).getValues();
+    const headers = KH_FEEDBACK_CONFIG.HEADERS;
+    
+    // Filter for items needing review (have corrections)
+    const needsReview = data
+      .map((row, idx) => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h.toLowerCase().replace(/\s/g, '_')] = row[i]);
+        obj.rowIndex = idx + 2; // 1-indexed, skip header
+        return obj;
+      })
+      .filter(item => item.status === 'needs_review' || item.correction);
+    
+    return {
+      success: true,
+      data: needsReview,
+      total: data.length,
+      needsReview: needsReview.length
+    };
+    
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * PING TEST: Verify Gemini API connectivity
+ * Call this from the Apps Script editor to test your API key
+ * @returns {Object} Status object with success/error info
+ */
+function pingGeminiApi() {
+  const startTime = new Date();
+  console.log('=== GEMINI API PING TEST ===');
+  
+  try {
+    const apiKey = getGeminiApiKey_();
+    console.log('API Key retrieved: ' + apiKey.substring(0, 8) + '...[REDACTED]');
+    
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    
+    const payload = {
+      contents: [{
+        parts: [{ text: 'Reply with exactly: PONG' }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 10,
+        temperature: 0
+      }
+    };
+    
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode !== 200) {
+      return {
+        success: false,
+        error: 'API returned status ' + responseCode,
+        details: response.getContentText(),
+        durationMs: new Date() - startTime
+      };
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+    
+    console.log('Response: ' + reply.trim());
+    console.log('=== PING TEST COMPLETE ===');
+    
+    return {
+      success: true,
+      response: reply.trim(),
+      durationMs: new Date() - startTime,
+      model: 'gemini-2.0-flash'
+    };
+    
+  } catch (error) {
+    console.log('PING TEST ERROR: ' + error.message);
+    return {
+      success: false,
+      error: error.message,
+      durationMs: new Date() - startTime
+    };
+  }
+}
+
 function BI_runWithRuntimeLogging(opts) {
   if (typeof ITGlobal !== 'undefined') {
     return ITGlobal.BI_createPresentation({

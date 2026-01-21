@@ -175,6 +175,386 @@
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
     #sim-results { border-left: 4px solid #ccc; }
+
+    /* =========================================
+       KNOWLEDGE HUB - FLOATING CHAT
+       ========================================= */
+    .kh-fab {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      z-index: 900;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kh-fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+    }
+    .kh-fab.hidden { display: none; }
+
+    .kh-panel {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: calc(100% - 32px);
+      max-width: 380px;
+      height: 420px;
+      max-height: calc(100vh - 80px);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      z-index: 950;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .kh-panel.open {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .kh-panel-header {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: white;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .kh-panel-header h4 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kh-panel-close {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .kh-panel-close:hover { background: rgba(255,255,255,0.3); }
+
+    .kh-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f8fafc;
+    }
+
+    .kh-message {
+      max-width: 92%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .kh-message.user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .kh-message.assistant {
+      align-self: flex-start;
+      background: #fff;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+    .kh-message.assistant strong { color: #2563eb; }
+    .kh-message.assistant code {
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+    .kh-message.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .kh-message.loading {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+    }
+
+    .kh-loading-dots {
+      display: flex;
+      gap: 4px;
+    }
+    .kh-loading-dots span {
+      width: 6px;
+      height: 6px;
+      background: #94a3b8;
+      border-radius: 50%;
+      animation: khBounce 1.4s infinite ease-in-out both;
+    }
+    .kh-loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .kh-loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes khBounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    .kh-welcome {
+      text-align: center;
+      color: #64748b;
+      padding: 24px 12px;
+    }
+    .kh-welcome-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    .kh-welcome h5 {
+      margin: 0 0 6px 0;
+      color: #0f172a;
+      font-size: 13px;
+    }
+    .kh-welcome p {
+      margin: 0;
+      font-size: 11px;
+    }
+
+    .kh-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+    .kh-suggestion {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 14px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #334155;
+    }
+    .kh-suggestion:hover {
+      border-color: #2563eb;
+      color: #2563eb;
+    }
+
+    .kh-input-area {
+      padding: 10px 12px;
+      border-top: 1px solid #e2e8f0;
+      background: #fff;
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .kh-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 0;
+    }
+    .kh-input:focus {
+      border-color: #2563eb;
+    }
+    .kh-send {
+      background: #2563eb;
+      color: white;
+      border: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .kh-send:hover { background: #1d4ed8; }
+    .kh-send:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* Feedback UI */
+    .kh-feedback {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .kh-feedback-btn {
+      background: none;
+      border: 1px solid #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .kh-feedback-btn:hover {
+      border-color: #94a3b8;
+      color: #334155;
+    }
+    .kh-feedback-btn.active-helpful {
+      border-color: #22c55e;
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+    .kh-feedback-btn.active-not-helpful {
+      border-color: #ef4444;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+    .kh-feedback-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .kh-feedback-text {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-left: auto;
+    }
+
+    /* Correction Modal */
+    .kh-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .kh-modal-overlay.open { display: flex; }
+    .kh-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: calc(100% - 32px);
+      max-width: 360px;
+      max-height: calc(100vh - 100px);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .kh-modal-header {
+      padding: 14px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .kh-modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #64748b;
+      padding: 0;
+      line-height: 1;
+    }
+    .kh-modal-body {
+      padding: 16px;
+    }
+    .kh-modal-label {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .kh-modal-preview {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 11px;
+      color: #334155;
+      max-height: 80px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+    .kh-modal-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      resize: vertical;
+      margin-bottom: 12px;
+    }
+    .kh-modal-textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    .kh-modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .kh-modal-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+    .kh-modal-btn-cancel {
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .kh-modal-btn-submit {
+      background: #2563eb;
+      color: #fff;
+    }
+    .kh-modal-btn-submit:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -851,6 +1231,333 @@
 
       container.innerHTML = `<table class="mini-table" style="width:100%; margin-top:5px;">${rows}</table>`;
     }
+
+    // =========================================================
+    // --- KNOWLEDGE HUB CHAT FUNCTIONS ---
+    // =========================================================
+    
+    const khState = {
+      isOpen: false,
+      isLoading: false,
+      conversationHistory: []
+    };
+
+    const khEls = {
+      fab: null,
+      panel: null,
+      closeBtn: null,
+      messages: null,
+      input: null,
+      sendBtn: null,
+      welcome: null
+    };
+
+    function initKnowledgeHub() {
+      khEls.fab = document.getElementById('khFab');
+      khEls.panel = document.getElementById('khPanel');
+      khEls.closeBtn = document.getElementById('khClose');
+      khEls.messages = document.getElementById('khMessages');
+      khEls.input = document.getElementById('khInput');
+      khEls.sendBtn = document.getElementById('khSend');
+      khEls.welcome = document.getElementById('khWelcome');
+
+      if (khEls.fab) khEls.fab.addEventListener('click', toggleKHPanel);
+      if (khEls.closeBtn) khEls.closeBtn.addEventListener('click', toggleKHPanel);
+
+      // Suggestion clicks
+      document.querySelectorAll('.kh-suggestion').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (khEls.input) {
+            khEls.input.value = btn.textContent;
+            sendKHMessage();
+          }
+        });
+      });
+
+      // Enter key to send
+      if (khEls.input) {
+        khEls.input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendKHMessage();
+          }
+        });
+      }
+
+      if (khEls.sendBtn) khEls.sendBtn.addEventListener('click', sendKHMessage);
+    }
+
+    function toggleKHPanel() {
+      khState.isOpen = !khState.isOpen;
+      if (khEls.panel) khEls.panel.classList.toggle('open', khState.isOpen);
+      if (khEls.fab) khEls.fab.classList.toggle('hidden', khState.isOpen);
+      if (khState.isOpen && khEls.input) {
+        khEls.input.focus();
+      }
+    }
+
+    function sendKHMessage() {
+      if (!khEls.input) return;
+      const query = khEls.input.value.trim();
+      if (!query || khState.isLoading) return;
+
+      // Hide welcome message
+      if (khEls.welcome) {
+        khEls.welcome.style.display = 'none';
+      }
+
+      // Add user message to UI
+      addKHMessage('user', query);
+      khEls.input.value = '';
+
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+
+      // Build conversation history for context
+      const historyJson = khState.conversationHistory.length > 0 
+        ? JSON.stringify(khState.conversationHistory) 
+        : null;
+
+      // Call backend
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+
+          if (result.success) {
+            addKHMessage('assistant', result.answer);
+            // Add to history for follow-up context
+            khState.conversationHistory.push({ role: 'user', content: query });
+            khState.conversationHistory.push({ role: 'assistant', content: result.answer });
+            // Keep history manageable (last 10 exchanges)
+            if (khState.conversationHistory.length > 20) {
+              khState.conversationHistory = khState.conversationHistory.slice(-20);
+            }
+          } else {
+            addKHMessage('error', 'Error: ' + (result.error || 'Something went wrong'));
+          }
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+        })
+        .askInTouchGuide(query, historyJson);
+    }
+
+    // Track last query for feedback
+    let khLastQuery = '';
+
+    function addKHMessage(type, content) {
+      if (!khEls.messages) return null;
+      const msgEl = document.createElement('div');
+      msgEl.className = 'kh-message ' + type;
+
+      if (type === 'loading') {
+        msgEl.innerHTML = '<div class="kh-loading-dots"><span></span><span></span><span></span></div>';
+      } else if (type === 'assistant') {
+        // Generate unique ID for this message
+        const msgId = 'kh-msg-' + Date.now();
+        msgEl.id = msgId;
+        msgEl.dataset.response = content;
+        msgEl.dataset.query = khLastQuery;
+        
+        msgEl.innerHTML = formatKHResponse(content) + `
+          <div class="kh-feedback">
+            <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'helpful')" title="Helpful">👍</button>
+            <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'not_helpful')" title="Not helpful">👎</button>
+            <button class="kh-feedback-btn" onclick="openKHCorrection('${msgId}')" title="Suggest correction">✏️ Correct</button>
+            <span class="kh-feedback-text"></span>
+          </div>
+        `;
+      } else if (type === 'user') {
+        khLastQuery = content; // Store for feedback
+        msgEl.textContent = content;
+      } else {
+        msgEl.textContent = content;
+      }
+
+      khEls.messages.appendChild(msgEl);
+      khEls.messages.scrollTop = khEls.messages.scrollHeight;
+      return msgEl;
+    }
+
+    function submitKHFeedback(msgId, rating) {
+      const msgEl = document.getElementById(msgId);
+      if (!msgEl) return;
+      
+      const feedbackBtns = msgEl.querySelectorAll('.kh-feedback-btn');
+      const feedbackText = msgEl.querySelector('.kh-feedback-text');
+      
+      // Disable buttons
+      feedbackBtns.forEach(btn => btn.disabled = true);
+      
+      // Highlight selected
+      feedbackBtns[rating === 'helpful' ? 0 : 1].classList.add(
+        rating === 'helpful' ? 'active-helpful' : 'active-not-helpful'
+      );
+      
+      // Send feedback
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (feedbackText) {
+            feedbackText.textContent = result.success ? 'Thanks!' : 'Error';
+          }
+        })
+        .withFailureHandler(() => {
+          if (feedbackText) feedbackText.textContent = 'Error';
+        })
+        .logKnowledgeHubFeedback({
+          query: msgEl.dataset.query || '',
+          response: msgEl.dataset.response || '',
+          rating: rating
+        });
+    }
+
+    function openKHCorrection(msgId) {
+      const msgEl = document.getElementById(msgId);
+      if (!msgEl) return;
+      
+      const modal = document.getElementById('khCorrectionModal');
+      const preview = document.getElementById('khCorrectionPreview');
+      const textarea = document.getElementById('khCorrectionText');
+      
+      if (modal && preview && textarea) {
+        preview.textContent = (msgEl.dataset.response || '').substring(0, 200) + '...';
+        textarea.value = '';
+        modal.dataset.msgId = msgId;
+        modal.classList.add('open');
+        textarea.focus();
+      }
+    }
+
+    function closeKHCorrection() {
+      const modal = document.getElementById('khCorrectionModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function submitKHCorrection() {
+      const modal = document.getElementById('khCorrectionModal');
+      const textarea = document.getElementById('khCorrectionText');
+      const submitBtn = document.getElementById('khCorrectionSubmit');
+      
+      if (!modal || !textarea) return;
+      
+      const correction = textarea.value.trim();
+      if (!correction) return;
+      
+      const msgId = modal.dataset.msgId;
+      const msgEl = document.getElementById(msgId);
+      
+      if (submitBtn) submitBtn.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (submitBtn) submitBtn.disabled = false;
+          closeKHCorrection();
+          
+          // Update feedback text on original message
+          if (msgEl) {
+            const feedbackText = msgEl.querySelector('.kh-feedback-text');
+            if (feedbackText) feedbackText.textContent = result.success ? 'Correction submitted!' : 'Error';
+          }
+        })
+        .withFailureHandler(() => {
+          if (submitBtn) submitBtn.disabled = false;
+          alert('Failed to submit correction');
+        })
+        .logKnowledgeHubFeedback({
+          query: msgEl ? msgEl.dataset.query : '',
+          response: msgEl ? msgEl.dataset.response : '',
+          rating: 'not_helpful',
+          correction: correction
+        });
+    }
+
+    function formatKHResponse(text) {
+      // Escape HTML first
+      let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      
+      // Bold: **text** or __text__
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      
+      // Inline code: `code`
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Line breaks
+      html = html.replace(/\n/g, '<br>');
+      
+      // Simple bullet lists (lines starting with - or *)
+      html = html.replace(/<br>[\s]*[-*]\s+/g, '<br>• ');
+      
+      // Numbered lists
+      html = html.replace(/<br>(\d+)\.\s+/g, '<br>$1. ');
+
+      return html;
+    }
+
+    // Initialize Knowledge Hub when page loads
+    document.addEventListener('DOMContentLoaded', initKnowledgeHub);
+    // Also try on window load as fallback
+    window.addEventListener('load', initKnowledgeHub);
   </script>
+
+  <!-- =========================================
+       KNOWLEDGE HUB - FAB & CHAT PANEL
+       ========================================= -->
+  <button class="kh-fab" id="khFab" title="InTouch Guide">?</button>
+
+  <!-- Correction Modal -->
+  <div class="kh-modal-overlay" id="khCorrectionModal">
+    <div class="kh-modal">
+      <div class="kh-modal-header">
+        <span>Suggest a Correction</span>
+        <button class="kh-modal-close" onclick="closeKHCorrection()">✕</button>
+      </div>
+      <div class="kh-modal-body">
+        <label class="kh-modal-label">AI Response (preview):</label>
+        <div class="kh-modal-preview" id="khCorrectionPreview"></div>
+        <label class="kh-modal-label">What should the correct answer be?</label>
+        <textarea class="kh-modal-textarea" id="khCorrectionText" placeholder="Enter the correct information..."></textarea>
+        <div class="kh-modal-actions">
+          <button class="kh-modal-btn kh-modal-btn-cancel" onclick="closeKHCorrection()">Cancel</button>
+          <button class="kh-modal-btn kh-modal-btn-submit" id="khCorrectionSubmit" onclick="submitKHCorrection()">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kh-panel" id="khPanel">
+    <div class="kh-panel-header">
+      <h4>✦ InTouch Guide</h4>
+      <button class="kh-panel-close" id="khClose">✕</button>
+    </div>
+    <div class="kh-messages" id="khMessages">
+      <div class="kh-welcome" id="khWelcome">
+        <div class="kh-welcome-icon">✦</div>
+        <h5>Ask me about InTouch</h5>
+        <p>Features, metrics, workflows, troubleshooting</p>
+        <div class="kh-suggestions">
+          <button class="kh-suggestion">What is iQ?</button>
+          <button class="kh-suggestion">How do I use Focus20?</button>
+          <button class="kh-suggestion">Sheet looks broken</button>
+          <button class="kh-suggestion">Explain Discovery%</button>
+        </div>
+      </div>
+    </div>
+    <div class="kh-input-area">
+      <input type="text" class="kh-input" id="khInput" placeholder="Ask a question..." autocomplete="off">
+      <button class="kh-send" id="khSend" title="Send">➤</button>
+    </div>
+  </div>
+
 </body>
 </html>

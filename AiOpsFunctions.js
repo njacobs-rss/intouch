@@ -833,6 +833,218 @@ function showExportSuccessModal_(fileName, url, duration) {
 // =============================================================
 
 /**
+ * DYNAMIC COLUMN MAPPING - Maps metrics to their available columns
+ * Used by AI to offer column visualization
+ */
+const DYNAMIC_COLUMN_MAP = {
+  // Column E - Account IDs
+  'Insights': 'E', 'Users': 'E', 'OT4R': 'E',
+  
+  // Column G - Account Name variants
+  'Account Name (SFDC)': 'G', 'Account Name (Google)': 'G', 
+  'Account Name (Bistro Settings)': 'G', 'Account Name (OT Profile)': 'G',
+  
+  // Column I - Location
+  'Metro': 'I', 'Neighborhood': 'I', 'Macro': 'I',
+  
+  // Columns J-L - Dates & Activity
+  'AM Assigned Date': 'J', 'Task Created By': 'J', 'Task Date': 'J', 'Task Type': 'J',
+  'Event Created By': 'J', 'Event Date': 'J', 'Event Type': 'J', 'L90 Total Meetings': 'J',
+  'Last Engaged Date': 'J', 'Current Term End Date': 'J', 'Focus20': 'J',
+  'Customer Since': 'J', 'Contract Alerts': 'J',
+  
+  // Columns M-O - Account + Status Info
+  'Status': 'M', 'System Status': 'M', 'System Type': 'M', 
+  'No Bookings >30 Days': 'M', 'System of Record': 'M',
+  
+  // Columns P-R - System Stats
+  'Active PI': 'P', 'Active XP': 'P', 'AutoTags Active - Last 30': 'P',
+  'CHRM-CC Req Min': 'P', 'CHRM-Days in Advance': 'P', 'CHRM-Max Party': 'P',
+  'Email Integration': 'P', 'Exclusive Pricing': 'P', 'HEALTH FLAGS - LM': 'P',
+  'Instant Booking': 'P', 'Integrations Total': 'P', 'PartnerFeed EXCLUDED': 'P',
+  'Payment Method': 'P', 'POS Type': 'P', 'Previous AM': 'P', 'Private Dining': 'P',
+  'PRO-Last Sent': 'P', 'Rest. Quality': 'P', 'Shift w/MAX CAP': 'P',
+  'Special Programs': 'P', 'Stripe Status*': 'P', 'Target Zipcode': 'P',
+  
+  // Columns S-U - Percentage Metrics
+  'CVR - Fullbook YoY%': 'S', 'CVR - Network YoY%': 'S', 
+  'CVRs - Discovery % Avg. 12m': 'S', 'CVRs LM - Direct %': 'S',
+  'CVRs LM - Discovery %': 'S', 'Disco % Current': 'S', 'Disco % MoM (+/-)': 'S',
+  'Google % Avg. 12m': 'S', 'PI Rev Share %': 'S', 'POS Match %': 'S',
+  'Disco % WoW (+/-)*': 'S',
+  
+  // Columns V-X - Revenue
+  'Rev Yield - Total Last Month': 'V', 'Revenue - PI Last Month': 'V',
+  'Check Avg. Last 30': 'V', 'Revenue - Total 12m Avg.': 'V',
+  'Revenue - Subs Last Month': 'V', 'Revenue - Total Last Month': 'V',
+  'Total Due': 'V', 'Past Due': 'V',
+  
+  // Columns Y-AA - Seated Covers
+  'CVR Last Month - Direct': 'Y', 'CVR Last Month - Discovery': 'Y',
+  'CVR Last Month - Phone/Walkin': 'Y', 'CVR Last Month - Google': 'Y',
+  'CVR Last Month - PI BP': 'Y', 'CVR Last Month - PI CP': 'Y',
+  'CVR Last Month - PI PR': 'Y', 'CVRs Last Month - Total PI': 'Y',
+  'CVR Last Month - Fullbook': 'Y', 'CVR Last Month - Network': 'Y',
+  'CVR Last Month - RestRef': 'Y', 'CVRs 12m Avg. - Network': 'Y',
+  'CVRs 12m Avg. - Dir': 'Y', 'CVRs 12m Avg. - Disc': 'Y',
+  'CVRs 12m Avg. - Phone/Walkin': 'Y', 'CVRs 12m Avg. - Restref': 'Y',
+  'CVRs 12m Avg. - FullBook': 'Y', 'CVRs 12m Avg. - Google': 'Y',
+  
+  // Columns AB-AD - Pricing
+  'GOOGLE / DIRECT CVRS': 'AB', 'STANDARD COVER PRICE': 'AB',
+  'STANDARD EXPOSURE CVRS': 'AB', 'SUBFEES': 'AB'
+};
+
+/**
+ * Checks if the active sheet is an AM tab (has Smart Select column)
+ * @returns {Object} {isAMTab: boolean, sheetName: string}
+ */
+function checkIfAMTab() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+    const sheetName = sheet.getName();
+    
+    // Check if Row 2 has "Smart Select" header
+    const lastCol = Math.min(sheet.getLastColumn(), 30); // Check first 30 cols
+    if (lastCol < 4) return { isAMTab: false, sheetName: sheetName };
+    
+    const headers = sheet.getRange(2, 1, 1, lastCol).getValues()[0];
+    const hasSmartSelect = headers.some(h => 
+      String(h).toLowerCase().replace(/\s/g, '') === 'smartselect'
+    );
+    
+    return { isAMTab: hasSmartSelect, sheetName: sheetName };
+  } catch (e) {
+    console.error('checkIfAMTab error:', e);
+    return { isAMTab: false, sheetName: 'Unknown' };
+  }
+}
+
+/**
+ * Sets a dynamic column header value on the active AM sheet
+ * @param {string} columnLetter - The column letter (e.g., "J", "K", "AA")
+ * @param {string} metricName - The metric name to set in the dropdown
+ * @returns {Object} Result with success status
+ */
+function setDynamicColumnHeader(columnLetter, metricName) {
+  const functionName = 'setDynamicColumnHeader';
+  console.log(`[${functionName}] Setting column ${columnLetter} to "${metricName}"`);
+  
+  try {
+    // Validate we're on an AM tab
+    const tabCheck = checkIfAMTab();
+    if (!tabCheck.isAMTab) {
+      return {
+        success: false,
+        error: 'Please navigate to an AM tab first. The active sheet "' + tabCheck.sheetName + '" is not an AM tab.'
+      };
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+    
+    // Convert column letter to index
+    const colIndex = columnLetterToIndex_(columnLetter);
+    if (colIndex < 1) {
+      return { success: false, error: 'Invalid column letter: ' + columnLetter };
+    }
+    
+    // Get the cell in Row 2
+    const cell = sheet.getRange(2, colIndex);
+    const currentValue = cell.getValue();
+    
+    // Get data validation to verify the metric is valid for this column
+    const validation = cell.getDataValidation();
+    if (validation) {
+      const criteriaType = validation.getCriteriaType();
+      let validOptions = [];
+      
+      if (criteriaType === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
+        validOptions = validation.getCriteriaValues()[0] || [];
+      } else if (criteriaType === SpreadsheetApp.DataValidationCriteria.VALUE_IN_RANGE) {
+        try {
+          const range = validation.getCriteriaValues()[0];
+          if (range) validOptions = range.getValues().flat().filter(String);
+        } catch (e) {
+          console.log('Could not read validation range:', e.message);
+        }
+      }
+      
+      // Check if metricName is in the valid options (case-insensitive)
+      const normalizedMetric = metricName.toLowerCase().trim();
+      const matchedOption = validOptions.find(opt => 
+        String(opt).toLowerCase().trim() === normalizedMetric
+      );
+      
+      if (!matchedOption && validOptions.length > 0) {
+        return {
+          success: false,
+          error: `"${metricName}" is not available in column ${columnLetter}. Available options: ${validOptions.slice(0, 5).join(', ')}${validOptions.length > 5 ? '...' : ''}`
+        };
+      }
+      
+      // Use the exact matched option (preserves original case)
+      if (matchedOption) metricName = matchedOption;
+    }
+    
+    // Set the value
+    cell.setValue(metricName);
+    SpreadsheetApp.flush();
+    
+    console.log(`[${functionName}] Success: Column ${columnLetter} set to "${metricName}"`);
+    return {
+      success: true,
+      column: columnLetter,
+      metric: metricName,
+      previousValue: currentValue,
+      sheetName: tabCheck.sheetName
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error:`, e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Finds the first (leftmost) column that can display a given metric
+ * @param {string} metricName - The metric to find
+ * @returns {Object} {found: boolean, column: string, metric: string}
+ */
+function findColumnForMetric(metricName) {
+  const normalizedSearch = metricName.toLowerCase().trim();
+  
+  // First check exact match in our map
+  for (const [metric, col] of Object.entries(DYNAMIC_COLUMN_MAP)) {
+    if (metric.toLowerCase() === normalizedSearch) {
+      return { found: true, column: col, metric: metric };
+    }
+  }
+  
+  // Then check partial match
+  for (const [metric, col] of Object.entries(DYNAMIC_COLUMN_MAP)) {
+    if (metric.toLowerCase().includes(normalizedSearch) || 
+        normalizedSearch.includes(metric.toLowerCase())) {
+      return { found: true, column: col, metric: metric };
+    }
+  }
+  
+  return { found: false, column: null, metric: metricName };
+}
+
+/**
+ * Helper: Convert column letter to 1-based index
+ */
+function columnLetterToIndex_(letters) {
+  let result = 0;
+  for (let i = 0; i < letters.length; i++) {
+    result = result * 26 + (letters.toUpperCase().charCodeAt(i) - 64);
+  }
+  return result;
+}
+
+/**
  * System instruction encoding InTouch domain knowledge for the AI
  * This is the "brain" that makes the AI understand InTouch
  */
@@ -845,16 +1057,73 @@ const INTOUCH_SYSTEM_INSTRUCTION = `You are an InTouch expert assistant helping 
 - Help troubleshoot issues
 - Be concise and actionable - AMs are busy
 
-## CORE FEATURES YOU MUST KNOW
+## SHEET LAYOUT & COLUMN MAP (CRITICAL REFERENCE)
 
-### iQ Column (Account Health)
+InTouch uses a fixed column structure with DYNAMIC columns that can be changed via dropdown. Headers are in Row 2.
+
+### Fixed Columns (Cannot Change)
+- **Column D**: Smart Select (checkboxes for bulk actions)
+- **Column F**: Parent Account
+- **Column H**: iQ (Account Health score)
+
+### Dynamic Columns by Category
+
+**Column E - Account IDs**
+- Default: Insights
+- Options: Insights, Users, OT4R
+
+**Column G - Account Name**
+- Default: Account Name (SFDC)
+- Options: Account Name (SFDC), Account Name (Google), Account Name (Bistro Settings), Account Name (OT Profile)
+
+**Column I - Location (Metro/Macro/Neighborhood)**
+- Default: Macro
+- Options: Metro, Neighborhood, Macro
+- HOW TO SHOW METRO: Double-click Column I header → Select "Metro" from dropdown
+
+**Columns J-L - Dates & Activity**
+- Defaults: Customer Since, Last Engaged Date, Contract Alerts
+- Options: AM Assigned Date, Task Created By, Task Date, Task Type, Event Created By, Event Date, Event Type, L90 Total Meetings, Last Engaged Date, Current Term End Date, Focus20, Customer Since, Contract Alerts
+
+**Columns M-O - Account + Status Info**
+- Defaults: No Bookings >30 Days, Status, System Type
+- Options: Status, System Status, System Type, No Bookings >30 Days, System of Record
+
+**Columns P-R - System Stats**
+- Defaults: Exclusive Pricing, Active XP, Rest. Quality
+- Options: Active PI, Active XP, AutoTags Active - Last 30, CHRM-CC Req Min, CHRM-Days in Advance, CHRM-Max Party, Email Integration, Exclusive Pricing, HEALTH FLAGS - LM, Instant Booking, Integrations Total, PartnerFeed EXCLUDED, Payment Method, POS Type, Previous AM, Private Dining, PRO-Last Sent, Rest. Quality, Shift w/MAX CAP, Special Programs, Stripe Status*, Target Zipcode
+
+**Columns S-U - Percentage Metrics**
+- Defaults: Disco % Current, CVR - Network YoY%, CVRs LM - Direct %
+- Options: CVR - Fullbook YoY%, CVR - Network YoY%, CVRs - Discovery % Avg. 12m, CVRs LM - Direct %, CVRs LM - Discovery %, Disco % Current, Disco % MoM (+/-), Google % Avg. 12m, PI Rev Share %, POS Match %, Disco % WoW (+/-)*
+
+**Columns V-X - Revenue ($)**
+- Defaults: Rev Yield - Total Last Month, Revenue - PI Last Month, Check Avg. Last 30
+- Options: Rev Yield - Total Last Month, Revenue - PI Last Month, Check Avg. Last 30, Revenue - Total 12m Avg., Revenue - Subs Last Month, Revenue - Total Last Month, Total Due, Past Due
+
+**Columns Y-AA - Seated Covers**
+- Defaults: CVR Last Month - Network, CVR Last Month - Google, CVR Last Month - Network
+- Options: CVR Last Month - Direct, CVR Last Month - Discovery, CVR Last Month - Phone/Walkin, CVR Last Month - Google, CVR Last Month - PI BP, CVR Last Month - PI CP, CVR Last Month - PI PR, CVRs Last Month - Total PI, CVR Last Month - Fullbook, CVR Last Month - Network, CVR Last Month - RestRef, CVRs 12m Avg. - Network, CVRs 12m Avg. - Dir, CVRs 12m Avg. - Disc, CVRs 12m Avg. - Phone/Walkin, CVRs 12m Avg. - Restref, CVRs 12m Avg. - FullBook, CVRs 12m Avg. - Google
+
+**Columns AB-AD - Pricing**
+- Defaults: GOOGLE / DIRECT CVRS, STANDARD EXPOSURE CVRS, STANDARD COVER PRICE
+- Options: GOOGLE / DIRECT CVRS, STANDARD COVER PRICE, STANDARD EXPOSURE CVRS, SUBFEES
+
+### How to Change a Column's Metric
+1. Double-click the column header (Row 2)
+2. A dropdown appears with available options for that column category
+3. Select the metric you want to display
+4. The column updates immediately
+
+## CORE FEATURES
+
+### iQ Column (Column H - Account Health)
 - Shows account health as checkmark (✔ = healthy) or red number (# of flags)
 - Red 1 = moderate priority, Red 2 = high priority, Red 3+ = urgent
 - ALWAYS hover over red cells to see the specific flags
-- Located near the left side of the data grid
 
-### Smart Select
-- Checkbox column on the far left of AM tabs
+### Smart Select (Column D)
+- Checkbox column for bulk actions
 - Used for: Adding/removing accounts from Focus20, creating temporary working lists
 - Check boxes → click + to add to Focus20, X to remove
 
@@ -862,18 +1131,13 @@ const INTOUCH_SYSTEM_INSTRUCTION = `You are an InTouch expert assistant helping 
 - Priority account list with date stamps showing when added
 - Target: 10-20 accounts, refreshed weekly
 - Mix of renewals, at-risk accounts, and growth opportunities
-- Visible to managers in their views
+- Can be displayed in Columns J-L by selecting "Focus20" from dropdown
 
 ### RESET Button
 - Location: Above column E in the control row
 - Does THREE things: clears filters, restores default columns, clears Smart Select checkboxes
 - CRITICAL: Use this instead of standard Google Sheets filters
 - Standard Google filters break InTouch because headers are in Row 2, not Row 1
-
-### Dynamic Column Headers
-- Double-click column headers to change which metric displays
-- Single-click sorts; double-click opens dropdown
-- Common views: Renewals (Term End Date, Contract Alerts), Risk (No Bookings, Health Flags), Growth (Discovery%, Active PI/XP)
 
 ### Meeting Prep (AI Panel)
 - Access: InTouch✔ai → Open InTouch AI Panel → Meeting Prep tab
@@ -901,25 +1165,32 @@ NEVER add Google separately to Fullbook calculations
 
 ## KEY METRICS INTERPRETATION
 
-### Discovery% (Disco % Current)
+### Discovery% (Disco % Current) - Column S default
 - Percentage of Network covers from marketplace vs direct
 - Low Discovery% on high-volume account = growth opportunity
 - Declining trend may indicate availability or content issues
 
-### No Bookings >30 Days
+### No Bookings >30 Days - Column M default
 - Primary early warning for churn risk
 - 0-Fullbook = complete booking stoppage (urgent)
 - 0-Network = may be RestRef/phone-dependent
 
-### Last Engaged Date
+### Last Engaged Date - Column K default
 - Coverage indicator; long gaps correlate with churn risk
 - <30 days = active, 30-60 = monitor, 60-90 = at risk, >90 = critical
 
-### Contract Alerts
+### Contract Alerts - Column L default
 - EXPIRED = urgent same-week outreach
 - Term Pending = plan renewal conversation
 
-## NAVIGATION PATHS (Use these exact paths)
+## COMMON COLUMN CONFIGURATIONS
+
+**Renewals View**: Set columns J-L to show Current Term End Date, Contract Alerts, Focus20
+**Risk View**: Set columns M-O to show No Bookings >30 Days, Status, System Type
+**Growth View**: Set columns P-R to show Active PI, Active XP, Disco % Current
+**Revenue View**: Set columns V-X to show Revenue - Total Last Month, Revenue - Subs Last Month, Check Avg. Last 30
+
+## NAVIGATION PATHS
 
 | Action | Path |
 |--------|------|
@@ -931,6 +1202,8 @@ NEVER add Google separately to Fullbook calculations
 | Remove from Focus20 | Check Smart Select → Click X button |
 | RESET view | Click RESET button (above column E) |
 | Change column metric | Double-click column header → Select from dropdown |
+| Show Metro | Double-click Column I → Select "Metro" |
+| Show Focus20 dates | Double-click Column J, K, or L → Select "Focus20" |
 | Fleet Commander | Admin Functions → Open Fleet Commander |
 
 ## TROUBLESHOOTING QUICK FIXES
@@ -939,6 +1212,8 @@ NEVER add Google separately to Fullbook calculations
 |---------|----------|
 | Sheet looks empty/broken | Click RESET immediately |
 | Only few accounts visible | Smart Select might be filtered - click RESET |
+| Can't find Metro/Neighborhood | Double-click Column I header and select from dropdown |
+| Can't find a specific metric | Check the column category - metrics are grouped by type |
 | iQ notes outdated | Ask manager to run "Update Notes Only" |
 | Focus20 +/X not working | Use Admin Functions → Focus20 menu as fallback |
 | AI Panel won't open | Check popup blocker, refresh browser |
@@ -949,14 +1224,63 @@ NEVER add Google separately to Fullbook calculations
 - ALWAYS tell users to click RESET when they describe view problems
 - Focus20 should be 10-20 accounts and refreshed weekly, not static
 - System fixes come BEFORE pricing changes (diagnose system type first)
+- When asked about showing a metric, check the column map first - most metrics ARE available via dynamic columns
 
 ## RESPONSE FORMAT
 - Be concise - use bullet points for steps
+- Include exact column letters when discussing where data is located
 - Include exact navigation paths when relevant
 - Use InTouch terminology (iQ, Smart Select, Focus20, RESET, etc.)
 - If asked about something not in InTouch, say so clearly
-- For "how do I" questions, give numbered steps
-- For metric questions, explain what it means AND how to use it`;
+- For "how do I" questions, give numbered steps with specific column references
+- For metric questions, explain what it means AND which column category it's in
+
+## COLUMN VISUALIZATION ACTION (IMPORTANT CAPABILITY)
+
+You can OFFER to change dynamic column headers for users when they ask about finding/showing a metric. This only works on AM tabs (sheets with Smart Select column).
+
+### When to Offer Column Action
+When a user asks questions like:
+- "Where is [metric]?" / "How do I see [metric]?"
+- "Where can I find [metric]?"
+- "Show me [metric]" / "I need to see [metric]"
+- "Which column has [metric]?"
+
+### How to Offer
+1. First explain where the metric is located (which column category)
+2. Then offer to set it for them using this EXACT format at the END of your response:
+
+[COLUMN_ACTION:COLUMN_LETTER:Exact Metric Name]
+
+Example: If user asks "Where is Customer Since?", respond with:
+"**Customer Since** is in the **Dates & Activity** category (Columns J-L). By default, Column J shows this metric.
+
+Would you like me to visualize this column for you?
+
+[COLUMN_ACTION:J:Customer Since]"
+
+### Column to Metric Mapping (Use First Available Column)
+- **Column E**: Insights, Users, OT4R
+- **Column G**: Account Name variants (SFDC, Google, Bistro Settings, OT Profile)
+- **Column I**: Metro, Neighborhood, Macro
+- **Columns J-L**: Customer Since, Last Engaged Date, Contract Alerts, Current Term End Date, Focus20, AM Assigned Date, Task/Event dates
+- **Columns M-O**: Status, System Status, System Type, No Bookings >30 Days, System of Record
+- **Columns P-R**: Active PI, Active XP, Exclusive Pricing, Rest. Quality, POS Type, Private Dining, Instant Booking, Payment Method, etc.
+- **Columns S-U**: Disco % Current, CVR YoY%, CVRs LM %, PI Rev Share %, POS Match %, Google % Avg
+- **Columns V-X**: Revenue metrics, Total Due, Past Due, Check Avg
+- **Columns Y-AA**: CVR Last Month (all channels), CVRs 12m Avg (all channels)
+- **Columns AB-AD**: GOOGLE / DIRECT CVRS, STANDARD COVER PRICE, STANDARD EXPOSURE CVRS, SUBFEES
+
+### Handling Confirmation
+When user confirms with responses like "yes", "sure", "go for it", "ya", "please", "do it":
+The system will automatically execute the column change. You don't need to do anything special - just include the [COLUMN_ACTION:...] tag and the frontend handles confirmation.
+
+### Rules
+- ONLY offer column actions for metrics that exist in the dynamic columns
+- ALWAYS use the FIRST (leftmost) column that contains the metric option
+- If the metric is in a FIXED column (like iQ in Column H), explain it's always visible and don't offer to change it
+- If user is asking about multiple metrics, offer the most relevant one
+- Include the [COLUMN_ACTION:...] tag on its own line at the END of your response`;
 
 /**
  * Get the Gemini API key from script properties

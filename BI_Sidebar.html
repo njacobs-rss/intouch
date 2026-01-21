@@ -1239,8 +1239,17 @@
     const khState = {
       isOpen: false,
       isLoading: false,
-      conversationHistory: []
+      conversationHistory: [],
+      pendingColumnAction: null  // Stores {column: 'J', metric: 'Customer Since'}
     };
+    
+    // Confirmation phrases that trigger pending column action
+    const CONFIRMATION_PHRASES = [
+      'yes', 'yeah', 'ya', 'yep', 'yup', 'sure', 'ok', 'okay', 'go for it', 
+      'do it', 'please', 'go ahead', 'sounds good', 'let\'s do it', 'make it so',
+      'absolutely', 'definitely', 'of course', 'yes please', 'that would be great',
+      'perfect', 'great', 'cool', 'awesome', 'proceed', 'confirmed', 'affirmative'
+    ];
 
     const khEls = {
       fab: null,
@@ -1306,6 +1315,17 @@
         khEls.welcome.style.display = 'none';
       }
 
+      // Check if this is a confirmation for a pending column action
+      const normalizedQuery = query.toLowerCase().trim();
+      if (khState.pendingColumnAction && isConfirmationPhrase(normalizedQuery)) {
+        executeColumnAction();
+        khEls.input.value = '';
+        return;
+      }
+
+      // Clear any pending action if user asks something else
+      khState.pendingColumnAction = null;
+
       // Add user message to UI
       addKHMessage('user', query);
       khEls.input.value = '';
@@ -1328,10 +1348,17 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
 
           if (result.success) {
-            addKHMessage('assistant', result.answer);
+            // Check for column action tag and extract it
+            const { cleanedAnswer, columnAction } = parseColumnAction(result.answer);
+            
+            if (columnAction) {
+              khState.pendingColumnAction = columnAction;
+            }
+            
+            addKHMessage('assistant', cleanedAnswer);
             // Add to history for follow-up context
             khState.conversationHistory.push({ role: 'user', content: query });
-            khState.conversationHistory.push({ role: 'assistant', content: result.answer });
+            khState.conversationHistory.push({ role: 'assistant', content: cleanedAnswer });
             // Keep history manageable (last 10 exchanges)
             if (khState.conversationHistory.length > 20) {
               khState.conversationHistory = khState.conversationHistory.slice(-20);
@@ -1347,6 +1374,83 @@
           addKHMessage('error', 'Error: ' + error.message);
         })
         .askInTouchGuide(query, historyJson);
+    }
+    
+    /**
+     * Check if the query is a confirmation phrase
+     */
+    function isConfirmationPhrase(query) {
+      // Check exact match or starts with confirmation
+      return CONFIRMATION_PHRASES.some(phrase => 
+        query === phrase || 
+        query.startsWith(phrase + ' ') || 
+        query.startsWith(phrase + '!')
+      );
+    }
+    
+    /**
+     * Parse [COLUMN_ACTION:COLUMN:METRIC] from AI response
+     * Returns { cleanedAnswer: string, columnAction: {column, metric} | null }
+     */
+    function parseColumnAction(answer) {
+      const actionRegex = /\[COLUMN_ACTION:([A-Z]+):([^\]]+)\]/g;
+      let columnAction = null;
+      
+      // Find the first column action
+      const match = actionRegex.exec(answer);
+      if (match) {
+        columnAction = {
+          column: match[1],
+          metric: match[2].trim()
+        };
+      }
+      
+      // Remove all action tags from the displayed answer
+      const cleanedAnswer = answer.replace(/\[COLUMN_ACTION:[^\]]+\]/g, '').trim();
+      
+      return { cleanedAnswer, columnAction };
+    }
+    
+    /**
+     * Execute the pending column action
+     */
+    function executeColumnAction() {
+      if (!khState.pendingColumnAction) return;
+      
+      const { column, metric } = khState.pendingColumnAction;
+      
+      // Add user confirmation message
+      addKHMessage('user', 'Yes');
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      // Call backend to set the column
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            addKHMessage('assistant', `Great, I've set **Column ${result.column}** to **${result.metric}**! If you think of anything else, I'm here.`);
+            // Clear the pending action
+            khState.pendingColumnAction = null;
+          } else {
+            addKHMessage('error', 'Could not set column: ' + (result.error || 'Unknown error'));
+            khState.pendingColumnAction = null;
+          }
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+          khState.pendingColumnAction = null;
+        })
+        .setDynamicColumnHeader(column, metric);
     }
 
     // Track last query for feedback

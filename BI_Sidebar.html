@@ -1012,7 +1012,7 @@
     function handleInFocusResult(result) {
       setInFocusLoading(false);
       
-      if (result.success) {
+      if (result.success && result.count > 0) {
         // Show results
         document.getElementById('focus-results').style.display = 'block';
         document.getElementById('focus-logic-summary').innerText = result.logic_summary || result.message;
@@ -1026,6 +1026,16 @@
         
         // Refresh status
         refreshInFocusStatus();
+      } else if (result.count === 0) {
+        // No matches - show debug info
+        let debugMsg = result.message;
+        if (result.formula) {
+          debugMsg += '\n\nFormula generated:\n' + result.formula;
+        }
+        if (result.logic_summary) {
+          debugMsg += '\n\nLogic: ' + result.logic_summary;
+        }
+        showInFocusError(debugMsg);
       } else {
         showInFocusError(result.message);
       }

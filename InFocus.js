@@ -945,7 +945,8 @@ function runInFocusQuery(userQuery) {
       count: syncResult.count,
       logic_summary: aiResult.logic_summary,
       confidence: aiResult.confidence,
-      message: syncResult.message
+      message: syncResult.message,
+      formula: aiResult.formula  // Include for debugging
     };
     
   } catch (error) {
@@ -963,6 +964,97 @@ function runInFocusQuery(userQuery) {
 // =============================================================
 // SECTION 5: SETUP & TESTING
 // =============================================================
+
+/**
+ * debugInFocusFilter() - Check what's in the helper column after a filter
+ * Run from Script Editor to see formula results
+ */
+function debugInFocusFilter() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const statcore = ss.getSheetByName('STATCORE');
+  const activeSheet = ss.getActiveSheet();
+  
+  if (!statcore) {
+    Logger.log('STATCORE not found');
+    return;
+  }
+  
+  const helperColNum = letterToColumn_(INFOCUS_CONFIG.MASTER_DATA.helperCol); // BE = 57
+  const lastRow = getTrueLastRow_(statcore, 'A');
+  
+  // Get the formula in BE3
+  const formulaCell = statcore.getRange(3, helperColNum);
+  const formula = formulaCell.getFormula();
+  Logger.log('Formula in BE3: ' + formula);
+  
+  // Get values in helper column
+  const helperValues = statcore.getRange(3, helperColNum, Math.min(lastRow - 2, 100), 1).getValues().flat();
+  
+  // Count TRUE values
+  let trueCount = 0;
+  let falseCount = 0;
+  let emptyCount = 0;
+  let errorCount = 0;
+  
+  helperValues.forEach(v => {
+    if (v === true || String(v).toUpperCase() === 'TRUE') trueCount++;
+    else if (v === false || String(v).toUpperCase() === 'FALSE') falseCount++;
+    else if (v === '' || v === null) emptyCount++;
+    else if (String(v).startsWith('#')) errorCount++;
+  });
+  
+  Logger.log(`Helper column (first 100 rows): TRUE=${trueCount}, FALSE=${falseCount}, Empty=${emptyCount}, Errors=${errorCount}`);
+  
+  // Get manager name from active sheet
+  const managerName = activeSheet.getRange('B2').getValue();
+  Logger.log('Active Sheet Manager: ' + managerName);
+  
+  // Check manager columns
+  const amCol1 = letterToColumn_(INFOCUS_CONFIG.MASTER_DATA.managerCol1); // N = 14
+  const amCol2 = letterToColumn_(INFOCUS_CONFIG.MASTER_DATA.managerCol2); // AU = 47
+  
+  // Count rows matching manager
+  const allData = statcore.getRange(3, 1, Math.min(lastRow - 2, 100), Math.max(amCol2, helperColNum)).getValues();
+  let managerMatchCount = 0;
+  let managerAndTrueCount = 0;
+  
+  const normalizedManager = String(managerName).toLowerCase().trim();
+  
+  allData.forEach((row, i) => {
+    const am1 = String(row[amCol1 - 1] || '').toLowerCase().trim();
+    const am2 = String(row[amCol2 - 1] || '').toLowerCase().trim();
+    const helperVal = row[helperColNum - 1];
+    
+    if (am1 === normalizedManager || am2 === normalizedManager) {
+      managerMatchCount++;
+      if (helperVal === true || String(helperVal).toUpperCase() === 'TRUE') {
+        managerAndTrueCount++;
+      }
+    }
+  });
+  
+  Logger.log(`Manager "${managerName}" matches (first 100): ${managerMatchCount} rows`);
+  Logger.log(`Manager + Helper=TRUE: ${managerAndTrueCount} rows`);
+  
+  // Show sample of helper column values
+  Logger.log('Sample helper values: ' + JSON.stringify(helperValues.slice(0, 10)));
+  
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    `TRUE: ${trueCount}, FALSE: ${falseCount}, Empty: ${emptyCount}, Errors: ${errorCount}\nManager matches: ${managerMatchCount}, With TRUE: ${managerAndTrueCount}`,
+    'InFocus Debug',
+    10
+  );
+  
+  return {
+    formula: formula,
+    trueCount: trueCount,
+    falseCount: falseCount,
+    emptyCount: emptyCount,
+    errorCount: errorCount,
+    managerMatchCount: managerMatchCount,
+    managerAndTrueCount: managerAndTrueCount
+  };
+}
 
 /**
  * testGeminiConnection() - Run this from Script Editor to test API + force reauth

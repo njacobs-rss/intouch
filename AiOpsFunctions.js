@@ -833,8 +833,118 @@ function showExportSuccessModal_(fileName, url, duration) {
 // =============================================================
 
 /**
+ * COLUMN CATEGORIES - Maps section names to column ranges and available metrics
+ * Used for smart column rotation and category-based responses
+ */
+const COLUMN_CATEGORIES = {
+  'ACCOUNT_IDS': {
+    name: 'Account IDs',
+    columns: ['E'],
+    metrics: ['Insights', 'Users', 'OT4R']
+  },
+  'ACCOUNT_NAME': {
+    name: 'Account Name',
+    columns: ['G'],
+    metrics: ['Account Name (SFDC)', 'Account Name (Google)', 'Account Name (Bistro Settings)', 'Account Name (OT Profile)']
+  },
+  'LOCATION': {
+    name: 'Location',
+    columns: ['I'],
+    metrics: ['Metro', 'Neighborhood', 'Macro']
+  },
+  'DATES_ACTIVITY': {
+    name: 'Dates & Activity',
+    columns: ['J', 'K', 'L'],
+    metrics: ['AM Assigned Date', 'Task Created By', 'Task Date', 'Task Type', 'Event Created By', 'Event Date', 'Event Type', 'L90 Total Meetings', 'Last Engaged Date', 'Current Term End Date', 'Focus20', 'Customer Since', 'Contract Alerts']
+  },
+  'ACCOUNT_STATUS': {
+    name: 'Account + Status Info',
+    columns: ['M', 'N', 'O'],
+    metrics: ['Status', 'System Status', 'System Type', 'No Bookings >30 Days', 'System of Record']
+  },
+  'SYSTEM_STATS': {
+    name: 'System Stats',
+    columns: ['P', 'Q', 'R'],
+    metrics: ['Active PI', 'Active XP', 'AutoTags Active - Last 30', 'CHRM-CC Req Min', 'CHRM-Days in Advance', 'CHRM-Max Party', 'Email Integration', 'Exclusive Pricing', 'HEALTH FLAGS - LM', 'Instant Booking', 'Integrations Total', 'PartnerFeed EXCLUDED', 'Payment Method', 'POS Type', 'Previous AM', 'Private Dining', 'PRO-Last Sent', 'Rest. Quality', 'Shift w/MAX CAP', 'Special Programs', 'Stripe Status*', 'Target Zipcode']
+  },
+  'PERCENTAGE_METRICS': {
+    name: 'Percentage Metrics',
+    columns: ['S', 'T', 'U'],
+    metrics: ['CVR - Fullbook YoY%', 'CVR - Network YoY%', 'CVRs - Discovery % Avg. 12m', 'CVRs LM - Direct %', 'CVRs LM - Discovery %', 'Disco % Current', 'Disco % MoM (+/-)', 'Google % Avg. 12m', 'PI Rev Share %', 'POS Match %', 'Disco % WoW (+/-)*']
+  },
+  'REVENUE': {
+    name: 'Revenue',
+    columns: ['V', 'W', 'X'],
+    metrics: ['Rev Yield - Total Last Month', 'Revenue - PI Last Month', 'Check Avg. Last 30', 'Revenue - Total 12m Avg.', 'Revenue - Subs Last Month', 'Revenue - Total Last Month', 'Total Due', 'Past Due']
+  },
+  'SEATED_COVERS': {
+    name: 'Seated Covers',
+    columns: ['Y', 'Z', 'AA'],
+    metrics: ['CVR Last Month - Direct', 'CVR Last Month - Discovery', 'CVR Last Month - Phone/Walkin', 'CVR Last Month - Google', 'CVR Last Month - PI BP', 'CVR Last Month - PI CP', 'CVR Last Month - PI PR', 'CVRs Last Month - Total PI', 'CVR Last Month - Fullbook', 'CVR Last Month - Network', 'CVR Last Month - RestRef', 'CVRs 12m Avg. - Network', 'CVRs 12m Avg. - Dir', 'CVRs 12m Avg. - Disc', 'CVRs 12m Avg. - Phone/Walkin', 'CVRs 12m Avg. - Restref', 'CVRs 12m Avg. - FullBook', 'CVRs 12m Avg. - Google']
+  },
+  'PRICING': {
+    name: 'Pricing',
+    columns: ['AB', 'AC', 'AD'],
+    metrics: ['GOOGLE / DIRECT CVRS', 'STANDARD COVER PRICE', 'STANDARD EXPOSURE CVRS', 'SUBFEES']
+  }
+};
+
+/**
+ * VALUE TO METRIC MAPPING - Maps common data values to their parent metrics
+ * Used by scripted responses to recognize when users ask about specific values
+ */
+const VALUE_TO_METRIC = {
+  // System Type values
+  'core': { metric: 'System Type', category: 'ACCOUNT_STATUS' },
+  'pro': { metric: 'System Type', category: 'ACCOUNT_STATUS' },
+  'basic': { metric: 'System Type', category: 'ACCOUNT_STATUS' },
+  'connect': { metric: 'System Type', category: 'ACCOUNT_STATUS' },
+  
+  // Status values
+  'active': { metric: 'Status', category: 'ACCOUNT_STATUS' },
+  'inactive': { metric: 'Status', category: 'ACCOUNT_STATUS' },
+  'term pending': { metric: 'Status', category: 'ACCOUNT_STATUS' },
+  'terminated': { metric: 'Status', category: 'ACCOUNT_STATUS' },
+  'canceling': { metric: 'Status', category: 'ACCOUNT_STATUS' },
+  
+  // Exclusive Pricing values
+  'freemium': { metric: 'Exclusive Pricing', category: 'SYSTEM_STATS' },
+  'ayce': { metric: 'Exclusive Pricing', category: 'SYSTEM_STATS' },
+  'free google': { metric: 'Exclusive Pricing', category: 'SYSTEM_STATS' },
+  
+  // Quality values
+  'platinum': { metric: 'Rest. Quality', category: 'SYSTEM_STATS' },
+  'gold': { metric: 'Rest. Quality', category: 'SYSTEM_STATS' },
+  'silver': { metric: 'Rest. Quality', category: 'SYSTEM_STATS' },
+  'bronze': { metric: 'Rest. Quality', category: 'SYSTEM_STATS' },
+  
+  // Location values (these point to the Location category)
+  'metro': { metric: 'Metro', category: 'LOCATION' },
+  'neighborhood': { metric: 'Neighborhood', category: 'LOCATION' },
+  'macro': { metric: 'Macro', category: 'LOCATION' },
+  
+  // Feature flags
+  'private dining': { metric: 'Private Dining', category: 'SYSTEM_STATS' },
+  'instant booking': { metric: 'Instant Booking', category: 'SYSTEM_STATS' },
+  'experiences': { metric: 'Active XP', category: 'SYSTEM_STATS' },
+  'xp': { metric: 'Active XP', category: 'SYSTEM_STATS' },
+  'pi': { metric: 'Active PI', category: 'SYSTEM_STATS' },
+  'premium inventory': { metric: 'Active PI', category: 'SYSTEM_STATS' }
+};
+
+/**
+ * METRIC TO CATEGORY MAPPING - Quick lookup for which category contains a metric
+ */
+const METRIC_TO_CATEGORY = {};
+Object.keys(COLUMN_CATEGORIES).forEach(catKey => {
+  COLUMN_CATEGORIES[catKey].metrics.forEach(metric => {
+    METRIC_TO_CATEGORY[metric.toLowerCase()] = catKey;
+  });
+});
+
+/**
  * DYNAMIC COLUMN MAPPING - Maps metrics to their available columns
- * Used by AI to offer column visualization
+ * Used by AI to offer column visualization (LEGACY - kept for compatibility)
  */
 const DYNAMIC_COLUMN_MAP = {
   // Column E - Account IDs
@@ -1081,31 +1191,31 @@ InTouch uses a fixed column structure with DYNAMIC columns that can be changed v
 - Options: Metro, Neighborhood, Macro
 - HOW TO SHOW METRO: Double-click Column I header → Select "Metro" from dropdown
 
-**Columns J-L - Dates & Activity**
+**Dates & Activity section** (J-K-L)
 - Defaults: Customer Since, Last Engaged Date, Contract Alerts
 - Options: AM Assigned Date, Task Created By, Task Date, Task Type, Event Created By, Event Date, Event Type, L90 Total Meetings, Last Engaged Date, Current Term End Date, Focus20, Customer Since, Contract Alerts
 
-**Columns M-O - Account + Status Info**
+**Account + Status Info section** (M-N-O)
 - Defaults: No Bookings >30 Days, Status, System Type
 - Options: Status, System Status, System Type, No Bookings >30 Days, System of Record
 
-**Columns P-R - System Stats**
+**System Stats section** (P-Q-R)
 - Defaults: Exclusive Pricing, Active XP, Rest. Quality
 - Options: Active PI, Active XP, AutoTags Active - Last 30, CHRM-CC Req Min, CHRM-Days in Advance, CHRM-Max Party, Email Integration, Exclusive Pricing, HEALTH FLAGS - LM, Instant Booking, Integrations Total, PartnerFeed EXCLUDED, Payment Method, POS Type, Previous AM, Private Dining, PRO-Last Sent, Rest. Quality, Shift w/MAX CAP, Special Programs, Stripe Status*, Target Zipcode
 
-**Columns S-U - Percentage Metrics**
+**Percentage Metrics section** (S-T-U)
 - Defaults: Disco % Current, CVR - Network YoY%, CVRs LM - Direct %
 - Options: CVR - Fullbook YoY%, CVR - Network YoY%, CVRs - Discovery % Avg. 12m, CVRs LM - Direct %, CVRs LM - Discovery %, Disco % Current, Disco % MoM (+/-), Google % Avg. 12m, PI Rev Share %, POS Match %, Disco % WoW (+/-)*
 
-**Columns V-X - Revenue ($)**
+**Revenue section** (V-W-X)
 - Defaults: Rev Yield - Total Last Month, Revenue - PI Last Month, Check Avg. Last 30
 - Options: Rev Yield - Total Last Month, Revenue - PI Last Month, Check Avg. Last 30, Revenue - Total 12m Avg., Revenue - Subs Last Month, Revenue - Total Last Month, Total Due, Past Due
 
-**Columns Y-AA - Seated Covers**
+**Seated Covers section** (Y-Z-AA)
 - Defaults: CVR Last Month - Network, CVR Last Month - Google, CVR Last Month - Network
 - Options: CVR Last Month - Direct, CVR Last Month - Discovery, CVR Last Month - Phone/Walkin, CVR Last Month - Google, CVR Last Month - PI BP, CVR Last Month - PI CP, CVR Last Month - PI PR, CVRs Last Month - Total PI, CVR Last Month - Fullbook, CVR Last Month - Network, CVR Last Month - RestRef, CVRs 12m Avg. - Network, CVRs 12m Avg. - Dir, CVRs 12m Avg. - Disc, CVRs 12m Avg. - Phone/Walkin, CVRs 12m Avg. - Restref, CVRs 12m Avg. - FullBook, CVRs 12m Avg. - Google
 
-**Columns AB-AD - Pricing**
+**Pricing section** (AB-AC-AD)
 - Defaults: GOOGLE / DIRECT CVRS, STANDARD EXPOSURE CVRS, STANDARD COVER PRICE
 - Options: GOOGLE / DIRECT CVRS, STANDARD COVER PRICE, STANDARD EXPOSURE CVRS, SUBFEES
 
@@ -1131,7 +1241,7 @@ InTouch uses a fixed column structure with DYNAMIC columns that can be changed v
 - Priority account list with date stamps showing when added
 - Target: 10-20 accounts, refreshed weekly
 - Mix of renewals, at-risk accounts, and growth opportunities
-- Can be displayed in Columns J-L by selecting "Focus20" from dropdown
+- Can be displayed in the Dates & Activity section by selecting "Focus20" from dropdown
 
 ### RESET Button
 - Location: Above column E in the control row
@@ -1237,50 +1347,94 @@ NEVER add Google separately to Fullbook calculations
 
 ## COLUMN VISUALIZATION ACTION (IMPORTANT CAPABILITY)
 
-You can OFFER to change dynamic column headers for users when they ask about finding/showing a metric. This only works on AM tabs (sheets with Smart Select column).
+You can OFFER to change dynamic column headers for users. This works for:
+1. Direct metric requests ("Where is Customer Since?")
+2. Value-based requests ("How do I see Core accounts?") - recognize the value maps to a metric
+3. Intent-based requests ("Help me find at-risk accounts") - recommend relevant metrics
 
-### When to Offer Column Action
-When a user asks questions like:
+### When to Offer Column Actions
 - "Where is [metric]?" / "How do I see [metric]?"
-- "Where can I find [metric]?"
+- "How can I see [value] accounts?" (e.g., "Core" → System Type)
 - "Show me [metric]" / "I need to see [metric]"
-- "Which column has [metric]?"
+- Complex requests that would benefit from specific columns
 
 ### How to Offer
-1. First explain where the metric is located (which column category)
-2. Then offer to set it for them using this EXACT format at the END of your response:
+1. Explain where the metric is located using the **section name** (NOT column letters)
+2. Offer to add it using this EXACT format with CATEGORY KEY:
 
-[COLUMN_ACTION:COLUMN_LETTER:Exact Metric Name]
+[COLUMN_ACTION:CATEGORY_KEY:Exact Metric Name]
 
-Example: If user asks "Where is Customer Since?", respond with:
-"**Customer Since** is in the **Dates & Activity** category (Columns J-L). By default, Column J shows this metric.
+**Valid Category Keys:**
+- ACCOUNT_IDS (Account IDs section)
+- ACCOUNT_NAME (Account Name section)
+- LOCATION (Location section)
+- DATES_ACTIVITY (Dates & Activity section)
+- ACCOUNT_STATUS (Account + Status Info section)
+- SYSTEM_STATS (System Stats section)
+- PERCENTAGE_METRICS (Percentage Metrics section)
+- REVENUE (Revenue section)
+- SEATED_COVERS (Seated Covers section)
+- PRICING (Pricing section)
 
-Would you like me to visualize this column for you?
+### Examples
 
-[COLUMN_ACTION:J:Customer Since]"
+**Direct metric request:**
+User: "Where is Customer Since?"
+Response: "**Customer Since** is in the **Dates & Activity** section.
 
-### Column to Metric Mapping (Use First Available Column)
-- **Column E**: Insights, Users, OT4R
-- **Column G**: Account Name variants (SFDC, Google, Bistro Settings, OT Profile)
-- **Column I**: Metro, Neighborhood, Macro
-- **Columns J-L**: Customer Since, Last Engaged Date, Contract Alerts, Current Term End Date, Focus20, AM Assigned Date, Task/Event dates
-- **Columns M-O**: Status, System Status, System Type, No Bookings >30 Days, System of Record
-- **Columns P-R**: Active PI, Active XP, Exclusive Pricing, Rest. Quality, POS Type, Private Dining, Instant Booking, Payment Method, etc.
-- **Columns S-U**: Disco % Current, CVR YoY%, CVRs LM %, PI Rev Share %, POS Match %, Google % Avg
-- **Columns V-X**: Revenue metrics, Total Due, Past Due, Check Avg
-- **Columns Y-AA**: CVR Last Month (all channels), CVRs 12m Avg (all channels)
-- **Columns AB-AD**: GOOGLE / DIRECT CVRS, STANDARD COVER PRICE, STANDARD EXPOSURE CVRS, SUBFEES
+Would you like me to add that column to your view?
+
+[COLUMN_ACTION:DATES_ACTIVITY:Customer Since]"
+
+**Value-based request:**
+User: "How can I see accounts on Core?"
+Response: "**Core** is a value in the **System Type** metric, found in the **Account + Status Info** section.
+
+Would you like me to add that column to your view?
+
+[COLUMN_ACTION:ACCOUNT_STATUS:System Type]"
+
+**Complex request (engage more, potentially multiple columns):**
+User: "Help me find at-risk accounts"
+Response: "For at-risk accounts, I'd recommend looking at these indicators:
+
+1. **No Bookings >30 Days** - Primary churn warning (Account + Status Info section)
+2. **Contract Alerts** - Shows expired/pending terms (Dates & Activity section)
+3. **Last Engaged Date** - Coverage gaps correlate with churn (Dates & Activity section)
+
+Would you like me to add the No Bookings column to start?
+
+[COLUMN_ACTION:ACCOUNT_STATUS:No Bookings >30 Days]"
+
+### Section to Metrics Reference
+- **Account IDs**: Insights, Users, OT4R
+- **Account Name**: Account Name (SFDC), Account Name (Google), Account Name (Bistro Settings), Account Name (OT Profile)
+- **Location**: Metro, Neighborhood, Macro
+- **Dates & Activity**: Customer Since, Last Engaged Date, Contract Alerts, Current Term End Date, Focus20, AM Assigned Date, Task/Event dates, L90 Total Meetings
+- **Account + Status Info**: Status, System Status, System Type, No Bookings >30 Days, System of Record
+- **System Stats**: Active PI, Active XP, Exclusive Pricing, Rest. Quality, POS Type, Private Dining, Instant Booking, Payment Method, Special Programs, etc.
+- **Percentage Metrics**: Disco % Current, Disco % MoM, CVR YoY%, CVRs LM %, PI Rev Share %, POS Match %, Google % Avg
+- **Revenue**: Revenue - Total Last Month, Revenue - Subs, Rev Yield, Total Due, Past Due, Check Avg
+- **Seated Covers**: CVR Last Month (all channels), CVRs 12m Avg (all channels)
+- **Pricing**: GOOGLE / DIRECT CVRS, STANDARD COVER PRICE, STANDARD EXPOSURE CVRS, SUBFEES
+
+### Common Value to Metric Mappings
+When users ask about these VALUES, map them to the appropriate METRIC:
+- "Core", "Pro", "Basic" → System Type (ACCOUNT_STATUS)
+- "Active", "Term Pending", "Terminated" → Status (ACCOUNT_STATUS)
+- "Freemium", "AYCE", "Free Google" → Exclusive Pricing (SYSTEM_STATS)
+- "Platinum", "Gold", "Silver", "Bronze" → Rest. Quality (SYSTEM_STATS)
+- "Metro", "Neighborhood", "Macro" → respective metric in Location (LOCATION)
 
 ### Handling Confirmation
-When user confirms with responses like "yes", "sure", "go for it", "ya", "please", "do it":
-The system will automatically execute the column change. You don't need to do anything special - just include the [COLUMN_ACTION:...] tag and the frontend handles confirmation.
+When user confirms with "yes", "sure", "go for it", "ya", "please", "do it" - the system automatically executes the column change.
 
 ### Rules
-- ONLY offer column actions for metrics that exist in the dynamic columns
-- ALWAYS use the FIRST (leftmost) column that contains the metric option
-- If the metric is in a FIXED column (like iQ in Column H), explain it's always visible and don't offer to change it
-- If user is asking about multiple metrics, offer the most relevant one
-- Include the [COLUMN_ACTION:...] tag on its own line at the END of your response`;
+- ALWAYS reference sections by NAME, never by column letters (say "Account + Status Info section", NOT "Columns M-O")
+- Use CATEGORY_KEY in the action tag (e.g., ACCOUNT_STATUS, not M)
+- For fixed columns (iQ in Column H, Smart Select in Column D), explain they're always visible
+- For complex questions, recommend the most impactful metric first
+- The frontend handles column rotation - you just specify the category and metric`;
 
 /**
  * Get the Gemini API key from script properties
@@ -1293,6 +1447,161 @@ function getGeminiApiKey_() {
     throw new Error('GEMINI_API_KEY not found in Script Properties. Go to Project Settings > Script Properties to add it.');
   }
   return key;
+}
+
+/**
+ * SCRIPTED RESPONSE PATTERNS
+ * Fast-path responses for common questions - no API call needed
+ * Returns null if no pattern matches (falls through to Gemini)
+ */
+const SCRIPTED_RESPONSES = {
+  // Common troubleshooting - highest priority
+  troubleshooting: [
+    {
+      patterns: [/sheet.*(look|broken|empty|weird|wrong)/i, /(broken|empty|weird|wrong).*sheet/i, /can't see.*(data|accounts|anything)/i, /nothing.*(showing|visible)/i],
+      response: `If your sheet looks broken or empty, click the **RESET** button (above Column E). This clears filters, restores default columns, and clears Smart Select checkboxes.\n\n**Important:** Never use Data → Create a filter in InTouch - it breaks the sheet because headers are in Row 2.`
+    },
+    {
+      patterns: [/focus.?20.*(not|isn't|won't).*(work|adding|removing)/i, /(\+|plus|x).*(button|not|won't).*(work)/i],
+      response: `If the Focus20 +/X buttons aren't working, try the fallback method:\n\n1. Go to **Admin Functions** menu\n2. Select **Focus20**\n3. Use the menu options to add/remove accounts\n\nMake sure you have accounts selected via Smart Select (Column D checkboxes) first.`
+    }
+  ],
+  
+  // Feature explanations
+  features: [
+    {
+      patterns: [/what.*(is|are).*(iq|i q)/i, /explain.*(iq|i q)/i, /(iq|i q).*mean/i],
+      response: `**iQ** (Column H) is the account health indicator:\n\n- **✔ (checkmark)** = Healthy account\n- **Red number** = Number of health flags\n  - Red 1 = Moderate priority\n  - Red 2 = High priority\n  - Red 3+ = Urgent\n\n**Always hover over red cells** to see the specific flags. iQ is a fixed column - it's always visible.`
+    },
+    {
+      patterns: [/what.*(is|are).*focus.?20/i, /explain.*focus.?20/i, /how.*use.*focus.?20/i],
+      response: `**Focus20** is your priority account list:\n\n- Target: 10-20 accounts, refreshed weekly\n- Mix of renewals, at-risk accounts, and growth opportunities\n- Shows date stamps when accounts were added\n\n**To add accounts:**\n1. Check boxes in Smart Select (Column D)\n2. Click the **+** button\n\n**To view Focus20 dates:** Double-click Column J, K, or L header → Select "Focus20"\n\nWould you like me to show the Focus20 column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Focus20]`
+    },
+    {
+      patterns: [/what.*(is|are).*smart.?select/i, /explain.*smart.?select/i, /how.*use.*smart.?select/i],
+      response: `**Smart Select** (Column D) is the checkbox column for bulk actions:\n\n- Check boxes to select accounts\n- Click **+** to add selected accounts to Focus20\n- Click **X** to remove from Focus20\n- Also used for creating temporary working lists\n\nSmart Select is a fixed column - it's always visible in Column D.`
+    },
+    {
+      patterns: [/what.*(is|are).*(reset|reset button)/i, /explain.*(reset|reset button)/i, /what.*reset.*do/i],
+      response: `The **RESET** button (above Column E) does THREE things:\n\n1. Clears all filters\n2. Restores default column selections\n3. Clears all Smart Select checkboxes\n\n**Use RESET** instead of standard Google Sheets filters. Standard filters break InTouch because headers are in Row 2, not Row 1.`
+    }
+  ],
+  
+  // Metric explanations
+  metrics: [
+    {
+      patterns: [/what.*(is|are|does).*disco(very)?.?%/i, /explain.*disco(very)?.?%/i, /disco(very)?.?%.*mean/i],
+      response: `**Discovery %** (Disco % Current) shows the percentage of Network covers from the OpenTable marketplace vs direct bookings.\n\n- **Low Discovery%** on high-volume account = growth opportunity (they could get more from OT)\n- **Declining trend** may indicate availability or content issues\n\nFound in the **Percentage Metrics** section. Would you like me to show this column?\n\n[COLUMN_ACTION:PERCENTAGE_METRICS:Disco % Current]`
+    },
+    {
+      patterns: [/what.*(is|are|does).*no.?book/i, /explain.*no.?book/i, /no.?book.*mean/i],
+      response: `**No Bookings >30 Days** is the primary early warning for churn risk:\n\n- **0-Fullbook** = Complete booking stoppage (urgent!)\n- **0-Network** = May be RestRef/phone-dependent\n- Any value here needs investigation\n\nFound in the **Account + Status Info** section. Would you like me to show this column?\n\n[COLUMN_ACTION:ACCOUNT_STATUS:No Bookings >30 Days]`
+    }
+  ]
+};
+
+/**
+ * Try to match a scripted response before calling Gemini
+ * @param {string} query - The user's question
+ * @returns {Object|null} Response object if matched, null to fall through to Gemini
+ */
+function tryScriptedResponse(query) {
+  if (!query) return null;
+  const normalizedQuery = query.toLowerCase().trim();
+  
+  // 1. Check troubleshooting patterns (highest priority)
+  for (const item of SCRIPTED_RESPONSES.troubleshooting) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched troubleshooting pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 2. Check feature explanation patterns
+  for (const item of SCRIPTED_RESPONSES.features) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched feature pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 3. Check metric explanation patterns
+  for (const item of SCRIPTED_RESPONSES.metrics) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched metric pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 4. Check for "how to see/find/show" + known value patterns
+  const actionPatterns = [
+    /(?:how|where).*(?:can i |do i |to )?(see|find|show|view|filter|get).*\b(\w+)\b/i,
+    /(?:see|find|show|view|filter|get).*\b(\w+)\b.*(?:accounts?|restaurants?)/i,
+    /\b(\w+)\b.*(?:accounts?|restaurants?).*(?:see|find|show|view|filter)/i
+  ];
+  
+  for (const pattern of actionPatterns) {
+    const match = normalizedQuery.match(pattern);
+    if (match) {
+      // Extract potential value words from the query
+      const words = normalizedQuery.split(/\s+/);
+      for (const word of words) {
+        const cleanWord = word.replace(/[^a-z0-9]/g, '');
+        if (VALUE_TO_METRIC[cleanWord]) {
+          const mapping = VALUE_TO_METRIC[cleanWord];
+          const category = COLUMN_CATEGORIES[mapping.category];
+          const displayValue = cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1);
+          
+          console.log(`[tryScriptedResponse] Matched value "${cleanWord}" → ${mapping.metric}`);
+          
+          return {
+            success: true,
+            answer: `**${displayValue}** is a value in the **${mapping.metric}** metric, found in the **${category.name}** section.\n\nWould you like me to add that column to your view?\n\n[COLUMN_ACTION:${mapping.category}:${mapping.metric}]`,
+            source: 'scripted'
+          };
+        }
+      }
+    }
+  }
+  
+  // 5. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
+  const metricLookupPatterns = [
+    /(?:where|how).*(?:is|can i (?:see|find)).*["']?([^"'?]+)["']?\s*\??$/i,
+    /(?:show|display|add).*["']?([^"'?]+)["']?\s*(?:column|metric)?\s*\??$/i
+  ];
+  
+  for (const pattern of metricLookupPatterns) {
+    const match = normalizedQuery.match(pattern);
+    if (match && match[1]) {
+      const searchTerm = match[1].trim().toLowerCase();
+      const categoryKey = METRIC_TO_CATEGORY[searchTerm];
+      
+      if (categoryKey) {
+        const category = COLUMN_CATEGORIES[categoryKey];
+        // Find the exact metric name (proper case)
+        const exactMetric = category.metrics.find(m => m.toLowerCase() === searchTerm);
+        
+        if (exactMetric) {
+          console.log(`[tryScriptedResponse] Matched metric lookup "${exactMetric}"`);
+          
+          return {
+            success: true,
+            answer: `**${exactMetric}** is in the **${category.name}** section.\n\nWould you like me to add that column to your view?\n\n[COLUMN_ACTION:${categoryKey}:${exactMetric}]`,
+            source: 'scripted'
+          };
+        }
+      }
+    }
+  }
+  
+  // No match - fall through to Gemini
+  return null;
 }
 
 /**
@@ -1319,6 +1628,20 @@ function askInTouchGuide(userQuery, conversationHistory) {
       };
     }
     
+    // STEP 1: Try scripted responses first (fast path - no API call)
+    // Skip scripted for follow-up conversations (has history) to maintain context
+    if (!conversationHistory || conversationHistory === 'null' || conversationHistory === '[]') {
+      const scriptedResult = tryScriptedResponse(userQuery);
+      if (scriptedResult) {
+        console.log('[askInTouchGuide] Using scripted response (no API call)');
+        scriptedResult.requestId = requestId;
+        scriptedResult.durationMs = new Date() - startTime;
+        return scriptedResult;
+      }
+    }
+    
+    // STEP 2: Fall through to Gemini for complex/novel questions
+    console.log('[askInTouchGuide] No scripted match, calling Gemini API');
     const apiKey = getGeminiApiKey_();
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
     

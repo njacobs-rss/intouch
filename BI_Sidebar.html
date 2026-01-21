@@ -1236,11 +1236,29 @@
     // --- KNOWLEDGE HUB CHAT FUNCTIONS ---
     // =========================================================
     
+    /**
+     * COLUMN CATEGORIES - Maps section names to column ranges
+     * Mirrors the backend COLUMN_CATEGORIES for client-side column rotation
+     */
+    const COLUMN_CATEGORIES = {
+      'ACCOUNT_IDS': { name: 'Account IDs', columns: ['E'] },
+      'ACCOUNT_NAME': { name: 'Account Name', columns: ['G'] },
+      'LOCATION': { name: 'Location', columns: ['I'] },
+      'DATES_ACTIVITY': { name: 'Dates & Activity', columns: ['J', 'K', 'L'] },
+      'ACCOUNT_STATUS': { name: 'Account + Status Info', columns: ['M', 'N', 'O'] },
+      'SYSTEM_STATS': { name: 'System Stats', columns: ['P', 'Q', 'R'] },
+      'PERCENTAGE_METRICS': { name: 'Percentage Metrics', columns: ['S', 'T', 'U'] },
+      'REVENUE': { name: 'Revenue', columns: ['V', 'W', 'X'] },
+      'SEATED_COVERS': { name: 'Seated Covers', columns: ['Y', 'Z', 'AA'] },
+      'PRICING': { name: 'Pricing', columns: ['AB', 'AC', 'AD'] }
+    };
+    
     const khState = {
       isOpen: false,
       isLoading: false,
       conversationHistory: [],
-      pendingColumnAction: null  // Stores {column: 'J', metric: 'Customer Since'}
+      pendingColumnAction: null,  // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
+      modifiedColumns: {}         // Tracks which columns were modified this session: {'J': 'Customer Since', 'M': 'System Type'}
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1389,20 +1407,50 @@
     }
     
     /**
-     * Parse [COLUMN_ACTION:COLUMN:METRIC] from AI response
-     * Returns { cleanedAnswer: string, columnAction: {column, metric} | null }
+     * Parse [COLUMN_ACTION:CATEGORY:METRIC] from AI response
+     * Now uses category keys (e.g., DATES_ACTIVITY) instead of column letters
+     * Returns { cleanedAnswer: string, columnAction: {category, metric} | null }
      */
     function parseColumnAction(answer) {
-      const actionRegex = /\[COLUMN_ACTION:([A-Z]+):([^\]]+)\]/g;
+      // Match category-based format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
+      const actionRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
       let columnAction = null;
       
       // Find the first column action
       const match = actionRegex.exec(answer);
       if (match) {
-        columnAction = {
-          column: match[1],
-          metric: match[2].trim()
-        };
+        const categoryKey = match[1];
+        const metric = match[2].trim();
+        
+        // Validate the category exists
+        if (COLUMN_CATEGORIES[categoryKey]) {
+          columnAction = {
+            category: categoryKey,
+            metric: metric
+          };
+        } else {
+          // Fallback: if it looks like a column letter (legacy format), try to map it
+          const legacyColumnMap = {
+            'E': 'ACCOUNT_IDS', 'G': 'ACCOUNT_NAME', 'I': 'LOCATION',
+            'J': 'DATES_ACTIVITY', 'K': 'DATES_ACTIVITY', 'L': 'DATES_ACTIVITY',
+            'M': 'ACCOUNT_STATUS', 'N': 'ACCOUNT_STATUS', 'O': 'ACCOUNT_STATUS',
+            'P': 'SYSTEM_STATS', 'Q': 'SYSTEM_STATS', 'R': 'SYSTEM_STATS',
+            'S': 'PERCENTAGE_METRICS', 'T': 'PERCENTAGE_METRICS', 'U': 'PERCENTAGE_METRICS',
+            'V': 'REVENUE', 'W': 'REVENUE', 'X': 'REVENUE',
+            'Y': 'SEATED_COVERS', 'Z': 'SEATED_COVERS', 'AA': 'SEATED_COVERS',
+            'AB': 'PRICING', 'AC': 'PRICING', 'AD': 'PRICING'
+          };
+          
+          if (legacyColumnMap[categoryKey]) {
+            console.log('[parseColumnAction] Converting legacy column format:', categoryKey);
+            columnAction = {
+              category: legacyColumnMap[categoryKey],
+              metric: metric
+            };
+          } else {
+            console.warn('[parseColumnAction] Unknown category/column:', categoryKey);
+          }
+        }
       }
       
       // Remove all action tags from the displayed answer
@@ -1412,12 +1460,50 @@
     }
     
     /**
+     * Resolve which column to use for a given category
+     * Implements column rotation: uses next available column in the section
+     * If section is exhausted, wraps back to first column
+     * @param {string} categoryKey - The category key (e.g., 'DATES_ACTIVITY')
+     * @returns {string} The column letter to use (e.g., 'J', 'K', or 'L')
+     */
+    function resolveColumnForCategory(categoryKey) {
+      const category = COLUMN_CATEGORIES[categoryKey];
+      if (!category) {
+        console.error('[resolveColumnForCategory] Unknown category:', categoryKey);
+        return null;
+      }
+      
+      const columns = category.columns;
+      
+      // Find the first column in this category that hasn't been modified this session
+      for (const col of columns) {
+        if (!khState.modifiedColumns[col]) {
+          console.log(`[resolveColumnForCategory] ${categoryKey} → using unmodified column ${col}`);
+          return col;
+        }
+      }
+      
+      // All columns in section are modified, wrap back to first
+      console.log(`[resolveColumnForCategory] ${categoryKey} → section exhausted, wrapping to ${columns[0]}`);
+      return columns[0];
+    }
+    
+    /**
      * Execute the pending column action
+     * Now uses category-based resolution with column rotation
      */
     function executeColumnAction() {
       if (!khState.pendingColumnAction) return;
       
-      const { column, metric } = khState.pendingColumnAction;
+      const { category, metric } = khState.pendingColumnAction;
+      
+      // Resolve which column to use (handles rotation)
+      const resolvedColumn = resolveColumnForCategory(category);
+      if (!resolvedColumn) {
+        addKHMessage('error', 'Could not determine which column to use.');
+        khState.pendingColumnAction = null;
+        return;
+      }
       
       // Add user confirmation message
       addKHMessage('user', 'Yes');
@@ -1427,6 +1513,8 @@
       if (khEls.sendBtn) khEls.sendBtn.disabled = true;
       const loadingEl = addKHMessage('loading', '');
       
+      console.log(`[executeColumnAction] Setting column ${resolvedColumn} to "${metric}" (category: ${category})`);
+      
       // Call backend to set the column
       google.script.run
         .withSuccessHandler((result) => {
@@ -1435,7 +1523,14 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           
           if (result.success) {
-            addKHMessage('assistant', `Great, I've set **Column ${result.column}** to **${result.metric}**! If you think of anything else, I'm here.`);
+            // Track this modification for column rotation
+            khState.modifiedColumns[result.column] = result.metric;
+            console.log('[executeColumnAction] Tracked modification:', khState.modifiedColumns);
+            
+            // Get the section name for a friendly message
+            const sectionName = COLUMN_CATEGORIES[category]?.name || category;
+            addKHMessage('assistant', `Done! I've set **Column ${result.column}** to **${result.metric}** in the ${sectionName} section. If you need anything else, just ask!`);
+            
             // Clear the pending action
             khState.pendingColumnAction = null;
           } else {
@@ -1450,7 +1545,7 @@
           addKHMessage('error', 'Error: ' + error.message);
           khState.pendingColumnAction = null;
         })
-        .setDynamicColumnHeader(column, metric);
+        .setDynamicColumnHeader(resolvedColumn, metric);
     }
 
     // Track last query for feedback

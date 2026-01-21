@@ -51,6 +51,8 @@ Apply these logic defaults:
 * **'Best' / 'Top'**: Sort by 'Total Revenue (monthly)' Descending.
 * **'Risk' / 'Expired'**: Check column 'Contract Alerts' (AG) for 'EXP' OR 'No Bookings' (AH) is not empty.
 * **'Zero Activity' / 'Dead'**: 'No Bookings' (AH) is not empty.
+* **Location Terms (City/Region/Neighborhood)**: Always match BOTH Metro (G) OR Macroname (H).
+  - Example: (REGEXMATCH(G3:G, "(?i)wine country") + REGEXMATCH(H3:H, "(?i)wine country")) > 0
 * **Cross-Tab Data**: If the user asks for Revenue/Covers (DISTRO fields), use XLOOKUP(A3:A, 'RID DISTRO'!A:A, [Target Range]).`;
 
   // E. Output Format
@@ -74,7 +76,7 @@ User: "Show me active Pro accounts in Denver"
 Formula: \`=ARRAYFORMULA(IF(A3:A="", FALSE, (G3:G="Denver") * (I3:I="Active") * (REGEXMATCH(U3:U, "(?i)Pro"))))\`
 
 User: "Expired contracts in LA"
-Formula: \`=ARRAYFORMULA(IF(A3:A="", FALSE, (REGEXMATCH(G3:G, "(?i)Los Angeles|LA")) * (REGEXMATCH(AG3:AG, "(?i)EXP"))))\`
+Formula: \`=ARRAYFORMULA(IF(A3:A="", FALSE, ((REGEXMATCH(G3:G, "(?i)Los Angeles|LA")) + (REGEXMATCH(H3:H, "(?i)Los Angeles|LA"))) * (REGEXMATCH(AG3:AG, "(?i)EXP"))))\`
 `;
 
   // Full Prompt Assembly

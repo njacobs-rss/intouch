@@ -992,93 +992,43 @@
       }
 
       clearInFocusError();
-      setInFocusLoading(true);
+      setInFocusLoading(true, 'Calling Gemini AI...');
       document.getElementById('focus-results').style.display = 'none';
 
-      // Step 1: Validate the sheet
+      // Call the unified backend function that handles:
+      // 1. Validation
+      // 2. Gemini API call
+      // 3. Formula injection
+      // 4. Sync filtered accounts
       google.script.run
-        .withSuccessHandler(function(validation) {
-          if (!validation.isValid) {
-            setInFocusLoading(false);
-            showInFocusError(validation.error);
-            return;
-          }
-
-          // Step 2: Build AI prompt and process
-          google.script.run
-            .withSuccessHandler(handleInFocusPrompt)
-            .withFailureHandler(function(err) {
-              setInFocusLoading(false);
-              handleInFocusError(err);
-            })
-            .buildInFocusPrompt(query);
-        })
+        .withSuccessHandler(handleInFocusResult)
         .withFailureHandler(function(err) {
           setInFocusLoading(false);
           handleInFocusError(err);
         })
-        .validateInFocusSheet();
+        .runInFocusQuery(query);
     }
 
-    function handleInFocusPrompt(prompt) {
-      // For now, show the prompt and ask user to proceed
-      // In production, this would call a Gemini API
-      console.log('[InFocus] Generated prompt:', prompt);
-      
-      // Simulated response - in production, replace with actual Gemini API call
-      // For MVP, we'll show a manual workflow
+    function handleInFocusResult(result) {
       setInFocusLoading(false);
       
-      // Show prompt in a simple way for manual testing
-      const shouldProceed = confirm(
-        'AI Prompt generated. In production, this would automatically call Gemini.\n\n' +
-        'For testing, click OK to proceed with a sample filter (Status = Active), or Cancel to abort.'
-      );
-
-      if (shouldProceed) {
-        // For testing: inject a sample formula
-        const testFormula = '=ARRAYFORMULA(IF(A3:A="", "", IF(I3:I="Active", TRUE, FALSE)))';
+      if (result.success) {
+        // Show results
+        document.getElementById('focus-results').style.display = 'block';
+        document.getElementById('focus-logic-summary').innerText = result.logic_summary || result.message;
+        document.getElementById('focus-matched-count').innerText = result.count + ' accounts';
         
-        google.script.run
-          .withSuccessHandler(function(result) {
-            if (result.success) {
-              // Now sync the filtered accounts
-              runSyncFilteredAccounts();
-            } else {
-              showInFocusError(result.message);
-            }
-          })
-          .withFailureHandler(handleInFocusError)
-          .injectAIFormula(testFormula);
+        // Update confidence display
+        const confEl = document.getElementById('focus-confidence');
+        const confidence = (result.confidence || 'Unknown').toLowerCase();
+        confEl.innerText = result.confidence || 'Unknown';
+        confEl.className = 'focus-confidence ' + (confidence === 'high' ? 'high' : confidence === 'medium' ? 'medium' : 'low');
+        
+        // Refresh status
+        refreshInFocusStatus();
+      } else {
+        showInFocusError(result.message);
       }
-    }
-
-    function runSyncFilteredAccounts() {
-      setInFocusLoading(true, 'Applying filter...');
-
-      google.script.run
-        .withSuccessHandler(function(result) {
-          setInFocusLoading(false);
-          
-          if (result.success) {
-            // Show results
-            document.getElementById('focus-results').style.display = 'block';
-            document.getElementById('focus-logic-summary').innerText = result.message;
-            document.getElementById('focus-matched-count').innerText = result.count + ' accounts';
-            
-            // Update confidence display
-            const confEl = document.getElementById('focus-confidence');
-            confEl.innerText = 'High';
-            confEl.className = 'focus-confidence high';
-            
-            // Refresh status
-            refreshInFocusStatus();
-          } else {
-            showInFocusError(result.message);
-          }
-        })
-        .withFailureHandler(handleInFocusError)
-        .syncFilteredAccounts();
     }
 
     function resetInFocus() {

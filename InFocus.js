@@ -985,6 +985,29 @@ function runInFocusQuery(userQuery) {
 // =============================================================
 
 /**
+ * listMetroValues() - Show unique Metro values in STATCORE
+ * Run from Script Editor to see exact Metro names
+ */
+function listMetroValues() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const statcore = ss.getSheetByName('STATCORE');
+  if (!statcore) return;
+  
+  const lastRow = getTrueLastRow_(statcore, 'A');
+  const metroCol = 7; // Column G
+  const metros = statcore.getRange(3, metroCol, lastRow - 2, 1).getValues().flat();
+  
+  const uniqueMetros = [...new Set(metros.filter(m => m && m !== ''))].sort();
+  
+  Logger.log('Unique Metro values (' + uniqueMetros.length + '):');
+  uniqueMetros.forEach(m => Logger.log('  - "' + m + '"'));
+  
+  SpreadsheetApp.getUi().alert('Metro Values', 'Found ' + uniqueMetros.length + ' unique metros.\n\nFirst 20:\n' + uniqueMetros.slice(0, 20).join('\n'), SpreadsheetApp.getUi().ButtonSet.OK);
+  
+  return uniqueMetros;
+}
+
+/**
  * debugInFocusFilter() - Check what's in the helper column after a filter
  * Run from Script Editor to see formula results
  */

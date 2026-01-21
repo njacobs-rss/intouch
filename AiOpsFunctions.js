@@ -1536,6 +1536,26 @@ const SCRIPTED_RESPONSES = {
     }
   ],
   
+  // Column change requests (switch from X to Y)
+  columnChange: [
+    {
+      patterns: [/(?:see|show|change|switch|view).*metro.*(?:rather|instead|not).*macro/i, /macro.*(?:to|→|->).*metro/i, /(?:want|need|like).*metro.*(?:not|instead).*macro/i],
+      response: `I can switch that for you! The **Location** column (Column I) can show Metro, Macro, or Neighborhood.\n\nWould you like me to change it to **Metro**?\n\n[COLUMN_ACTION:LOCATION:Metro]`
+    },
+    {
+      patterns: [/(?:see|show|change|switch|view).*macro.*(?:rather|instead|not).*metro/i, /metro.*(?:to|→|->).*macro/i, /(?:want|need|like).*macro.*(?:not|instead).*metro/i],
+      response: `I can switch that for you! The **Location** column (Column I) can show Metro, Macro, or Neighborhood.\n\nWould you like me to change it to **Macro**?\n\n[COLUMN_ACTION:LOCATION:Macro]`
+    },
+    {
+      patterns: [/(?:see|show|change|switch|view).*neighborhood/i, /(?:want|need|like).*neighborhood/i],
+      response: `I can show that for you! The **Location** column (Column I) can show Metro, Macro, or Neighborhood.\n\nWould you like me to change it to **Neighborhood**?\n\n[COLUMN_ACTION:LOCATION:Neighborhood]`
+    },
+    {
+      patterns: [/(?:see|show|change|switch|display).*metro/i, /(?:want|need).*(?:to see|see).*metro/i, /how.*(?:see|show|view|get).*metro/i],
+      response: `The **Metro** field is in the **Location** section (Column I). It can show Metro, Macro, or Neighborhood.\n\nWould you like me to set it to **Metro**?\n\n[COLUMN_ACTION:LOCATION:Metro]`
+    }
+  ],
+  
   // Filtering advice
   filtering: [
     {
@@ -1596,7 +1616,17 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 4. Check filtering advice patterns
+  // 4. Check column change patterns (switch from X to Y)
+  for (const item of SCRIPTED_RESPONSES.columnChange) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched column change pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 5. Check filtering advice patterns
   for (const item of SCRIPTED_RESPONSES.filtering) {
     for (const pattern of item.patterns) {
       if (pattern.test(normalizedQuery)) {

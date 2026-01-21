@@ -618,20 +618,32 @@ When the user mentions:
 Apply these interpretations:
 
 **Status Terms:**
-- "Active" = STATUS = 'Active' (ignore 'Pending Cancellation')
-- "At Risk" = Check 'Contract Alerts' for 'EXP' OR 'No Bookings' is not empty
+- "Active" = STATUS column = 'Active' (ignore 'Pending Cancellation')
+- "At Risk" = Contract Alerts contains 'EXP' OR No Bookings is not empty
 - "Churning" / "Canceling" = STATUS contains 'Pending' or 'Cancel'
-- "Expired" = CURRENT_TERM_END_DATE < TODAY()
+- "Expired" = Current Term End Date < TODAY()
 
 **Product Terms:**
 - "Pro" = System Type = 'Pro' OR Exclusive Pricing contains 'Pro'
 - "Core" = System Type = 'Core' OR Exclusive Pricing contains 'Core'
 - "Basic" = System Type = 'Basic' OR Exclusive Pricing contains 'Basic'
 
-**Performance Terms:**
-- "Best" / "Top" = Sort by Total Revenue (monthly) descending
-- "Zero Activity" / "Dead" = 'No Bookings' column is not empty
-- "Low Engagement" = Zero bookings in any channel
+**AM Engagement Terms (Account Manager contact/activity - tasks, meetings, events):**
+- "Haven't talked to" / "No engagement" / "Need to reach out" / "Haven't contacted" = Last Updated column is empty OR is older than 30 days
+- "Recently engaged" / "Talked to recently" / "Recently contacted" = Last Updated column has a date within last 14 days
+- "Stale" / "Neglected" / "No recent contact" = Last Updated is empty OR older than 60 days
+- IMPORTANT: "Last Updated" tracks when the AM last logged engagement (tasks/meetings/events), this is DIFFERENT from booking performance
+
+**Performance Terms (Business metrics - bookings, revenue, covers):**
+- "Zero bookings" / "No bookings" / "Dead" = No Bookings column is not empty (this indicates no CUSTOMER booking activity)
+- "Best" / "Top" / "High performing" = Sort by Total Revenue or Fullbook Covers descending
+- "Low performing" / "Underperforming" = CVR Last Month columns are zero or very low
+- "At risk" (performance) = No Bookings is not empty OR revenue declining
+- IMPORTANT: Booking metrics measure CUSTOMER activity, not AM engagement
+
+**Location Terms:**
+- "Denver" / "LA" / city names = Match against Metro column (Col G)
+- "Downtown" / neighborhood names = Match against Macro or Neighborhood columns
 
 **Cross-Sheet Lookups:**
 If the user asks for Revenue/Covers data that lives in DISTRO:
@@ -644,7 +656,7 @@ IMPORTANT: Be concise. Return ONLY the JSON below - no explanation, no reasoning
 
 {
   "formula": "=ARRAYFORMULA(IF(A3:A=\"\", \"\", [YOUR LOGIC]))",
-  "logic_summary": "One sentence max",
+  "logic_summary": "Filters for [Column Name] = 'value' AND [Column Name] condition",
   "confidence": "High"
 }
 
@@ -652,7 +664,8 @@ IMPORTANT: Be concise. Return ONLY the JSON below - no explanation, no reasoning
 - ARRAYFORMULA returning TRUE/FALSE
 - Handle empty rows
 - No markdown code blocks
-- No extra text before or after the JSON`;
+- No extra text before or after the JSON
+- In logic_summary: Use COLUMN HEADER NAMES (e.g., "Metro", "Status", "Last Updated"), NOT column letters (e.g., NOT "Col G", "Col AU")`;
 
   // Full Prompt Assembly
   const fullPrompt = `${rolePrompt}
@@ -739,8 +752,8 @@ function callGeminiAPI(userQuery) {
     // Build the full prompt
     const fullPrompt = buildInFocusPrompt(userQuery);
     
-    // Gemini API endpoint (using Gemini 3 Pro)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
+    // Gemini API endpoint (using Gemini 3 Flash for speed)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
     
     // Request payload
     const payload = {
@@ -753,7 +766,10 @@ function callGeminiAPI(userQuery) {
         temperature: 0.2,  // Lower temperature for more deterministic formula output
         topP: 0.8,
         topK: 40,
-        maxOutputTokens: 8192  // Increased for Gemini 3 Pro reasoning
+        maxOutputTokens: 4096,
+        thinkingConfig: {
+          thinkingLevel: "LOW"  // Minimize reasoning latency
+        }
       }
     };
     
@@ -968,8 +984,8 @@ function testGeminiConnection() {
     }
     Logger.log('API Key: Found');
     
-    // Test Gemini API (Gemini 3 Pro)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
+    // Test Gemini API (Gemini 3 Flash)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: 'Say "InFocus Ready" in exactly 2 words.' }] }]
     };

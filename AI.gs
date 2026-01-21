@@ -22,7 +22,9 @@ function buildInFocusPrompt(userQuery) {
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
   
   // A. Role & Goal
-  const rolePrompt = `You are a Google Sheets Formula Expert. Your goal is to write a filtering formula for Row 2 of the 'STATCORE' sheet.`;
+  const rolePrompt = `You are a Google Sheets Formula Expert. Your goal is to write a filtering ARRAYFORMULA for Row 3 of the 'STATCORE' sheet.
+  
+CRITICAL: You must use Boolean Arithmetic for logic. DO NOT use AND() or OR() functions inside ARRAYFORMULA, as they aggregate the entire range into a single result.`;
 
   // B. Data Map
   const dataMapPrompt = `## DATA SCHEMA
@@ -47,16 +49,33 @@ Apply these logic defaults:
 
 * **'Active'**: Status = 'Active' (Ignore 'Pending').
 * **'Best' / 'Top'**: Sort by 'Total Revenue (monthly)' Descending.
-* **'Risk' / 'Expired'**: Check column 'Contract Alerts' for 'EXP' OR 'No Bookings' is not empty.
-* **'Zero Activity' / 'Dead'**: 'No Bookings' is not empty.
-* **Cross-Tab Data**: If the user asks for Revenue/Covers (DISTRO fields), use XLOOKUP(A2, 'RID DISTRO'!A:A, [Target Range]).`;
+* **'Risk' / 'Expired'**: Check column 'Contract Alerts' (AG) for 'EXP' OR 'No Bookings' (AH) is not empty.
+* **'Zero Activity' / 'Dead'**: 'No Bookings' (AH) is not empty.
+* **Cross-Tab Data**: If the user asks for Revenue/Covers (DISTRO fields), use XLOOKUP(A3:A, 'RID DISTRO'!A:A, [Target Range]).`;
 
   // E. Output Format
   const outputPrompt = `## OUTPUT FORMAT
 
 Return ONLY a JSON object:
 
-{ "formula": "=...", "logic_summary": "Filtering for...", "confidence": "High" }`;
+{ "formula": "=...", "logic_summary": "Filtering for...", "confidence": "High" }
+
+## FORMULA RULES (STRICT)
+1. **NO AND() / OR()**: Use \`*\` for AND, \`+\` for OR.
+   - BAD: \`=ARRAYFORMULA(AND(G3:G="Denver", I3:I="Active"))\`
+   - GOOD: \`=ARRAYFORMULA((G3:G="Denver") * (I3:I="Active"))\`
+2. **Handle Empty Rows**: Always wrap in \`IF(A3:A="", FALSE, ...)\`.
+3. **Case Insensitive**: Use \`REGEXMATCH\` with \`(?i)\` flag or \`LOWER()\`.
+   - Example: \`REGEXMATCH(G3:G, "(?i)wine country")\`
+4. **Boolean Result**: The formula MUST return TRUE or FALSE for every row.
+
+## EXAMPLES
+User: "Show me active Pro accounts in Denver"
+Formula: \`=ARRAYFORMULA(IF(A3:A="", FALSE, (G3:G="Denver") * (I3:I="Active") * (REGEXMATCH(U3:U, "(?i)Pro"))))\`
+
+User: "Expired contracts in LA"
+Formula: \`=ARRAYFORMULA(IF(A3:A="", FALSE, (REGEXMATCH(G3:G, "(?i)Los Angeles|LA")) * (REGEXMATCH(AG3:AG, "(?i)EXP"))))\`
+`;
 
   // Full Prompt Assembly
   const fullPrompt = `${rolePrompt}
@@ -95,7 +114,7 @@ function callGeminiAPI(userQuery) {
     // Build the full prompt
     const fullPrompt = buildInFocusPrompt(userQuery);
     
-    // Gemini API endpoint (using Gemini 3 Flash for speed/cost)
+    // Gemini API endpoint (using Gemini 2.0 Flash for speed/cost)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     
     // Request payload
@@ -106,7 +125,7 @@ function callGeminiAPI(userQuery) {
         }]
       }],
       generationConfig: {
-        temperature: 0.2,
+        temperature: 0.1, // Very low temp for strict syntax adherence
         topP: 0.8,
         topK: 40,
         maxOutputTokens: 4096

@@ -909,7 +909,59 @@ function runInFocusQuery(userQuery) {
 }
 
 // =============================================================
-// SECTION 4: HELPER UTILITIES
+// SECTION 5: SETUP & TESTING
+// =============================================================
+
+/**
+ * testGeminiConnection() - Run this from Script Editor to test API + force reauth
+ * Menu: Run > testGeminiConnection
+ */
+function testGeminiConnection() {
+  const ui = SpreadsheetApp.getUi();
+  
+  try {
+    // This line forces the external_request permission prompt
+    const testFetch = UrlFetchApp.fetch('https://www.google.com');
+    Logger.log('UrlFetchApp permission: OK');
+    
+    // Check for API key
+    const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+    if (!apiKey) {
+      ui.alert('❌ Missing API Key', 'GEMINI_API_KEY not found in Script Properties.\n\nGo to Project Settings > Script Properties to add it.', ui.ButtonSet.OK);
+      return;
+    }
+    Logger.log('API Key: Found');
+    
+    // Test Gemini API
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [{ parts: [{ text: 'Say "InFocus Ready" in exactly 2 words.' }] }]
+    };
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+    const code = response.getResponseCode();
+    if (code === 200) {
+      ui.alert('✅ Success!', 'Gemini API connection working.\n\nYou can now use InFocus in the sidebar.', ui.ButtonSet.OK);
+      Logger.log('Gemini API: OK');
+    } else {
+      const error = JSON.parse(response.getContentText());
+      ui.alert('❌ API Error', `Code: ${code}\n\n${error.error?.message || response.getContentText()}`, ui.ButtonSet.OK);
+    }
+    
+  } catch (e) {
+    ui.alert('❌ Error', e.message, ui.ButtonSet.OK);
+    Logger.log('Error: ' + e.message);
+  }
+}
+
+// =============================================================
+// SECTION 6: HELPER UTILITIES
 // =============================================================
 
 /**

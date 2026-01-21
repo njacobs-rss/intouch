@@ -629,21 +629,25 @@ Apply these interpretations:
 - "Basic" = System Type = 'Basic' OR Exclusive Pricing contains 'Basic'
 
 **AM Engagement Terms (Account Manager contact/activity - tasks, meetings, events):**
-- "Haven't talked to" / "No engagement" / "Need to reach out" / "Haven't contacted" = Last Updated column is empty OR is older than 30 days
-- "Recently engaged" / "Talked to recently" / "Recently contacted" = Last Updated column has a date within last 14 days
-- "Stale" / "Neglected" / "No recent contact" = Last Updated is empty OR older than 60 days
-- IMPORTANT: "Last Updated" tracks when the AM last logged engagement (tasks/meetings/events), this is DIFFERENT from booking performance
+- "Haven't talked to" / "No engagement" / "Need to reach out" / "Haven't contacted" = Column AU (Last Updated) is empty OR is older than 30 days
+  Formula pattern: (AU3:AU="") for empty, or (AU3:AU < TODAY()-30) for old dates
+- "Recently engaged" / "Talked to recently" / "Recently contacted" = Column AU has a date within last 14 days
+  Formula pattern: (AU3:AU >= TODAY()-14)
+- "Stale" / "Neglected" / "No recent contact" = Column AU is empty OR older than 60 days
+- CRITICAL: Use Column AU for AM engagement. Do NOT use Column AH (No Bookings) for engagement queries.
 
 **Performance Terms (Business metrics - bookings, revenue, covers):**
-- "Zero bookings" / "No bookings" / "Dead" = No Bookings column is not empty (this indicates no CUSTOMER booking activity)
+- "Zero bookings" / "No bookings" / "Dead" = Column AH (No Bookings) is not empty
+  Formula pattern: (AH3:AH<>"")
 - "Best" / "Top" / "High performing" = Sort by Total Revenue or Fullbook Covers descending
 - "Low performing" / "Underperforming" = CVR Last Month columns are zero or very low
-- "At risk" (performance) = No Bookings is not empty OR revenue declining
-- IMPORTANT: Booking metrics measure CUSTOMER activity, not AM engagement
+- "At risk" (performance) = Column AH is not empty OR Column AG (Contract Alerts) contains 'EXP'
+- CRITICAL: Use Column AH for booking/performance. This is DIFFERENT from AM engagement (Column AU).
 
 **Location Terms:**
-- "Denver" / "LA" / city names = Match against Metro column (Col G)
-- "Downtown" / neighborhood names = Match against Macro or Neighborhood columns
+- "Denver" / "LA" / city names = Match against Column G (Metro)
+  Formula pattern: (G3:G="Denver")
+- "Downtown" / neighborhood names = Match against Column H (Macro) or Column I (Neighborhood)
 
 **Cross-Sheet Lookups:**
 If the user asks for Revenue/Covers data that lives in DISTRO:
@@ -660,12 +664,27 @@ IMPORTANT: Be concise. Return ONLY the JSON below - no explanation, no reasoning
   "confidence": "High"
 }
 
+**Example formulas (replace [VALUE] with user's input):**
+- Metro filter: =ARRAYFORMULA(IF(A3:A="", "", G3:G="[METRO_NAME]"))
+- Column is empty: =ARRAYFORMULA(IF(A3:A="", "", AU3:AU=""))
+- Column is NOT empty: =ARRAYFORMULA(IF(A3:A="", "", AH3:AH<>""))
+- Metro AND no engagement: =ARRAYFORMULA(IF(A3:A="", "", (G3:G="[METRO_NAME]")*(AU3:AU="")))
+- Status filter: =ARRAYFORMULA(IF(A3:A="", "", I3:I="[STATUS_VALUE]"))
+- Text contains: =ARRAYFORMULA(IF(A3:A="", "", ISNUMBER(SEARCH("[TEXT]", AG3:AG))))
+- At risk in metro: =ARRAYFORMULA(IF(A3:A="", "", (G3:G="[METRO_NAME]")*((AH3:AH<>"")+(ISNUMBER(SEARCH("EXP", AG3:AG))))>0))
+
+**CRITICAL SYNTAX RULES:**
+- Empty check: ="" (two quotes)
+- Not empty check: <>"" (two quotes after <>)
+- NEVER write <>" or =" - always use TWO quotes: "" 
+
 **Rules:**
-- ARRAYFORMULA returning TRUE/FALSE
-- Handle empty rows
+- ARRAYFORMULA returning TRUE/FALSE (use * for AND, + with >0 for OR)
+- Handle empty rows with IF(A3:A="", "", ...)
+- Double-check all quotes are properly closed (e.g., <>"" not <>")
 - No markdown code blocks
 - No extra text before or after the JSON
-- In logic_summary: Use COLUMN HEADER NAMES (e.g., "Metro", "Status", "Last Updated"), NOT column letters (e.g., NOT "Col G", "Col AU")`;
+- In logic_summary: Use COLUMN HEADER NAMES (e.g., "Metro", "Status", "Last Updated"), NOT column letters`;
 
   // Full Prompt Assembly
   const fullPrompt = `${rolePrompt}

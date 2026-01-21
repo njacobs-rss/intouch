@@ -1313,8 +1313,10 @@
       isOpen: false,
       isLoading: false,
       conversationHistory: [],
-      pendingColumnAction: null,  // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
-      modifiedColumns: {}         // Tracks which columns were modified this session: {'J': 'Customer Since', 'M': 'System Type'}
+      pendingColumnAction: null,    // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
+      pendingFunctionAction: null,  // Stores {functionName: 'manualUpdateNotesOnly', label: 'Refresh Notes'}
+      modifiedColumns: {},          // Tracks which columns were modified this session: {'J': 'Customer Since', 'M': 'System Type'}
+      lastModifiedMetric: null      // Tracks last modified metric for filtering advice context
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1435,16 +1437,24 @@
         khEls.welcome.style.display = 'none';
       }
 
-      // Check if this is a confirmation for a pending column action
+      // Check if this is a confirmation for a pending action
       const normalizedQuery = query.toLowerCase().trim();
-      if (khState.pendingColumnAction && isConfirmationPhrase(normalizedQuery)) {
-        executeColumnAction(false); // false = triggered by text, not button
-        khEls.input.value = '';
-        return;
+      if (isConfirmationPhrase(normalizedQuery)) {
+        if (khState.pendingColumnAction) {
+          executeColumnAction(false); // false = triggered by text, not button
+          khEls.input.value = '';
+          return;
+        }
+        if (khState.pendingFunctionAction) {
+          executeFunctionAction(false); // false = triggered by text, not button
+          khEls.input.value = '';
+          return;
+        }
       }
 
-      // Clear any pending action if user asks something else
+      // Clear any pending actions if user asks something else
       khState.pendingColumnAction = null;
+      khState.pendingFunctionAction = null;
 
       // Add user message to UI
       addKHMessage('user', query);
@@ -1468,15 +1478,19 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
 
           if (result.success) {
-            // Check for column action tag and extract it
-            const { cleanedAnswer, columnAction } = parseColumnAction(result.answer);
+            // Check for action tags and extract them
+            const { cleanedAnswer, columnAction, functionAction } = parseColumnAction(result.answer);
             
             if (columnAction) {
               khState.pendingColumnAction = columnAction;
             }
+            if (functionAction) {
+              khState.pendingFunctionAction = functionAction;
+            }
             
-            // Show action buttons if there's a pending column action
-            addKHMessage('assistant', cleanedAnswer, !!columnAction);
+            // Show action buttons if there's a pending action
+            const hasAction = !!columnAction || !!functionAction;
+            addKHMessage('assistant', cleanedAnswer, hasAction);
             
             // Add to history for follow-up context
             khState.conversationHistory.push({ role: 'user', content: query });
@@ -1511,20 +1525,20 @@
     }
     
     /**
-     * Parse [COLUMN_ACTION:CATEGORY:METRIC] from AI response
-     * Now uses category keys (e.g., DATES_ACTIVITY) instead of column letters
-     * Returns { cleanedAnswer: string, columnAction: {category, metric} | null }
+     * Parse action tags from AI response
+     * Supports both [COLUMN_ACTION:CATEGORY:METRIC] and [FUNCTION_ACTION:functionName:label]
+     * Returns { cleanedAnswer: string, columnAction: {...} | null, functionAction: {...} | null }
      */
     function parseColumnAction(answer) {
-      // Match category-based format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
-      const actionRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
       let columnAction = null;
+      let functionAction = null;
       
-      // Find the first column action
-      const match = actionRegex.exec(answer);
-      if (match) {
-        const categoryKey = match[1];
-        const metric = match[2].trim();
+      // Match category-based column format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
+      const columnRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
+      const columnMatch = columnRegex.exec(answer);
+      if (columnMatch) {
+        const categoryKey = columnMatch[1];
+        const metric = columnMatch[2].trim();
         
         // Validate the category exists
         if (COLUMN_CATEGORIES[categoryKey]) {
@@ -1557,10 +1571,24 @@
         }
       }
       
-      // Remove all action tags from the displayed answer
-      const cleanedAnswer = answer.replace(/\[COLUMN_ACTION:[^\]]+\]/g, '').trim();
+      // Match function action format: [FUNCTION_ACTION:functionName:Button Label]
+      const functionRegex = /\[FUNCTION_ACTION:([a-zA-Z_]+):([^\]]+)\]/g;
+      const functionMatch = functionRegex.exec(answer);
+      if (functionMatch) {
+        functionAction = {
+          functionName: functionMatch[1],
+          label: functionMatch[2].trim()
+        };
+        console.log('[parseColumnAction] Found function action:', functionAction);
+      }
       
-      return { cleanedAnswer, columnAction };
+      // Remove all action tags from the displayed answer
+      const cleanedAnswer = answer
+        .replace(/\[COLUMN_ACTION:[^\]]+\]/g, '')
+        .replace(/\[FUNCTION_ACTION:[^\]]+\]/g, '')
+        .trim();
+      
+      return { cleanedAnswer, columnAction, functionAction };
     }
     
     /**
@@ -1636,13 +1664,14 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           
           if (result.success) {
-            // Track this modification for column rotation
+            // Track this modification for column rotation and filtering advice context
             khState.modifiedColumns[result.column] = result.metric;
+            khState.lastModifiedMetric = result.metric;
             console.log('[executeColumnAction] Tracked modification:', khState.modifiedColumns);
             
             // Get the section name for a friendly message
             const sectionName = COLUMN_CATEGORIES[category]?.name || category;
-            addKHMessage('assistant', `Done! I've set **Column ${result.column}** to **${result.metric}** in the ${sectionName} section. If you need anything else, just ask!`);
+            addKHMessage('assistant', `Done! I've set **Column ${result.column}** to **${result.metric}** in the ${sectionName} section.\n\nLet me know if you'd like advice on how to filter this column for the best analysis view!`);
             
             // Clear the pending action
             khState.pendingColumnAction = null;
@@ -1679,19 +1708,31 @@
         msgEl.dataset.query = khLastQuery;
         
         let actionButtonsHtml = '';
-        if (showActionButtons && khState.pendingColumnAction) {
-          const category = COLUMN_CATEGORIES[khState.pendingColumnAction.category];
-          const sectionName = category ? category.name : khState.pendingColumnAction.category;
-          actionButtonsHtml = `
-            <div class="kh-action-buttons">
-              <button class="kh-action-btn primary" onclick="executeColumnAction()">
-                <span>▶</span> Add Column
-              </button>
-              <button class="kh-action-btn secondary" onclick="dismissColumnAction()">
-                Not now
-              </button>
-            </div>
-          `;
+        if (showActionButtons) {
+          if (khState.pendingColumnAction) {
+            actionButtonsHtml = `
+              <div class="kh-action-buttons">
+                <button class="kh-action-btn primary" onclick="executeColumnAction()">
+                  <span>▶</span> Add Column
+                </button>
+                <button class="kh-action-btn secondary" onclick="dismissAction()">
+                  Not now
+                </button>
+              </div>
+            `;
+          } else if (khState.pendingFunctionAction) {
+            const label = khState.pendingFunctionAction.label || 'Run';
+            actionButtonsHtml = `
+              <div class="kh-action-buttons">
+                <button class="kh-action-btn primary" onclick="executeFunctionAction()">
+                  <span>▶</span> ${label}
+                </button>
+                <button class="kh-action-btn secondary" onclick="dismissAction()">
+                  Not now
+                </button>
+              </div>
+            `;
+          }
         }
         
         msgEl.innerHTML = formatKHResponse(content) + actionButtonsHtml + `
@@ -1716,15 +1757,63 @@
     }
     
     /**
-     * Dismiss the pending column action without executing
+     * Dismiss any pending action without executing
      */
-    function dismissColumnAction() {
+    function dismissAction() {
       khState.pendingColumnAction = null;
+      khState.pendingFunctionAction = null;
       // Remove the action buttons from the last message
       const actionButtons = document.querySelector('.kh-action-buttons');
       if (actionButtons) {
         actionButtons.remove();
       }
+    }
+    
+    /**
+     * Execute a pending function action (like manualUpdateNotesOnly)
+     * @param {boolean} fromButton - If true, called from action button (don't add "Yes" message)
+     */
+    function executeFunctionAction(fromButton = true) {
+      if (!khState.pendingFunctionAction) return;
+      
+      const { functionName, label } = khState.pendingFunctionAction;
+      
+      // Remove action buttons if they exist
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Add user confirmation message only if triggered by text (not button)
+      if (!fromButton) {
+        addKHMessage('user', 'Yes');
+      }
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      console.log(`[executeFunctionAction] Running function: ${functionName}`);
+      
+      // Call the backend function dynamically
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          addKHMessage('assistant', `Done! The **${label}** operation completed successfully. The notes across your sheet have been updated from Salesforce. Let me know if you need anything else!`);
+          khState.pendingFunctionAction = null;
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error running function: ' + error.message);
+          khState.pendingFunctionAction = null;
+        })
+        [functionName](); // Dynamic function call
     }
 
     function submitKHFeedback(msgId, rating) {

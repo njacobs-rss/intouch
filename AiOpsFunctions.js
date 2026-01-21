@@ -1324,13 +1324,14 @@ NEVER add Google separately to Fullbook calculations
 | Only few accounts visible | Smart Select might be filtered - click RESET |
 | Can't find Metro/Neighborhood | Double-click Column I header and select from dropdown |
 | Can't find a specific metric | Check the column category - metrics are grouped by type |
-| iQ notes outdated | Ask manager to run "Update Notes Only" |
+| iQ notes outdated | Offer to run "Refresh Notes" function directly |
 | Focus20 +/X not working | Use Admin Functions → Focus20 menu as fallback |
 | AI Panel won't open | Check popup blocker, refresh browser |
 
 ## CRITICAL RULES (NEVER VIOLATE)
 - NEVER recommend using Data → Create a filter (breaks the sheet)
 - NEVER add Google covers separately to Fullbook (it's already in Network)
+- NEVER offer to refresh all tabs or run full data refreshes - only offer targeted actions like "Refresh Notes"
 - ALWAYS tell users to click RESET when they describe view problems
 - Focus20 should be 10-20 accounts and refreshed weekly, not static
 - System fixes come BEFORE pricing changes (diagnose system type first)
@@ -1464,6 +1465,10 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/focus.?20.*(not|isn't|won't).*(work|adding|removing)/i, /(\+|plus|x).*(button|not|won't).*(work)/i],
       response: `If the Focus20 +/X buttons aren't working, try the fallback method:\n\n1. Go to **Admin Functions** menu\n2. Select **Focus20**\n3. Use the menu options to add/remove accounts\n\nMake sure you have accounts selected via Smart Select (Column D checkboxes) first.`
+    },
+    {
+      patterns: [/notes?.*(wrong|outdated|old|stale|not.*(right|correct|match|updated|current))/i, /(wrong|outdated|old|stale|incorrect).*notes?/i, /notes?.*don'?t.*(match|reflect)/i, /(iq|sticky).*(notes?|wrong|outdated)/i, /notes?.*out.?of.?(sync|date)/i, /notes?.*salesforce/i],
+      response: `The **iQ notes** are pulled from Salesforce and can sometimes get out of sync. I can refresh them for you right now.\n\nThis will update the sticky notes across your entire sheet - it's completely safe and doesn't change any account data.\n\n[FUNCTION_ACTION:manualUpdateNotesOnly:Refresh Notes]`
     }
   ],
   
@@ -1496,6 +1501,26 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/what.*(is|are|does).*no.?book/i, /explain.*no.?book/i, /no.?book.*mean/i],
       response: `**No Bookings >30 Days** is the primary early warning for churn risk:\n\n- **0-Fullbook** = Complete booking stoppage (urgent!)\n- **0-Network** = May be RestRef/phone-dependent\n- Any value here needs investigation\n\nFound in the **Account + Status Info** section. Would you like me to show this column?\n\n[COLUMN_ACTION:ACCOUNT_STATUS:No Bookings >30 Days]`
+    }
+  ],
+  
+  // Filtering advice
+  filtering: [
+    {
+      patterns: [/filter.*advice/i, /how.*(filter|sort).*column/i, /filtering.*(tip|advice|help)/i, /(best|good).*(way|how).*(filter|sort|analyze)/i, /advice.*(filter|analysis|view)/i],
+      response: `**Filtering Tips for InTouch:**\n\n**For Status/Type columns** (System Type, Status, etc.):\n- Click the column header dropdown → Filter by values\n- Select specific values like "Core" or "Active"\n\n**For Numeric columns** (Revenue, Covers, %):\n- Sort high-to-low to find top performers\n- Sort low-to-high to find at-risk accounts\n- Use "Filter by condition" → "Greater than" for thresholds\n\n**For Date columns** (Customer Since, Term End):\n- Sort oldest-first for renewals coming up\n- Filter by condition → "Before/After" specific dates\n\n**Pro tip:** After filtering, use Smart Select to check accounts for Focus20!`
+    },
+    {
+      patterns: [/how.*(filter|sort).*(system.?type|core|pro)/i, /filter.*(core|pro|basic)/i],
+      response: `**Filtering by System Type:**\n\n1. Click the **System Type** column header dropdown\n2. Select **Filter by values**\n3. Uncheck "Select all", then check only **Core** (or Pro, Basic)\n4. Click OK\n\nYou'll now see only accounts matching that system type. To clear: click **RESET** or remove the filter from the dropdown.`
+    },
+    {
+      patterns: [/how.*(filter|sort).*(disco|discovery)/i, /filter.*(high|low).*disco/i],
+      response: `**Filtering by Discovery %:**\n\n**To find low-Discovery accounts** (growth opportunities):\n1. Click the **Disco % Current** column header\n2. Sort A→Z (low to high)\n3. Focus on accounts with <30% Discovery that have decent cover volume\n\n**To find high-Discovery accounts:**\n1. Sort Z→A (high to low)\n2. These are marketplace-dependent - watch for availability issues`
+    },
+    {
+      patterns: [/how.*(filter|sort).*(revenue|yield|money)/i, /filter.*(high|low|top).*(revenue|yield)/i],
+      response: `**Filtering by Revenue:**\n\n**To find top revenue accounts:**\n1. Click the **Revenue** column header\n2. Sort Z→A (high to low)\n3. Top accounts appear first\n\n**To find underperforming accounts:**\n1. Sort A→Z (low to high)\n2. Look for accounts with low yield relative to their system type\n\n**Pro tip:** Compare against Avg Yield for the system type to identify outliers.`
     }
   ]
 };
@@ -1539,7 +1564,17 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 4. Check for "how to see/find/show" + known value patterns
+  // 4. Check filtering advice patterns
+  for (const item of SCRIPTED_RESPONSES.filtering) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched filtering pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 6. Check for "how to see/find/show" + known value patterns
   const actionPatterns = [
     /(?:how|where).*(?:can i |do i |to )?(see|find|show|view|filter|get).*\b(\w+)\b/i,
     /(?:see|find|show|view|filter|get).*\b(\w+)\b.*(?:accounts?|restaurants?)/i,
@@ -1570,7 +1605,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 5. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
+  // 7. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
   const metricLookupPatterns = [
     /(?:where|how).*(?:is|can i (?:see|find)).*["']?([^"'?]+)["']?\s*\??$/i,
     /(?:show|display|add).*["']?([^"'?]+)["']?\s*(?:column|metric)?\s*\??$/i

@@ -209,8 +209,8 @@
       bottom: 16px;
       right: 16px;
       width: calc(100% - 32px);
-      max-width: 380px;
-      height: 420px;
+      max-width: 400px;
+      height: 520px;
       max-height: calc(100vh - 80px);
       background: #fff;
       border-radius: 12px;
@@ -247,21 +247,28 @@
       align-items: center;
       gap: 6px;
     }
-    .kh-panel-close {
-      background: rgba(255,255,255,0.2);
+    .kh-header-buttons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kh-header-btn {
+      background: rgba(255,255,255,0.15);
       border: none;
       color: white;
       width: 26px;
       height: 26px;
       border-radius: 50%;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: background 0.2s;
     }
-    .kh-panel-close:hover { background: rgba(255,255,255,0.3); }
+    .kh-header-btn:hover { background: rgba(255,255,255,0.3); }
+    .kh-header-btn.kh-clear { font-size: 14px; }
+    .kh-header-btn.kh-minimize { font-size: 16px; font-weight: bold; }
 
     .kh-messages {
       flex: 1;
@@ -408,26 +415,75 @@
     .kh-send:hover { background: #1d4ed8; }
     .kh-send:disabled { background: #94a3b8; cursor: not-allowed; }
 
+    /* Action Buttons (for column actions) */
+    .kh-action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .kh-action-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .kh-action-btn.primary {
+      background: #2563eb;
+      color: white;
+    }
+    .kh-action-btn.primary:hover {
+      background: #1d4ed8;
+    }
+    .kh-action-btn.secondary {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+    .kh-action-btn.secondary:hover {
+      background: #e2e8f0;
+    }
+    .kh-action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     /* Feedback UI */
     .kh-feedback {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       margin-top: 8px;
-      padding-top: 8px;
+      padding-top: 6px;
       border-top: 1px solid #f1f5f9;
+    }
+    .kh-feedback-label {
+      font-size: 9px;
+      color: #94a3b8;
+      margin-right: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
     .kh-feedback-btn {
       background: none;
       border: 1px solid #e2e8f0;
-      padding: 4px 8px;
-      border-radius: 12px;
+      padding: 2px 6px;
+      border-radius: 10px;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 10px;
       color: #64748b;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       transition: all 0.2s;
     }
     .kh-feedback-btn:hover {
@@ -449,7 +505,7 @@
       cursor: not-allowed;
     }
     .kh-feedback-text {
-      font-size: 10px;
+      font-size: 9px;
       color: #94a3b8;
       margin-left: auto;
     }
@@ -1272,7 +1328,8 @@
     const khEls = {
       fab: null,
       panel: null,
-      closeBtn: null,
+      minimizeBtn: null,
+      clearBtn: null,
       messages: null,
       input: null,
       sendBtn: null,
@@ -1282,14 +1339,16 @@
     function initKnowledgeHub() {
       khEls.fab = document.getElementById('khFab');
       khEls.panel = document.getElementById('khPanel');
-      khEls.closeBtn = document.getElementById('khClose');
+      khEls.minimizeBtn = document.getElementById('khMinimize');
+      khEls.clearBtn = document.getElementById('khClear');
       khEls.messages = document.getElementById('khMessages');
       khEls.input = document.getElementById('khInput');
       khEls.sendBtn = document.getElementById('khSend');
       khEls.welcome = document.getElementById('khWelcome');
 
       if (khEls.fab) khEls.fab.addEventListener('click', toggleKHPanel);
-      if (khEls.closeBtn) khEls.closeBtn.addEventListener('click', toggleKHPanel);
+      if (khEls.minimizeBtn) khEls.minimizeBtn.addEventListener('click', toggleKHPanel);
+      if (khEls.clearBtn) khEls.clearBtn.addEventListener('click', clearKHChat);
 
       // Suggestion clicks
       document.querySelectorAll('.kh-suggestion').forEach(btn => {
@@ -1322,6 +1381,49 @@
         khEls.input.focus();
       }
     }
+    
+    function clearKHChat() {
+      // Reset conversation state
+      khState.conversationHistory = [];
+      khState.pendingColumnAction = null;
+      khState.modifiedColumns = {};
+      
+      // Clear messages and show welcome screen
+      if (khEls.messages) {
+        khEls.messages.innerHTML = `
+          <div class="kh-welcome" id="khWelcome">
+            <div class="kh-welcome-icon">✦</div>
+            <h5>Ask me about InTouch</h5>
+            <p>Features, metrics, workflows, troubleshooting</p>
+            <div class="kh-suggestions">
+              <button class="kh-suggestion">What is iQ?</button>
+              <button class="kh-suggestion">How do I use Focus20?</button>
+              <button class="kh-suggestion">Sheet looks broken</button>
+              <button class="kh-suggestion">Explain Discovery%</button>
+            </div>
+          </div>
+        `;
+        
+        // Re-wire suggestion buttons
+        document.querySelectorAll('.kh-suggestion').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (khEls.input) {
+              khEls.input.value = btn.textContent;
+              sendKHMessage();
+            }
+          });
+        });
+      }
+      
+      // Update welcome reference
+      khEls.welcome = document.getElementById('khWelcome');
+      
+      // Clear input
+      if (khEls.input) {
+        khEls.input.value = '';
+        khEls.input.focus();
+      }
+    }
 
     function sendKHMessage() {
       if (!khEls.input) return;
@@ -1336,7 +1438,7 @@
       // Check if this is a confirmation for a pending column action
       const normalizedQuery = query.toLowerCase().trim();
       if (khState.pendingColumnAction && isConfirmationPhrase(normalizedQuery)) {
-        executeColumnAction();
+        executeColumnAction(false); // false = triggered by text, not button
         khEls.input.value = '';
         return;
       }
@@ -1373,7 +1475,9 @@
               khState.pendingColumnAction = columnAction;
             }
             
-            addKHMessage('assistant', cleanedAnswer);
+            // Show action buttons if there's a pending column action
+            addKHMessage('assistant', cleanedAnswer, !!columnAction);
+            
             // Add to history for follow-up context
             khState.conversationHistory.push({ role: 'user', content: query });
             khState.conversationHistory.push({ role: 'assistant', content: cleanedAnswer });
@@ -1491,8 +1595,9 @@
     /**
      * Execute the pending column action
      * Now uses category-based resolution with column rotation
+     * @param {boolean} fromButton - If true, called from action button (don't add "Yes" message)
      */
-    function executeColumnAction() {
+    function executeColumnAction(fromButton = true) {
       if (!khState.pendingColumnAction) return;
       
       const { category, metric } = khState.pendingColumnAction;
@@ -1505,8 +1610,16 @@
         return;
       }
       
-      // Add user confirmation message
-      addKHMessage('user', 'Yes');
+      // Remove action buttons if they exist
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Add user confirmation message only if triggered by text (not button)
+      if (!fromButton) {
+        addKHMessage('user', 'Yes');
+      }
       
       // Show loading
       khState.isLoading = true;
@@ -1551,7 +1664,7 @@
     // Track last query for feedback
     let khLastQuery = '';
 
-    function addKHMessage(type, content) {
+    function addKHMessage(type, content, showActionButtons = false) {
       if (!khEls.messages) return null;
       const msgEl = document.createElement('div');
       msgEl.className = 'kh-message ' + type;
@@ -1565,11 +1678,28 @@
         msgEl.dataset.response = content;
         msgEl.dataset.query = khLastQuery;
         
-        msgEl.innerHTML = formatKHResponse(content) + `
+        let actionButtonsHtml = '';
+        if (showActionButtons && khState.pendingColumnAction) {
+          const category = COLUMN_CATEGORIES[khState.pendingColumnAction.category];
+          const sectionName = category ? category.name : khState.pendingColumnAction.category;
+          actionButtonsHtml = `
+            <div class="kh-action-buttons">
+              <button class="kh-action-btn primary" onclick="executeColumnAction()">
+                <span>▶</span> Add Column
+              </button>
+              <button class="kh-action-btn secondary" onclick="dismissColumnAction()">
+                Not now
+              </button>
+            </div>
+          `;
+        }
+        
+        msgEl.innerHTML = formatKHResponse(content) + actionButtonsHtml + `
           <div class="kh-feedback">
+            <span class="kh-feedback-label">Rate</span>
             <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'helpful')" title="Helpful">👍</button>
             <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'not_helpful')" title="Not helpful">👎</button>
-            <button class="kh-feedback-btn" onclick="openKHCorrection('${msgId}')" title="Suggest correction">✏️ Correct</button>
+            <button class="kh-feedback-btn" onclick="openKHCorrection('${msgId}')" title="Suggest correction">✏️</button>
             <span class="kh-feedback-text"></span>
           </div>
         `;
@@ -1583,6 +1713,18 @@
       khEls.messages.appendChild(msgEl);
       khEls.messages.scrollTop = khEls.messages.scrollHeight;
       return msgEl;
+    }
+    
+    /**
+     * Dismiss the pending column action without executing
+     */
+    function dismissColumnAction() {
+      khState.pendingColumnAction = null;
+      // Remove the action buttons from the last message
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
     }
 
     function submitKHFeedback(msgId, rating) {
@@ -1737,7 +1879,10 @@
   <div class="kh-panel" id="khPanel">
     <div class="kh-panel-header">
       <h4>✦ InTouch Guide</h4>
-      <button class="kh-panel-close" id="khClose">✕</button>
+      <div class="kh-header-buttons">
+        <button class="kh-header-btn kh-clear" id="khClear" title="Clear chat">✕</button>
+        <button class="kh-header-btn kh-minimize" id="khMinimize" title="Minimize">─</button>
+      </div>
     </div>
     <div class="kh-messages" id="khMessages">
       <div class="kh-welcome" id="khWelcome">

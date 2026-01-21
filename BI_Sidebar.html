@@ -1671,7 +1671,13 @@
             
             // Get the section name for a friendly message
             const sectionName = COLUMN_CATEGORIES[category]?.name || category;
-            addKHMessage('assistant', `Done! I've set **Column ${result.column}** to **${result.metric}** in the ${sectionName} section.\n\nLet me know if you'd like advice on how to filter this column for the best analysis view!`);
+            
+            // Check if column was already set to this metric
+            if (result.alreadySet) {
+              addKHMessage('assistant', `**${result.metric}** is already showing in **Column ${result.column}**! You're all set.\n\nWould you like advice on how to filter this column for the best analysis view?`);
+            } else {
+              addKHMessage('assistant', `Done! I've set **Column ${result.column}** to **${result.metric}** in the ${sectionName} section.\n\nLet me know if you'd like advice on how to filter this column for the best analysis view!`);
+            }
             
             // Clear the pending action
             khState.pendingColumnAction = null;

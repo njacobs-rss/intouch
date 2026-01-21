@@ -1041,6 +1041,9 @@ function setDynamicColumnHeader(columnLetter, metricName) {
   const functionName = 'setDynamicColumnHeader';
   console.log(`[${functionName}] Setting column ${columnLetter} to "${metricName}"`);
   
+  // Helper to normalize strings for comparison (handles special chars like > < etc.)
+  const normalizeForCompare = (s) => String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+  
   try {
     // Validate we're on an AM tab
     const tabCheck = checkIfAMTab();
@@ -1062,7 +1065,20 @@ function setDynamicColumnHeader(columnLetter, metricName) {
     
     // Get the cell in Row 2
     const cell = sheet.getRange(2, colIndex);
-    const currentValue = cell.getValue();
+    const currentValue = String(cell.getValue()).trim();
+    
+    // Check if already set to this metric (using normalized comparison)
+    if (normalizeForCompare(currentValue) === normalizeForCompare(metricName)) {
+      console.log(`[${functionName}] Column ${columnLetter} already set to "${currentValue}"`);
+      return {
+        success: true,
+        alreadySet: true,
+        column: columnLetter,
+        metric: currentValue,
+        previousValue: currentValue,
+        sheetName: tabCheck.sheetName
+      };
+    }
     
     // Get data validation to verify the metric is valid for this column
     const validation = cell.getDataValidation();
@@ -1081,13 +1097,29 @@ function setDynamicColumnHeader(columnLetter, metricName) {
         }
       }
       
-      // Check if metricName is in the valid options (case-insensitive)
-      const normalizedMetric = metricName.toLowerCase().trim();
+      // Check if metricName is in the valid options (using normalized comparison)
       const matchedOption = validOptions.find(opt => 
-        String(opt).toLowerCase().trim() === normalizedMetric
+        normalizeForCompare(opt) === normalizeForCompare(metricName)
       );
       
       if (!matchedOption && validOptions.length > 0) {
+        // Check if maybe it's already set (current value matches requested)
+        const currentMatches = validOptions.find(opt => 
+          normalizeForCompare(opt) === normalizeForCompare(currentValue) &&
+          normalizeForCompare(opt) === normalizeForCompare(metricName)
+        );
+        
+        if (currentMatches) {
+          return {
+            success: true,
+            alreadySet: true,
+            column: columnLetter,
+            metric: currentValue,
+            previousValue: currentValue,
+            sheetName: tabCheck.sheetName
+          };
+        }
+        
         return {
           success: false,
           error: `"${metricName}" is not available in column ${columnLetter}. Available options: ${validOptions.slice(0, 5).join(', ')}${validOptions.length > 5 ? '...' : ''}`

@@ -1452,6 +1452,15 @@
           khEls.input.value = '';
           return;
         }
+        
+        // If user confirms but no pending action, check if they want filtering advice
+        // (common after a column change when AI offers "let me know if you'd like filtering advice")
+        if (khState.lastModifiedMetric) {
+          addKHMessage('user', query);
+          khEls.input.value = '';
+          provideFilteringAdvice(khState.lastModifiedMetric);
+          return;
+        }
       }
 
       // Clear any pending actions if user asks something else
@@ -1764,6 +1773,41 @@
       return msgEl;
     }
     
+    /**
+     * Provide contextual filtering advice based on the last modified metric
+     * Called when user confirms after a column change
+     * @param {string} metric - The metric name that was just added
+     */
+    function provideFilteringAdvice(metric) {
+      const metricLower = metric.toLowerCase();
+      let advice = '';
+      
+      // Contextual filtering advice based on metric type
+      if (metricLower.includes('metro') || metricLower.includes('neighborhood') || metricLower.includes('macro')) {
+        advice = `**Filtering ${metric}:**\n\n1. Click the **${metric}** column header dropdown\n2. Select **Filter by values**\n3. Uncheck "Select all", then check the specific locations you want\n4. Click OK\n\n**Pro tip:** After filtering to your target area, use Smart Select to mark priority accounts for Focus20!`;
+      } else if (metricLower.includes('status') || metricLower.includes('system type')) {
+        advice = `**Filtering ${metric}:**\n\n1. Click the **${metric}** column header dropdown\n2. Select **Filter by values**\n3. Uncheck "Select all", then check the values you want (e.g., "Core", "Active")\n4. Click OK\n\n**Common filters:**\n- Filter for "Term Pending" to see accounts needing renewal conversations\n- Filter for specific system types to segment your outreach`;
+      } else if (metricLower.includes('disco') || metricLower.includes('%') || metricLower.includes('percent')) {
+        advice = `**Filtering ${metric}:**\n\n**To find low-performing accounts:**\n1. Click the column header → Sort A→Z (low to high)\n2. Focus on the bottom performers\n\n**To find top performers:**\n1. Sort Z→A (high to low)\n\n**For threshold filtering:**\n1. Click dropdown → Filter by condition\n2. Use "Greater than" or "Less than" with your target value`;
+      } else if (metricLower.includes('revenue') || metricLower.includes('yield') || metricLower.includes('due')) {
+        advice = `**Filtering ${metric}:**\n\n**To find top revenue accounts:**\n1. Sort Z→A (high to low) - top performers appear first\n\n**To find underperformers:**\n1. Sort A→Z (low to high)\n\n**For specific thresholds:**\n1. Filter by condition → "Greater than" or "Less than"\n2. Enter your dollar threshold`;
+      } else if (metricLower.includes('cvr') || metricLower.includes('cover')) {
+        advice = `**Filtering ${metric}:**\n\n**To analyze cover volume:**\n1. Sort Z→A for highest volume accounts\n2. Sort A→Z to find accounts with low/no bookings\n\n**Compare channels:** Set multiple cover columns (Y, Z, AA) to different channels to see the distribution side-by-side.`;
+      } else if (metricLower.includes('date') || metricLower.includes('term') || metricLower.includes('since') || metricLower.includes('engaged')) {
+        advice = `**Filtering ${metric}:**\n\n**For date-based columns:**\n1. Sort oldest-first (A→Z) to see upcoming deadlines or longest tenures\n2. Sort newest-first (Z→A) for recent activity\n\n**For specific date ranges:**\n1. Filter by condition → "Date is before" or "Date is after"\n2. Enter your target date\n\n**Pro tip:** For contract alerts, sort to surface expired/pending terms first!`;
+      } else if (metricLower.includes('focus20')) {
+        advice = `**Using the Focus20 column:**\n\nThis column shows the date each account was added to your Focus20 list.\n\n**To see your current Focus20:**\n1. Filter by condition → "Is not empty"\n2. This shows only accounts in your Focus20\n\n**To refresh your list:**\n1. Sort by date added (oldest first)\n2. Consider rotating out accounts that have been there 2+ weeks\n3. Use Smart Select + X to remove, then add fresh priorities with +`;
+      } else {
+        // Generic advice
+        advice = `**Filtering ${metric}:**\n\n1. Click the column header dropdown\n2. Choose **Sort A→Z** or **Sort Z→A** for quick ordering\n3. Use **Filter by values** to select specific items\n4. Use **Filter by condition** for numeric thresholds\n\n**Remember:** Click RESET to clear all filters when done!`;
+      }
+      
+      // Clear the lastModifiedMetric so we don't keep offering advice
+      khState.lastModifiedMetric = null;
+      
+      addKHMessage('assistant', advice);
+    }
+
     /**
      * Dismiss any pending action without executing
      */

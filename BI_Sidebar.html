@@ -2197,8 +2197,9 @@
       let buttonsHtml = '<div class="kh-am-selection"><p style="margin:0 0 8px 0; font-size:11px; color:#64748b;">Select an Account Manager:</p>';
       
       ams.forEach(am => {
-        buttonsHtml += `<button class="kh-action-btn secondary" style="margin:2px; flex:none; width:auto;" onclick="selectAMForAnalysis('${am.fullName.replace(/'/g, "\\'")}')">
-          ${am.fullName}
+        const displayName = am.fullName || am.tabName || 'Unknown';
+        buttonsHtml += `<button class="kh-action-btn secondary" style="margin:2px; flex:none; width:auto;" onclick="selectAMForAnalysis('${displayName.replace(/'/g, "\\'")}')">
+          ${displayName}
         </button>`;
       });
       

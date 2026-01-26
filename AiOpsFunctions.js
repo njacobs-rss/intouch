@@ -1775,16 +1775,28 @@ const SCRIPTED_RESPONSES = {
         /my.*(portfolio|bucket|book).*(analysis|summary|looking)/i,
         /analyze.*my.*(portfolio|bucket|accounts|book)/i,
         /how.*my.*(book|portfolio|bucket|accounts).*(looking|doing)/i,
-        /what.*(is|does).*my.*(bucket|portfolio|book).*(look|like)/i
+        /what.*(is|does).*my.*(bucket|portfolio|book).*(look|like)/i,
+        /how.*many.*(rids?|accounts?|restaurants?).*(in|do|have)/i,
+        /how.*many.*(rids?|accounts?|restaurants?).*my/i,
+        /my.*(rid|account|restaurant).*count/i,
+        /what.*my.*bucket/i,
+        /how.*big.*my.*(bucket|book|portfolio)/i,
+        /size.*of.*my.*(bucket|book|portfolio)/i
       ],
       // This response will trigger the confirmation flow with AM detection
       needsAMContext: true,
       getResponse: function(amContext) {
-        if (amContext && amContext.isAMTab && amContext.fullName) {
-          return `I'll pull the portfolio analysis for **${amContext.fullName}** (your current tab). Is that correct?\n\n[PORTFOLIO_ACTION:CONFIRM:${amContext.fullName}]`;
-        } else if (amContext && amContext.isAMTab && amContext.firstName) {
-          return `I can see you're on the **${amContext.firstName}** tab, but I couldn't find the full name in the Setup sheet. Would you like to select an AM to analyze?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
+        if (amContext && amContext.isAMTab && amContext.isTeamView) {
+          // User is on Manager Lens / ALL TEAM view
+          return `You're on the **Manager Lens** view. Would you like to see the team-wide analysis?\n\n[PORTFOLIO_ACTION:TEAM]`;
+        } else if (amContext && amContext.isAMTab && amContext.fullName) {
+          // User is on a specific AM's tab
+          return `I'll pull the portfolio analysis for **${amContext.fullName}**. Is that correct?\n\n[PORTFOLIO_ACTION:CONFIRM:${amContext.fullName}]`;
+        } else if (amContext && amContext.isAMTab) {
+          // AM tab but couldn't determine AM name
+          return `I couldn't determine the Account Manager for this tab. Would you like to select an AM to analyze?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
         } else {
+          // Not on an AM tab
           return `I don't detect an AM tab. Would you like to select an Account Manager to analyze, or see the team summary?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
         }
       }
@@ -1800,27 +1812,15 @@ const SCRIPTED_RESPONSES = {
     },
     {
       patterns: [
-        /how.*many.*(accounts|restaurants).*do.*i.*have/i,
-        /what.*my.*bucket/i,
-        /my.*account.*count/i
-      ],
-      needsAMContext: true,
-      getResponse: function(amContext) {
-        if (amContext && amContext.fullName) {
-          return `I can show you a full breakdown of your accounts. Let me pull the portfolio analysis for **${amContext.fullName}**.\n\n[PORTFOLIO_ACTION:CONFIRM:${amContext.fullName}]`;
-        }
-        return `I can show you your account breakdown. Would you like to select an AM?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
-      }
-    },
-    {
-      patterns: [
         /contract.*(renewals?|status|expir)/i,
         /term.*pending/i,
         /expir.*(contracts?|accounts?)/i
       ],
       needsAMContext: true,
       getResponse: function(amContext) {
-        if (amContext && amContext.fullName) {
+        if (amContext && amContext.isTeamView) {
+          return `You're on the Manager Lens. I'll show the team-wide contract status.\n\n[PORTFOLIO_ACTION:TEAM]`;
+        } else if (amContext && amContext.fullName) {
           return `I'll pull your contract status breakdown. Analyzing portfolio for **${amContext.fullName}**...\n\n[PORTFOLIO_ACTION:CONFIRM:${amContext.fullName}]`;
         }
         return `I can show contract status. Would you like to select an AM?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
@@ -2357,70 +2357,56 @@ function BI_runWithRuntimeLogging(opts) {
 // =============================================================
 
 /**
- * DEBUG: Diagnose Setup tab structure for AM context lookup
- * Run this from Apps Script editor to see what's in your Setup tab
+ * DEBUG: Diagnose AM context detection
+ * Run this from Apps Script editor to test the B2-based AM detection
  * @returns {Object} Diagnostic information
  */
-function debugSetupTabStructure() {
+function debugAMContext() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const activeSheet = ss.getActiveSheet();
   const sheetName = activeSheet.getName();
   
-  console.log('=== SETUP TAB DEBUG ===');
-  console.log(`Active sheet name: "${sheetName}"`);
+  console.log('=== AM CONTEXT DEBUG ===');
+  console.log(`Active sheet: "${sheetName}"`);
   
-  const setupSheet = ss.getSheetByName('Setup');
-  if (!setupSheet) {
-    console.log('ERROR: Setup sheet not found!');
-    return { error: 'Setup sheet not found' };
-  }
+  // Check B2 value
+  const b2Value = String(activeSheet.getRange('B2').getValue() || '').trim();
+  console.log(`B2 value: "${b2Value}"`);
   
-  const lastRow = setupSheet.getLastRow();
-  
-  console.log(`Setup tab has ${lastRow} rows`);
-  console.log('Expected structure: Row 1 = button, Row 2 = headers, Row 3+ = data');
-  console.log('');
-  
-  // Read AM data from B3:C[lastRow]
-  if (lastRow >= 3) {
-    const dataStartRow = 3;
-    const numRows = lastRow - dataStartRow + 1;
-    const setupData = setupSheet.getRange(dataStartRow, 2, numRows, 2).getValues();
-    
-    console.log(`AM Data (B3:C${lastRow}):`);
-    console.log('Row | Column B (Full Name) | Column C (Tab Name)');
-    console.log('----+----------------------+--------------------');
-    
-    for (let i = 0; i < setupData.length; i++) {
-      const fullName = String(setupData[i][0] || '').trim();
-      const tabName = String(setupData[i][1] || '').trim();
-      if (fullName || tabName) {
-        const matchIndicator = tabName.toLowerCase() === sheetName.toLowerCase() ? ' ← MATCH!' : '';
-        console.log(`${dataStartRow + i}   | ${fullName.padEnd(20)} | ${tabName}${matchIndicator}`);
-      }
-    }
-    
-    // Check if active sheet is found
-    const match = setupData.find(row => 
-      String(row[1] || '').trim().toLowerCase() === sheetName.toLowerCase()
-    );
-    
-    console.log('');
-    if (match) {
-      console.log(`✓ Found match: Tab "${sheetName}" → Full Name "${match[0]}"`);
-    } else {
-      console.log(`✗ No match found for tab name "${sheetName}" in Column C`);
-    }
+  if (b2Value.toUpperCase() === 'ALL TEAM') {
+    console.log('→ This is the Manager Lens / Team view');
+  } else if (b2Value) {
+    console.log(`→ This is ${b2Value}'s tab`);
   } else {
-    console.log('Not enough rows in Setup tab');
+    console.log('→ B2 is empty - cannot determine AM');
   }
   
-  return { activeSheet: sheetName };
+  // Test the actual function
+  console.log('');
+  console.log('Testing getActiveAMContext():');
+  const context = getActiveAMContext();
+  console.log(JSON.stringify(context, null, 2));
+  
+  // List all AM tabs found
+  console.log('');
+  console.log('Testing getAvailableAMTabs():');
+  const tabsResult = getAvailableAMTabs();
+  if (tabsResult.success) {
+    console.log(`Found ${tabsResult.ams.length} AM tabs:`);
+    tabsResult.ams.forEach(am => {
+      console.log(`  - ${am.fullName} (tab: ${am.tabName})`);
+    });
+  } else {
+    console.log('Error: ' + tabsResult.error);
+  }
+  
+  return { context, tabs: tabsResult };
 }
 
 /**
- * Get the active AM context by looking up the sheet name in the Setup tab
- * @returns {Object} { isAMTab, firstName, fullName, sheetName }
+ * Get the active AM context by reading B2 directly from the active sheet
+ * B2 contains the AM's full name, or "ALL TEAM" for Manager Lens
+ * @returns {Object} { isAMTab, fullName, isTeamView, sheetName }
  */
 function getActiveAMContext() {
   const functionName = 'getActiveAMContext';
@@ -2438,106 +2424,45 @@ function getActiveAMContext() {
       console.log(`[${functionName}] Not an AM tab`);
       return {
         isAMTab: false,
-        firstName: null,
         fullName: null,
+        isTeamView: false,
         sheetName: sheetName
       };
     }
     
-    // Look up the full name from Setup tab
-    // Column B = Full Name, Column C = First Name (tab name)
-    const setupSheet = ss.getSheetByName('Setup');
-    if (!setupSheet) {
-      console.log(`[${functionName}] Setup sheet not found`);
+    // Read B2 directly from the active sheet - this contains the AM's full name
+    const b2Value = String(activeSheet.getRange('B2').getValue() || '').trim();
+    
+    console.log(`[${functionName}] B2 value: "${b2Value}"`);
+    
+    // Check if this is the Manager Lens / Team view
+    if (b2Value.toUpperCase() === 'ALL TEAM') {
+      console.log(`[${functionName}] Detected Manager Lens / Team view`);
       return {
         isAMTab: true,
-        firstName: sheetName,
         fullName: null,
+        isTeamView: true,
         sheetName: sheetName
       };
     }
     
-    const lastRow = setupSheet.getLastRow();
-    if (lastRow < 3) {
-      console.log(`[${functionName}] Setup sheet has insufficient data`);
+    // B2 contains the AM's full name
+    if (b2Value) {
+      console.log(`[${functionName}] ✓ Found AM: "${b2Value}"`);
       return {
         isAMTab: true,
-        firstName: sheetName,
-        fullName: null,
+        fullName: b2Value,
+        isTeamView: false,
         sheetName: sheetName
       };
     }
     
-    // Read columns B and C from Setup tab
-    // Structure: Row 1 = button, Row 2 = headers, Row 3+ = data
-    // Data starts at row 3, but row 3 might be "Manager Lens" template
-    const dataStartRow = 3;
-    const numRows = lastRow - dataStartRow + 1;
-    
-    if (numRows < 1) {
-      console.log(`[${functionName}] No data rows in Setup tab`);
-      return {
-        isAMTab: true,
-        firstName: sheetName,
-        fullName: null,
-        sheetName: sheetName
-      };
-    }
-    
-    const setupData = setupSheet.getRange(dataStartRow, 2, numRows, 2).getValues(); // B3:C[lastRow]
-    
-    console.log(`[${functionName}] Reading Setup rows ${dataStartRow}-${lastRow} (${setupData.length} rows)`);
-    console.log(`[${functionName}] Looking for tab name: "${sheetName}"`);
-    
-    let fullName = null;
-    for (let i = 0; i < setupData.length; i++) {
-      const colB = String(setupData[i][0] || '').trim(); // Column B (Full Name / Account Manager)
-      const colC = String(setupData[i][1] || '').trim(); // Column C (Tab Name)
-      
-      // Skip empty rows
-      if (!colB || !colC) {
-        continue;
-      }
-      
-      // Skip "Manager Lens" template row
-      if (colC.toLowerCase() === 'manager lens') {
-        console.log(`[${functionName}] Skipping template row: "${colC}"`);
-        continue;
-      }
-      
-      // Skip any header-like rows that might have slipped through
-      if (colC.toLowerCase().includes('tab') && colC.toLowerCase().includes('modify')) {
-        console.log(`[${functionName}] Skipping header row: "${colC}"`);
-        continue;
-      }
-      
-      console.log(`[${functionName}] Checking row ${dataStartRow + i}: "${colB}" | "${colC}"`);
-      
-      // Match the tab name (Column C) to the sheet name (case-insensitive)
-      if (colC.toLowerCase() === sheetName.toLowerCase()) {
-        fullName = colB;
-        console.log(`[${functionName}] ✓ MATCH FOUND at row ${dataStartRow + i}: "${sheetName}" → "${fullName}"`);
-        break;
-      }
-    }
-    
-    if (!fullName) {
-      console.log(`[${functionName}] ✗ No match found for sheet "${sheetName}" in Setup tab Column C`);
-      // Log all entries to help debug
-      console.log(`[${functionName}] All Setup entries (Col B | Col C):`);
-      for (let i = 0; i < setupData.length; i++) {
-        const b = String(setupData[i][0] || '').trim();
-        const c = String(setupData[i][1] || '').trim();
-        if (b || c) {
-          console.log(`  Row ${dataStartRow + i}: "${b}" | "${c}"`);
-        }
-      }
-    }
-    
+    // B2 is empty - shouldn't happen on a valid AM tab
+    console.log(`[${functionName}] ✗ B2 is empty`);
     return {
       isAMTab: true,
-      firstName: sheetName,
-      fullName: fullName,
+      fullName: null,
+      isTeamView: false,
       sheetName: sheetName
     };
     
@@ -2545,8 +2470,8 @@ function getActiveAMContext() {
     console.error(`[${functionName}] Error: ${e.message}`);
     return {
       isAMTab: false,
-      firstName: null,
       fullName: null,
+      isTeamView: false,
       sheetName: 'Unknown',
       error: e.message
     };
@@ -2563,50 +2488,50 @@ function getAvailableAMTabs() {
   
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const allSheets = ss.getSheets();
     
-    // Get Setup tab data (Column B = Full Name, Column C = Tab Name)
-    // Structure: Row 1 = button, Row 2 = headers, Row 3+ = data
-    const setupSheet = ss.getSheetByName('Setup');
-    if (!setupSheet) {
-      return { success: false, ams: [], error: 'Setup sheet not found' };
-    }
-    
-    const lastRow = setupSheet.getLastRow();
-    if (lastRow < 3) {
-      return { success: false, ams: [], error: 'No data in Setup sheet' };
-    }
-    
-    // Start from row 3 (skip button row 1 and header row 2)
-    const dataStartRow = 3;
-    const numRows = lastRow - dataStartRow + 1;
-    
-    if (numRows < 1) {
-      return { success: false, ams: [], error: 'No AM data in Setup sheet' };
-    }
-    
-    const setupData = setupSheet.getRange(dataStartRow, 2, numRows, 2).getValues(); // B3:C[lastRow]
-    
-    // Get all sheet names in the workbook
-    const allSheets = ss.getSheets().map(s => s.getName().toLowerCase());
-    
-    // Build list of AMs that have matching tabs
+    // Scan each sheet to find AM tabs by checking B2
+    // AM tabs have the AM's full name in B2
+    // Manager Lens has "ALL TEAM" in B2
     const ams = [];
-    for (let i = 0; i < setupData.length; i++) {
-      const fullName = String(setupData[i][0] || '').trim();  // Column B
-      const tabName = String(setupData[i][1] || '').trim();   // Column C
+    const systemSheets = ['setup', 'statcore', 'distro', 'refresh', 'kh_feedback', 'manager lens'];
+    
+    for (const sheet of allSheets) {
+      const sheetName = sheet.getName();
       
-      // Skip empty rows
-      if (!fullName || !tabName) continue;
+      // Skip known system sheets
+      if (systemSheets.includes(sheetName.toLowerCase())) {
+        continue;
+      }
       
-      // Skip "Manager Lens" template row
-      if (tabName.toLowerCase() === 'manager lens') continue;
-      
-      // Check if there's a sheet with this tab name
-      if (allSheets.includes(tabName.toLowerCase())) {
+      try {
+        // Check if this sheet has the AM tab structure (Smart Select header)
+        const lastCol = Math.min(sheet.getLastColumn(), 10);
+        if (lastCol < 2) continue;
+        
+        const row2Headers = sheet.getRange(2, 1, 1, lastCol).getValues()[0];
+        const hasSmartSelect = row2Headers.some(h => 
+          String(h).toLowerCase().replace(/\s/g, '') === 'smartselect'
+        );
+        
+        if (!hasSmartSelect) continue;
+        
+        // Read B2 to get the AM name
+        const b2Value = String(sheet.getRange('B2').getValue() || '').trim();
+        
+        // Skip if B2 is empty or "ALL TEAM" (Manager Lens)
+        if (!b2Value || b2Value.toUpperCase() === 'ALL TEAM') {
+          continue;
+        }
+        
         ams.push({
-          firstName: tabName,
-          fullName: fullName
+          tabName: sheetName,
+          fullName: b2Value
         });
+        
+      } catch (sheetError) {
+        // Skip sheets that can't be read
+        console.log(`[${functionName}] Skipping sheet "${sheetName}": ${sheetError.message}`);
       }
     }
     

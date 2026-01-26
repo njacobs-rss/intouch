@@ -2357,6 +2357,68 @@ function BI_runWithRuntimeLogging(opts) {
 // =============================================================
 
 /**
+ * DEBUG: Diagnose Setup tab structure for AM context lookup
+ * Run this from Apps Script editor to see what's in your Setup tab
+ * @returns {Object} Diagnostic information
+ */
+function debugSetupTabStructure() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const activeSheet = ss.getActiveSheet();
+  const sheetName = activeSheet.getName();
+  
+  console.log('=== SETUP TAB DEBUG ===');
+  console.log(`Active sheet name: "${sheetName}"`);
+  
+  const setupSheet = ss.getSheetByName('Setup');
+  if (!setupSheet) {
+    console.log('ERROR: Setup sheet not found!');
+    return { error: 'Setup sheet not found' };
+  }
+  
+  const lastRow = setupSheet.getLastRow();
+  
+  console.log(`Setup tab has ${lastRow} rows`);
+  console.log('Expected structure: Row 1 = button, Row 2 = headers, Row 3+ = data');
+  console.log('');
+  
+  // Read AM data from B3:C[lastRow]
+  if (lastRow >= 3) {
+    const dataStartRow = 3;
+    const numRows = lastRow - dataStartRow + 1;
+    const setupData = setupSheet.getRange(dataStartRow, 2, numRows, 2).getValues();
+    
+    console.log(`AM Data (B3:C${lastRow}):`);
+    console.log('Row | Column B (Full Name) | Column C (Tab Name)');
+    console.log('----+----------------------+--------------------');
+    
+    for (let i = 0; i < setupData.length; i++) {
+      const fullName = String(setupData[i][0] || '').trim();
+      const tabName = String(setupData[i][1] || '').trim();
+      if (fullName || tabName) {
+        const matchIndicator = tabName.toLowerCase() === sheetName.toLowerCase() ? ' ← MATCH!' : '';
+        console.log(`${dataStartRow + i}   | ${fullName.padEnd(20)} | ${tabName}${matchIndicator}`);
+      }
+    }
+    
+    // Check if active sheet is found
+    const match = setupData.find(row => 
+      String(row[1] || '').trim().toLowerCase() === sheetName.toLowerCase()
+    );
+    
+    console.log('');
+    if (match) {
+      console.log(`✓ Found match: Tab "${sheetName}" → Full Name "${match[0]}"`);
+    } else {
+      console.log(`✗ No match found for tab name "${sheetName}" in Column C`);
+    }
+  } else {
+    console.log('Not enough rows in Setup tab');
+  }
+  
+  return { activeSheet: sheetName };
+}
+
+/**
  * Get the active AM context by looking up the sheet name in the Setup tab
  * @returns {Object} { isAMTab, firstName, fullName, sheetName }
  */
@@ -2396,7 +2458,8 @@ function getActiveAMContext() {
     }
     
     const lastRow = setupSheet.getLastRow();
-    if (lastRow < 2) {
+    if (lastRow < 3) {
+      console.log(`[${functionName}] Setup sheet has insufficient data`);
       return {
         isAMTab: true,
         firstName: sheetName,
@@ -2406,18 +2469,68 @@ function getActiveAMContext() {
     }
     
     // Read columns B and C from Setup tab
-    const setupData = setupSheet.getRange(2, 2, lastRow - 1, 2).getValues(); // B2:C[lastRow]
+    // Structure: Row 1 = button, Row 2 = headers, Row 3+ = data
+    // Data starts at row 3, but row 3 might be "Manager Lens" template
+    const dataStartRow = 3;
+    const numRows = lastRow - dataStartRow + 1;
+    
+    if (numRows < 1) {
+      console.log(`[${functionName}] No data rows in Setup tab`);
+      return {
+        isAMTab: true,
+        firstName: sheetName,
+        fullName: null,
+        sheetName: sheetName
+      };
+    }
+    
+    const setupData = setupSheet.getRange(dataStartRow, 2, numRows, 2).getValues(); // B3:C[lastRow]
+    
+    console.log(`[${functionName}] Reading Setup rows ${dataStartRow}-${lastRow} (${setupData.length} rows)`);
+    console.log(`[${functionName}] Looking for tab name: "${sheetName}"`);
     
     let fullName = null;
     for (let i = 0; i < setupData.length; i++) {
-      const setupFullName = String(setupData[i][0] || '').trim(); // Column B
-      const setupFirstName = String(setupData[i][1] || '').trim(); // Column C
+      const colB = String(setupData[i][0] || '').trim(); // Column B (Full Name / Account Manager)
+      const colC = String(setupData[i][1] || '').trim(); // Column C (Tab Name)
       
-      // Match the first name to the sheet name (case-insensitive)
-      if (setupFirstName.toLowerCase() === sheetName.toLowerCase()) {
-        fullName = setupFullName;
-        console.log(`[${functionName}] Found match: "${sheetName}" → "${fullName}"`);
+      // Skip empty rows
+      if (!colB || !colC) {
+        continue;
+      }
+      
+      // Skip "Manager Lens" template row
+      if (colC.toLowerCase() === 'manager lens') {
+        console.log(`[${functionName}] Skipping template row: "${colC}"`);
+        continue;
+      }
+      
+      // Skip any header-like rows that might have slipped through
+      if (colC.toLowerCase().includes('tab') && colC.toLowerCase().includes('modify')) {
+        console.log(`[${functionName}] Skipping header row: "${colC}"`);
+        continue;
+      }
+      
+      console.log(`[${functionName}] Checking row ${dataStartRow + i}: "${colB}" | "${colC}"`);
+      
+      // Match the tab name (Column C) to the sheet name (case-insensitive)
+      if (colC.toLowerCase() === sheetName.toLowerCase()) {
+        fullName = colB;
+        console.log(`[${functionName}] ✓ MATCH FOUND at row ${dataStartRow + i}: "${sheetName}" → "${fullName}"`);
         break;
+      }
+    }
+    
+    if (!fullName) {
+      console.log(`[${functionName}] ✗ No match found for sheet "${sheetName}" in Setup tab Column C`);
+      // Log all entries to help debug
+      console.log(`[${functionName}] All Setup entries (Col B | Col C):`);
+      for (let i = 0; i < setupData.length; i++) {
+        const b = String(setupData[i][0] || '').trim();
+        const c = String(setupData[i][1] || '').trim();
+        if (b || c) {
+          console.log(`  Row ${dataStartRow + i}: "${b}" | "${c}"`);
+        }
       }
     }
     
@@ -2451,18 +2564,27 @@ function getAvailableAMTabs() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // Get Setup tab data (Column B = Full Name, Column C = First Name)
+    // Get Setup tab data (Column B = Full Name, Column C = Tab Name)
+    // Structure: Row 1 = button, Row 2 = headers, Row 3+ = data
     const setupSheet = ss.getSheetByName('Setup');
     if (!setupSheet) {
       return { success: false, ams: [], error: 'Setup sheet not found' };
     }
     
     const lastRow = setupSheet.getLastRow();
-    if (lastRow < 2) {
+    if (lastRow < 3) {
       return { success: false, ams: [], error: 'No data in Setup sheet' };
     }
     
-    const setupData = setupSheet.getRange(2, 2, lastRow - 1, 2).getValues(); // B2:C[lastRow]
+    // Start from row 3 (skip button row 1 and header row 2)
+    const dataStartRow = 3;
+    const numRows = lastRow - dataStartRow + 1;
+    
+    if (numRows < 1) {
+      return { success: false, ams: [], error: 'No AM data in Setup sheet' };
+    }
+    
+    const setupData = setupSheet.getRange(dataStartRow, 2, numRows, 2).getValues(); // B3:C[lastRow]
     
     // Get all sheet names in the workbook
     const allSheets = ss.getSheets().map(s => s.getName().toLowerCase());
@@ -2470,17 +2592,21 @@ function getAvailableAMTabs() {
     // Build list of AMs that have matching tabs
     const ams = [];
     for (let i = 0; i < setupData.length; i++) {
-      const fullName = String(setupData[i][0] || '').trim();
-      const firstName = String(setupData[i][1] || '').trim();
+      const fullName = String(setupData[i][0] || '').trim();  // Column B
+      const tabName = String(setupData[i][1] || '').trim();   // Column C
       
-      if (firstName && fullName) {
-        // Check if there's a sheet with this first name
-        if (allSheets.includes(firstName.toLowerCase())) {
-          ams.push({
-            firstName: firstName,
-            fullName: fullName
-          });
-        }
+      // Skip empty rows
+      if (!fullName || !tabName) continue;
+      
+      // Skip "Manager Lens" template row
+      if (tabName.toLowerCase() === 'manager lens') continue;
+      
+      // Check if there's a sheet with this tab name
+      if (allSheets.includes(tabName.toLowerCase())) {
+        ams.push({
+          firstName: tabName,
+          fullName: fullName
+        });
       }
     }
     

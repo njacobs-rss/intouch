@@ -622,6 +622,22 @@
       background: #94a3b8;
       cursor: not-allowed;
     }
+
+    /* AM Selection List */
+    .kh-am-selection {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .kh-am-selection button {
+      font-size: 11px;
+      padding: 6px 10px;
+    }
   </style>
 </head>
 <body>
@@ -1327,7 +1343,11 @@
       pendingColumnAction: null,    // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
       pendingFunctionAction: null,  // Stores {functionName: 'manualUpdateNotesOnly', label: 'Refresh Notes'}
       pendingSlackAction: null,     // Stores {channel: 'ask-intouch'} for Slack escalation
-      modifiedColumns: {},          // Tracks which columns were modified this session: {'J': 'Customer Since', 'M': 'System Type'}
+      pendingPortfolioAction: null, // Stores {type: 'CONFIRM'|'TEAM'|'SELECT_AM', amName: 'John Smith'}
+      currentAMContext: null,       // Stores {isAMTab, firstName, fullName, sheetName}
+      availableAMs: null,           // Stores [{firstName, fullName}, ...] - cached
+      lastPortfolioData: null,      // Stores last fetched portfolio data for follow-up questions
+      modifiedColumns: {},          // Tracks which columns were modified this session
       lastModifiedMetric: null      // Tracks last modified metric for filtering advice context
     };
     
@@ -1391,8 +1411,10 @@
       khState.isOpen = !khState.isOpen;
       if (khEls.panel) khEls.panel.classList.toggle('open', khState.isOpen);
       if (khEls.fab) khEls.fab.classList.toggle('hidden', khState.isOpen);
-      if (khState.isOpen && khEls.input) {
-        khEls.input.focus();
+      if (khState.isOpen) {
+        if (khEls.input) khEls.input.focus();
+        // Initialize AM context when opening chat
+        initAMContext();
       }
     }
     
@@ -1402,6 +1424,8 @@
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
+      khState.pendingPortfolioAction = null;
+      khState.lastPortfolioData = null;
       khState.modifiedColumns = {};
       
       // Clear messages and show welcome screen
@@ -1464,6 +1488,11 @@
           khEls.input.value = '';
           return;
         }
+        if (khState.pendingPortfolioAction) {
+          executePortfolioAction(false); // false = triggered by text, not button
+          khEls.input.value = '';
+          return;
+        }
         
         // If user confirms but no pending action, check if they want filtering advice
         // (common after a column change when AI offers "let me know if you'd like filtering advice")
@@ -1479,6 +1508,7 @@
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
+      khState.pendingPortfolioAction = null;
 
       // Add user message to UI
       addKHMessage('user', query);
@@ -1503,7 +1533,7 @@
 
           if (result.success) {
             // Check for action tags and extract them
-            const { cleanedAnswer, columnAction, functionAction, slackAction } = parseColumnAction(result.answer);
+            const { cleanedAnswer, columnAction, functionAction, slackAction, portfolioAction } = parseColumnAction(result.answer);
             
             if (columnAction) {
               khState.pendingColumnAction = columnAction;
@@ -1514,9 +1544,12 @@
             if (slackAction) {
               khState.pendingSlackAction = slackAction;
             }
+            if (portfolioAction) {
+              khState.pendingPortfolioAction = portfolioAction;
+            }
             
             // Show action buttons if there's a pending action
-            const hasAction = !!columnAction || !!functionAction || !!slackAction;
+            const hasAction = !!columnAction || !!functionAction || !!slackAction || !!portfolioAction;
             addKHMessage('assistant', cleanedAnswer, hasAction);
             
             // Add to history for follow-up context
@@ -1553,12 +1586,13 @@
     
     /**
      * Parse action tags from AI response
-     * Supports both [COLUMN_ACTION:CATEGORY:METRIC] and [FUNCTION_ACTION:functionName:label]
-     * Returns { cleanedAnswer: string, columnAction: {...} | null, functionAction: {...} | null }
+     * Supports [COLUMN_ACTION:...], [FUNCTION_ACTION:...], [SLACK_ACTION:...], [PORTFOLIO_ACTION:...]
+     * Returns { cleanedAnswer, columnAction, functionAction, slackAction, portfolioAction }
      */
     function parseColumnAction(answer) {
       let columnAction = null;
       let functionAction = null;
+      let portfolioAction = null;
       
       // Match category-based column format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
       const columnRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
@@ -1620,14 +1654,41 @@
         console.log('[parseColumnAction] Found Slack action:', slackAction);
       }
       
+      // Match Portfolio action formats:
+      // [PORTFOLIO_ACTION:CONFIRM:AM Name] - Confirm analysis for specific AM
+      // [PORTFOLIO_ACTION:TEAM] - Team-wide analysis
+      // [PORTFOLIO_ACTION:SELECT_AM] - Show AM selection list
+      const portfolioConfirmRegex = /\[PORTFOLIO_ACTION:CONFIRM:([^\]]+)\]/g;
+      const portfolioConfirmMatch = portfolioConfirmRegex.exec(answer);
+      if (portfolioConfirmMatch) {
+        portfolioAction = {
+          type: 'CONFIRM',
+          amName: portfolioConfirmMatch[1].trim()
+        };
+        console.log('[parseColumnAction] Found portfolio confirm action:', portfolioAction);
+      }
+      
+      const portfolioTeamRegex = /\[PORTFOLIO_ACTION:TEAM\]/g;
+      if (portfolioTeamRegex.test(answer)) {
+        portfolioAction = { type: 'TEAM' };
+        console.log('[parseColumnAction] Found portfolio team action');
+      }
+      
+      const portfolioSelectRegex = /\[PORTFOLIO_ACTION:SELECT_AM\]/g;
+      if (portfolioSelectRegex.test(answer)) {
+        portfolioAction = { type: 'SELECT_AM' };
+        console.log('[parseColumnAction] Found portfolio select AM action');
+      }
+      
       // Remove all action tags from the displayed answer
       const cleanedAnswer = answer
         .replace(/\[COLUMN_ACTION:[^\]]+\]/g, '')
         .replace(/\[FUNCTION_ACTION:[^\]]+\]/g, '')
         .replace(/\[SLACK_ACTION:[^\]]+\]/g, '')
+        .replace(/\[PORTFOLIO_ACTION:[^\]]*\]/g, '')
         .trim();
       
-      return { cleanedAnswer, columnAction, functionAction, slackAction };
+      return { cleanedAnswer, columnAction, functionAction, slackAction, portfolioAction };
     }
     
     /**
@@ -1789,6 +1850,45 @@
                 </button>
               </div>
             `;
+          } else if (khState.pendingPortfolioAction) {
+            const action = khState.pendingPortfolioAction;
+            if (action.type === 'CONFIRM') {
+              actionButtonsHtml = `
+                <div class="kh-action-buttons">
+                  <button class="kh-action-btn primary" onclick="executePortfolioAction()">
+                    <span>📊</span> Analyze Portfolio
+                  </button>
+                  <button class="kh-action-btn secondary" onclick="showAMSelectionList()">
+                    Different AM
+                  </button>
+                  <button class="kh-action-btn secondary" onclick="executeTeamAnalysis()">
+                    Team Summary
+                  </button>
+                </div>
+              `;
+            } else if (action.type === 'TEAM') {
+              actionButtonsHtml = `
+                <div class="kh-action-buttons">
+                  <button class="kh-action-btn primary" onclick="executeTeamAnalysis()">
+                    <span>👥</span> Analyze Team
+                  </button>
+                  <button class="kh-action-btn secondary" onclick="dismissAction()">
+                    Not now
+                  </button>
+                </div>
+              `;
+            } else if (action.type === 'SELECT_AM') {
+              actionButtonsHtml = `
+                <div class="kh-action-buttons">
+                  <button class="kh-action-btn primary" onclick="showAMSelectionList()">
+                    <span>👤</span> Select AM
+                  </button>
+                  <button class="kh-action-btn secondary" onclick="dismissAction()">
+                    Not now
+                  </button>
+                </div>
+              `;
+            }
           }
         }
         
@@ -1855,10 +1955,16 @@
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
+      khState.pendingPortfolioAction = null;
       // Remove the action buttons from the last message
       const actionButtons = document.querySelector('.kh-action-buttons');
       if (actionButtons) {
         actionButtons.remove();
+      }
+      // Also remove AM selection if present
+      const amSelection = document.querySelector('.kh-am-selection');
+      if (amSelection) {
+        amSelection.remove();
       }
     }
     
@@ -1929,6 +2035,304 @@
           khState.pendingFunctionAction = null;
         })
         [functionName](); // Dynamic function call
+    }
+
+    // =========================================================
+    // --- PORTFOLIO ANALYSIS FUNCTIONS ---
+    // =========================================================
+    
+    /**
+     * Execute portfolio analysis for the pending AM
+     * @param {boolean} fromButton - If true, called from action button (don't add "Yes" message)
+     */
+    function executePortfolioAction(fromButton = true) {
+      if (!khState.pendingPortfolioAction || khState.pendingPortfolioAction.type !== 'CONFIRM') return;
+      
+      const amName = khState.pendingPortfolioAction.amName;
+      
+      // Remove action buttons if they exist
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Add user confirmation message only if triggered by text (not button)
+      if (!fromButton) {
+        addKHMessage('user', 'Yes');
+      }
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      console.log(`[executePortfolioAction] Analyzing portfolio for: ${amName}`);
+      
+      // Call backend to get portfolio data
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            // Store the data for follow-up questions
+            khState.lastPortfolioData = result.data;
+            
+            // Format and display the analysis
+            const formattedAnalysis = formatPortfolioAnalysis(result.data);
+            addKHMessage('assistant', formattedAnalysis);
+            
+            // Add to conversation history so Gemini has context
+            khState.conversationHistory.push({ 
+              role: 'assistant', 
+              content: `[Portfolio data loaded for ${amName}]\n${JSON.stringify(result.data)}` 
+            });
+          } else {
+            addKHMessage('error', 'Could not analyze portfolio: ' + (result.error || 'Unknown error'));
+          }
+          khState.pendingPortfolioAction = null;
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+          khState.pendingPortfolioAction = null;
+        })
+        .getAMPortfolioAnalysis(amName);
+    }
+    
+    /**
+     * Execute team-wide portfolio analysis
+     */
+    function executeTeamAnalysis() {
+      // Remove action buttons if they exist
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      console.log('[executeTeamAnalysis] Running team-wide analysis');
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            khState.lastPortfolioData = result.data;
+            const formattedAnalysis = formatTeamAnalysis(result.data);
+            addKHMessage('assistant', formattedAnalysis);
+            
+            khState.conversationHistory.push({ 
+              role: 'assistant', 
+              content: `[Team portfolio data loaded]\n${JSON.stringify(result.data)}` 
+            });
+          } else {
+            addKHMessage('error', 'Could not analyze team: ' + (result.error || 'Unknown error'));
+          }
+          khState.pendingPortfolioAction = null;
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+          khState.pendingPortfolioAction = null;
+        })
+        .getTeamPortfolioAnalysis();
+    }
+    
+    /**
+     * Show list of available AMs for selection
+     */
+    function showAMSelectionList() {
+      // Remove existing action buttons
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Check if we already have the list cached
+      if (khState.availableAMs && khState.availableAMs.length > 0) {
+        renderAMSelectionList(khState.availableAMs);
+        return;
+      }
+      
+      // Fetch list from backend
+      khState.isLoading = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          
+          if (result.success && result.ams.length > 0) {
+            khState.availableAMs = result.ams;
+            renderAMSelectionList(result.ams);
+          } else {
+            addKHMessage('error', 'No AM tabs found in this workbook.');
+          }
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          addKHMessage('error', 'Error loading AMs: ' + error.message);
+        })
+        .getAvailableAMTabs();
+    }
+    
+    /**
+     * Render the AM selection list as buttons
+     */
+    function renderAMSelectionList(ams) {
+      let buttonsHtml = '<div class="kh-am-selection"><p style="margin:0 0 8px 0; font-size:11px; color:#64748b;">Select an Account Manager:</p>';
+      
+      ams.forEach(am => {
+        buttonsHtml += `<button class="kh-action-btn secondary" style="margin:2px; flex:none; width:auto;" onclick="selectAMForAnalysis('${am.fullName.replace(/'/g, "\\'")}')">
+          ${am.fullName}
+        </button>`;
+      });
+      
+      buttonsHtml += `<button class="kh-action-btn secondary" style="margin:2px; flex:none; width:auto; background:#f0fdf4; border-color:#86efac;" onclick="executeTeamAnalysis()">
+        👥 All AMs (Team)
+      </button>`;
+      
+      buttonsHtml += '</div>';
+      
+      addKHMessage('assistant', 'Who would you like to analyze?\n\n' + buttonsHtml);
+    }
+    
+    /**
+     * Select a specific AM for analysis (from the list)
+     */
+    function selectAMForAnalysis(amName) {
+      // Set up the pending action and execute
+      khState.pendingPortfolioAction = {
+        type: 'CONFIRM',
+        amName: amName
+      };
+      executePortfolioAction(true);
+    }
+    
+    /**
+     * Format portfolio analysis data for display
+     */
+    function formatPortfolioAnalysis(data) {
+      const formatList = (list, maxItems = 5) => {
+        if (!list || list.length === 0) return 'None';
+        return list.slice(0, maxItems).map(item => `${item.label} (${item.count})`).join(' | ');
+      };
+      
+      let html = `## 📊 Portfolio Analysis: ${data.amName}\n\n`;
+      
+      html += `**Overview**\n`;
+      html += `- **Bucket:** ${data.bucket} accounts | **Groups:** ${data.groups}\n`;
+      html += `- **Avg Yield:** $${data.avgYield} | **Avg Sub Fee:** $${data.avgSubFee}\n\n`;
+      
+      html += `**⚠️ Contract Status** (Priority Items)\n`;
+      html += `- **Term Pending:** ${data.termPending}${data.termPending > 0 ? ' ⚠️' : ''}\n`;
+      html += `- Expired: ${data.contractRenewal.expired} | Canceling: ${data.contractRenewal.canceling} | Warning (45d): ${data.contractRenewal.warning45d}\n\n`;
+      
+      html += `**📈 Product Adoption**\n`;
+      html += `- Active PI: ${data.activePI} | Active XP: ${data.activeXP}\n`;
+      html += `- Private Dining: ${data.privateDining} | Instant Booking: ${data.instantBooking}\n`;
+      html += `- Discovery %: ${data.discoveryPct} | PI Rev Share: ${data.piRevShare}\n\n`;
+      
+      html += `**System Mix:** ${formatList(data.systemMix)}\n\n`;
+      html += `**Quality Tiers:** ${formatList(data.qualityTiers)}\n\n`;
+      html += `**Exclusive Pricing:** ${formatList(data.exclusivePricing)}\n\n`;
+      html += `**Special Programs:** ${formatList(data.specialPrograms) || 'None'}\n\n`;
+      html += `**No Booking Reasons:** ${formatList(data.noBookingReasons) || 'None'}\n\n`;
+      
+      // Add key observations
+      html += `---\n**Key Observations:**\n`;
+      
+      if (data.termPending > 0) {
+        html += `- 🔴 **${data.termPending} Term Pending** accounts need immediate renewal conversations\n`;
+      }
+      if (data.contractRenewal.expired > 0) {
+        html += `- 🔴 **${data.contractRenewal.expired} Expired** contracts - urgent outreach needed\n`;
+      }
+      if (data.noBookingReasons && data.noBookingReasons.length > 0) {
+        const fullbookIssue = data.noBookingReasons.find(r => r.label.toLowerCase().includes('fullbook'));
+        if (fullbookIssue) {
+          html += `- ⚠️ **${fullbookIssue.count} accounts** with Fullbook issues - check for system problems\n`;
+        }
+      }
+      if (data.termPending === 0 && data.contractRenewal.expired === 0) {
+        html += `- ✅ No urgent contract issues\n`;
+      }
+      
+      html += `\nWould you like me to dive deeper into any of these areas?`;
+      
+      return html;
+    }
+    
+    /**
+     * Format team analysis data for display
+     */
+    function formatTeamAnalysis(data) {
+      const formatList = (list, maxItems = 5) => {
+        if (!list || list.length === 0) return 'None';
+        return list.slice(0, maxItems).map(item => `${item.label} (${item.count})`).join(' | ');
+      };
+      
+      let html = `## 👥 Team Portfolio Analysis\n\n`;
+      
+      html += `**Overview** (${data.amCount} Account Managers)\n`;
+      html += `- **Total Bucket:** ${data.bucket} accounts | **Groups:** ${data.groups}\n`;
+      html += `- **Avg Yield:** $${data.avgYield} | **Avg Sub Fee:** $${data.avgSubFee}\n\n`;
+      
+      html += `**⚠️ Contract Status** (Team-wide)\n`;
+      html += `- **Term Pending:** ${data.termPending}${data.termPending > 0 ? ' ⚠️' : ''}\n`;
+      html += `- Expired: ${data.contractRenewal.expired} | Canceling: ${data.contractRenewal.canceling} | Warning (45d): ${data.contractRenewal.warning45d}\n\n`;
+      
+      html += `**📈 Product Adoption**\n`;
+      html += `- Active PI: ${data.activePI} | Active XP: ${data.activeXP}\n`;
+      html += `- Private Dining: ${data.privateDining} | Instant Booking: ${data.instantBooking}\n\n`;
+      
+      html += `**System Mix:** ${formatList(data.systemMix)}\n\n`;
+      html += `**Quality Tiers:** ${formatList(data.qualityTiers)}\n\n`;
+      html += `**Exclusive Pricing:** ${formatList(data.exclusivePricing)}\n\n`;
+      
+      // AM Breakdown
+      if (data.amBreakdown && data.amBreakdown.length > 0) {
+        html += `**AM Breakdown** (by bucket size):\n`;
+        data.amBreakdown.slice(0, 10).forEach(am => {
+          const flag = am.termPending > 0 ? ` ⚠️${am.termPending}` : '';
+          html += `- ${am.name}: ${am.bucket} accts${flag}\n`;
+        });
+        html += `\n`;
+      }
+      
+      html += `Would you like to see details for a specific AM?`;
+      
+      return html;
+    }
+    
+    /**
+     * Initialize AM context on chat open
+     * Called when the chat panel opens to detect current AM tab
+     */
+    function initAMContext() {
+      google.script.run
+        .withSuccessHandler((result) => {
+          khState.currentAMContext = result;
+          console.log('[initAMContext] AM Context:', result);
+        })
+        .withFailureHandler((error) => {
+          console.log('[initAMContext] Error:', error.message);
+        })
+        .getActiveAMContext();
     }
 
     function submitKHFeedback(msgId, rating) {

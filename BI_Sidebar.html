@@ -454,14 +454,6 @@
     .kh-action-btn.secondary:hover {
       background: #e2e8f0;
     }
-    .kh-action-btn.slack {
-      background: #4a154b;
-      color: white;
-      flex: 1;
-    }
-    .kh-action-btn.slack:hover {
-      background: #611f69;
-    }
     .kh-action-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -1325,7 +1317,6 @@
       conversationHistory: [],
       pendingColumnAction: null,    // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
       pendingFunctionAction: null,  // Stores {functionName: 'manualUpdateNotesOnly', label: 'Refresh Notes'}
-      pendingSlackLink: null,       // Stores {channel: 'ask-intouch', url: '...', label: '#ask-intouch'}
       modifiedColumns: {},          // Tracks which columns were modified this session: {'J': 'Customer Since', 'M': 'System Type'}
       lastModifiedMetric: null      // Tracks last modified metric for filtering advice context
     };
@@ -1475,7 +1466,6 @@
       // Clear any pending actions if user asks something else
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
-      khState.pendingSlackLink = null;
 
       // Add user message to UI
       addKHMessage('user', query);
@@ -1500,7 +1490,7 @@
 
           if (result.success) {
             // Check for action tags and extract them
-            const { cleanedAnswer, columnAction, functionAction, slackLink } = parseColumnAction(result.answer);
+            const { cleanedAnswer, columnAction, functionAction } = parseColumnAction(result.answer);
             
             if (columnAction) {
               khState.pendingColumnAction = columnAction;
@@ -1508,12 +1498,9 @@
             if (functionAction) {
               khState.pendingFunctionAction = functionAction;
             }
-            if (slackLink) {
-              khState.pendingSlackLink = slackLink;
-            }
             
-            // Show action buttons if there's a pending action or Slack link
-            const hasAction = !!columnAction || !!functionAction || !!slackLink;
+            // Show action buttons if there's a pending action
+            const hasAction = !!columnAction || !!functionAction;
             addKHMessage('assistant', cleanedAnswer, hasAction);
             
             // Add to history for follow-up context
@@ -1550,13 +1537,12 @@
     
     /**
      * Parse action tags from AI response
-     * Supports [COLUMN_ACTION:CATEGORY:METRIC], [FUNCTION_ACTION:functionName:label], and [SLACK_LINK:channel]
-     * Returns { cleanedAnswer: string, columnAction: {...} | null, functionAction: {...} | null, slackLink: {...} | null }
+     * Supports both [COLUMN_ACTION:CATEGORY:METRIC] and [FUNCTION_ACTION:functionName:label]
+     * Returns { cleanedAnswer: string, columnAction: {...} | null, functionAction: {...} | null }
      */
     function parseColumnAction(answer) {
       let columnAction = null;
       let functionAction = null;
-      let slackLink = null;
       
       // Match category-based column format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
       const columnRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
@@ -1607,27 +1593,13 @@
         console.log('[parseColumnAction] Found function action:', functionAction);
       }
       
-      // Match Slack link format: [SLACK_LINK:#channel-name] or [SLACK_LINK:channel-name]
-      const slackRegex = /\[SLACK_LINK:([^\]]+)\]/g;
-      const slackMatch = slackRegex.exec(answer);
-      if (slackMatch) {
-        const channel = slackMatch[1].trim().replace(/^#/, ''); // Remove leading # if present
-        slackLink = {
-          channel: channel,
-          url: 'https://opentable.slack.com/channels/' + channel,
-          label: '#' + channel
-        };
-        console.log('[parseColumnAction] Found Slack link:', slackLink);
-      }
-      
       // Remove all action tags from the displayed answer
       const cleanedAnswer = answer
         .replace(/\[COLUMN_ACTION:[^\]]+\]/g, '')
         .replace(/\[FUNCTION_ACTION:[^\]]+\]/g, '')
-        .replace(/\[SLACK_LINK:[^\]]+\]/g, '')
         .trim();
       
-      return { cleanedAnswer, columnAction, functionAction, slackLink };
+      return { cleanedAnswer, columnAction, functionAction };
     }
     
     /**
@@ -1777,16 +1749,6 @@
                 </button>
               </div>
             `;
-          } else if (khState.pendingSlackLink) {
-            const slackLabel = khState.pendingSlackLink.label || '#ask-intouch';
-            const slackUrl = khState.pendingSlackLink.url || 'https://opentable.slack.com/channels/ask-intouch';
-            actionButtonsHtml = `
-              <div class="kh-action-buttons">
-                <button class="kh-action-btn slack" onclick="openSlackChannel('${slackUrl}')">
-                  <span>💬</span> Open ${slackLabel} in Slack
-                </button>
-              </div>
-            `;
           }
         }
         
@@ -1852,33 +1814,11 @@
     function dismissAction() {
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
-      khState.pendingSlackLink = null;
       // Remove the action buttons from the last message
       const actionButtons = document.querySelector('.kh-action-buttons');
       if (actionButtons) {
         actionButtons.remove();
       }
-    }
-    
-    /**
-     * Open Slack channel in a new tab
-     * @param {string} url - The Slack URL to open
-     */
-    function openSlackChannel(url) {
-      // Clear pending state
-      khState.pendingSlackLink = null;
-      
-      // Remove action buttons
-      const actionButtons = document.querySelector('.kh-action-buttons');
-      if (actionButtons) {
-        actionButtons.remove();
-      }
-      
-      // Open Slack in new tab
-      window.open(url, '_blank');
-      
-      // Add confirmation message
-      addKHMessage('assistant', 'Opening Slack... If the channel didn\'t open, you can also search for **#ask-intouch** directly in your Slack app. Good luck! 🤞');
     }
     
     /**

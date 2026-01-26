@@ -1521,9 +1521,28 @@ When data is provided, you'll see something like:
 --- ACCOUNT DATA FOR John Smith ---
 Total Accounts: 47 | Groups: 12
 Term Pending: 3 | Expired: 1 | Warning (45d): 5
-Avg Yield: $423 | Avg Sub Fee: $312 | Discovery: 34.2%
-... category breakdowns with RID lists ...
+OVERALL Avg Yield: $423 | OVERALL Avg Sub Fee: $312 | Discovery: 34.2%
+
+System Mix (with per-category avg yield & sub fee):
+  - Pro: 15 accounts | Avg Yield: $567 | Avg Sub: $423 [RIDs: 123, 456, ...]
+  - Core: 28 accounts | Avg Yield: $312 | Avg Sub: $234 [RIDs: 789, ...]
+  - Basic: 4 accounts | Avg Yield: $156 | Avg Sub: $89 [RIDs: ...]
+
+Quality Tiers (with per-category avg yield & sub fee):
+  - Platinum: 8 accounts | Avg Yield: $892 | Avg Sub: $678 [RIDs: ...]
+  ...
 \`\`\`
+
+### Per-Category Metrics Available
+For **System Mix** (Core, Pro, Basic) and **Quality Tiers** (Platinum, Gold, Silver, Bronze), you have:
+- Count of accounts in that category
+- **Average Yield** for accounts in that category
+- **Average Sub Fee** for accounts in that category
+- List of RIDs
+
+This allows you to answer questions like:
+- "What is the average yield for Pro accounts?" → Read from System Mix → Pro → Avg Yield
+- "What's the average sub fee for Platinum accounts?" → Read from Quality Tiers → Platinum → Avg Sub
 
 ### Answer Questions Directly
 Use the ACTUAL values from the injected data header. The data header shows the AM name and all metrics.
@@ -2161,7 +2180,7 @@ function formatDataForInjection(data) {
   let text = `\n--- ACCOUNT DATA FOR ${data.amName} ---\n`;
   text += `Total Accounts: ${data.totalAccounts} | Groups: ${data.totalGroups}\n`;
   text += `Term Pending: ${data.termPending.count} | Expired: ${data.termExpired.count} | Warning (45d): ${data.termWarning.count}\n`;
-  text += `Avg Yield: $${data.avgYield} | Avg Sub Fee: $${data.avgSubFee} | Discovery: ${data.avgDisco}\n`;
+  text += `OVERALL Avg Yield: $${data.avgYield} | OVERALL Avg Sub Fee: $${data.avgSubFee} | Discovery: ${data.avgDisco}\n`;
   text += `MoM Change: ${data.momChange} | PI Rev Share: ${data.piRevShare} | POS Match: ${data.posMatch}\n\n`;
   
   // Features
@@ -2169,8 +2188,20 @@ function formatDataForInjection(data) {
   text += `Instant Booking: ${data.instantBooking.count} | Private Dining: ${data.privateDining.count}\n`;
   text += `Partner Feed Excluded: ${data.partnerFeedExcluded.count}\n\n`;
   
-  // Category breakdowns with RID details
-  const formatCategory = (name, items) => {
+  // Enhanced category with per-category metrics (System Mix, Quality Tiers)
+  const formatMetricCategory = (name, items) => {
+    if (!items || items.length === 0) return '';
+    let result = `${name} (with per-category avg yield & sub fee):\n`;
+    items.forEach(item => {
+      const ridList = item.rids.slice(0, 5).map(r => r.rid).join(', ');
+      const more = item.rids.length > 5 ? ` (+${item.rids.length - 5} more)` : '';
+      result += `  - ${item.name}: ${item.count} accounts | Avg Yield: $${item.avgYield} | Avg Sub: $${item.avgSubFee} [RIDs: ${ridList}${more}]\n`;
+    });
+    return result;
+  };
+  
+  // Simple category breakdowns with RID details
+  const formatSimpleCategory = (name, items) => {
     if (!items || items.length === 0) return '';
     let result = `${name}:\n`;
     items.forEach(item => {
@@ -2182,24 +2213,27 @@ function formatDataForInjection(data) {
   };
   
   // Single-category items with RID details
-  const formatSingleCategory = (name, obj) => {
+  const formatSingleItem = (name, obj) => {
     if (!obj || obj.count === 0) return '';
     const ridList = obj.rids.slice(0, 5).map(r => `${r.rid} (${r.name})`).join(', ');
     const more = obj.rids.length > 5 ? ` (+${obj.rids.length - 5} more)` : '';
     return `${name}: ${obj.count} [${ridList}${more}]\n`;
   };
   
-  text += formatSingleCategory('Term Pending RIDs', data.termPending);
-  text += formatSingleCategory('Expired RIDs', data.termExpired);
-  text += formatSingleCategory('Warning (45d) RIDs', data.termWarning);
+  text += formatSingleItem('Term Pending RIDs', data.termPending);
+  text += formatSingleItem('Expired RIDs', data.termExpired);
+  text += formatSingleItem('Warning (45d) RIDs', data.termWarning);
   text += '\n';
   
-  text += formatCategory('System Mix', data.systemMix);
-  text += formatCategory('Quality Tiers', data.qualityTiers);
-  text += formatCategory('Exclusive Pricing', data.exclusivePricing);
-  text += formatCategory('No Booking Reasons', data.noBookingReasons);
-  text += formatCategory('Special Programs', data.specialPrograms);
-  text += formatCategory('Top Metros', data.topMetros);
+  // Categories WITH per-category metrics
+  text += formatMetricCategory('System Mix', data.systemMix);
+  text += formatMetricCategory('Quality Tiers', data.qualityTiers);
+  
+  // Simple categories
+  text += formatSimpleCategory('Exclusive Pricing', data.exclusivePricing);
+  text += formatSimpleCategory('No Booking Reasons', data.noBookingReasons);
+  text += formatSimpleCategory('Special Programs', data.specialPrograms);
+  text += formatSimpleCategory('Top Metros', data.topMetros);
   
   text += `--- END ACCOUNT DATA ---\n`;
   
@@ -2870,8 +2904,9 @@ function getDetailedAMData(amName) {
       termPending: [],
       termExpired: [],
       termWarning: [],
-      systemTypes: {},      // { "Core": [{rid, name}], "Pro": [{rid, name}] }
-      qualityTiers: {},     // { "Platinum": [{rid, name}], "Gold": [{rid, name}] }
+      // Enhanced structure for system types - includes metrics aggregation
+      systemTypes: {},      // { "Core": { rids: [{rid, name}], yldSum: 0, yldCnt: 0, subSum: 0, subCnt: 0 } }
+      qualityTiers: {},     // { "Platinum": { rids: [{rid, name}], yldSum: 0, yldCnt: 0, subSum: 0, subCnt: 0 } }
       specialPrograms: {},  // { "VIP": [{rid, name}] }
       exclusivePricing: {}, // { "Freemium": [{rid, name}] }
       noBookingReasons: {}, // { "0-Fullbook": [{rid, name}] }
@@ -2882,7 +2917,7 @@ function getDetailedAMData(amName) {
       instantBooking: [],
       privateDining: [],
       partnerFeedExcluded: [],
-      // Numeric aggregations
+      // Numeric aggregations (overall)
       subSum: 0, subCnt: 0,
       yldSum: 0, yldCnt: 0,
       discoSum: 0, discoCnt: 0,
@@ -2905,11 +2940,34 @@ function getDetailedAMData(amName) {
       }
     };
     
-    const addToCategory = (category, value, rid, name) => {
+    // Simple category tracking (just RIDs)
+    const addToSimpleCategory = (category, value, rid, name) => {
       const cleanVal = String(value || '').trim();
       if (!cleanVal) return;
       if (!data[category][cleanVal]) data[category][cleanVal] = [];
       data[category][cleanVal].push({ rid, name });
+    };
+    
+    // Enhanced category tracking with metrics (for System Types and Quality Tiers)
+    const addToMetricCategory = (category, value, rid, name, yieldVal, subVal) => {
+      const cleanVal = String(value || '').trim();
+      if (!cleanVal) return;
+      if (!data[category][cleanVal]) {
+        data[category][cleanVal] = { rids: [], yldSum: 0, yldCnt: 0, subSum: 0, subCnt: 0 };
+      }
+      data[category][cleanVal].rids.push({ rid, name });
+      
+      // Add metrics if available
+      const yld = parseFloat(yieldVal);
+      if (!isNaN(yld)) {
+        data[category][cleanVal].yldSum += yld;
+        data[category][cleanVal].yldCnt++;
+      }
+      const sub = parseFloat(subVal);
+      if (!isNaN(sub)) {
+        data[category][cleanVal].subSum += sub;
+        data[category][cleanVal].subCnt++;
+      }
     };
     
     // Process each row for this AM
@@ -2920,6 +2978,10 @@ function getDetailedAMData(amName) {
       const rid = String(row[map.s_rid] || '');
       const name = String(row[map.accName] || 'Unknown');
       const dRow = dMap.get(rid);
+      
+      // Get DISTRO metrics for this RID (needed for per-category tracking)
+      const yieldVal = dRow ? dRow[map.yield] : null;
+      const subVal = dRow ? dRow[map.subfees] : null;
       
       data.allRids.push({ rid, name });
       
@@ -2939,19 +3001,21 @@ function getDetailedAMData(amName) {
         data.termPending.push({ rid, name });
       }
       
-      // Categories with RID tracking
-      addToCategory('systemTypes', row[map.sysType], rid, name);
-      addToCategory('qualityTiers', row[map.qual], rid, name);
-      addToCategory('specialPrograms', row[map.programs], rid, name);
-      addToCategory('exclusivePricing', row[map.pricing], rid, name);
-      addToCategory('metros', row[map.metro], rid, name);
-      addToCategory('systemOfRecord', row[map.sor], rid, name);
+      // Enhanced categories - track metrics per category value
+      addToMetricCategory('systemTypes', row[map.sysType], rid, name, yieldVal, subVal);
+      addToMetricCategory('qualityTiers', row[map.qual], rid, name, yieldVal, subVal);
+      
+      // Simple categories - just RID tracking
+      addToSimpleCategory('specialPrograms', row[map.programs], rid, name);
+      addToSimpleCategory('exclusivePricing', row[map.pricing], rid, name);
+      addToSimpleCategory('metros', row[map.metro], rid, name);
+      addToSimpleCategory('systemOfRecord', row[map.sor], rid, name);
       
       // Features
       if (map.ib > -1 && isTrue(row[map.ib])) data.instantBooking.push({ rid, name });
       if (map.pd > -1 && isTrue(row[map.pd])) data.privateDining.push({ rid, name });
       
-      // DISTRO metrics
+      // DISTRO metrics (overall aggregations)
       if (dRow) {
         addNum('sub', dRow[map.subfees]);
         addNum('yld', dRow[map.yield]);
@@ -2966,17 +3030,30 @@ function getDetailedAMData(amName) {
         const pf = String(dRow[map.pf]||"").toUpperCase();
         if (pf.includes("EXCLUDED") || pf === "FALSE") data.partnerFeedExcluded.push({ rid, name });
         
-        addToCategory('noBookingReasons', dRow[map.noBook], rid, name);
+        addToSimpleCategory('noBookingReasons', dRow[map.noBook], rid, name);
       }
     });
     
     // Calculate averages
     const calcAvg = (sum, cnt, decimals) => cnt > 0 ? (sum / cnt).toFixed(decimals) : '0';
     
-    // Format category to sorted list with counts
-    const formatCategory = (cat) => {
+    // Format simple category to sorted list with counts
+    const formatSimpleCategory = (cat) => {
       return Object.entries(cat)
         .map(([key, arr]) => ({ name: key, count: arr.length, rids: arr }))
+        .sort((a, b) => b.count - a.count);
+    };
+    
+    // Format enhanced category with metrics (System Types, Quality Tiers)
+    const formatMetricCategory = (cat) => {
+      return Object.entries(cat)
+        .map(([key, obj]) => ({
+          name: key,
+          count: obj.rids.length,
+          rids: obj.rids,
+          avgYield: calcAvg(obj.yldSum, obj.yldCnt, 0),
+          avgSubFee: calcAvg(obj.subSum, obj.subCnt, 0)
+        }))
         .sort((a, b) => b.count - a.count);
     };
     
@@ -2994,7 +3071,7 @@ function getDetailedAMData(amName) {
       termExpired: { count: data.termExpired.length, rids: data.termExpired },
       termWarning: { count: data.termWarning.length, rids: data.termWarning },
       
-      // Averages
+      // Averages (overall)
       avgYield: calcAvg(data.yldSum, data.yldCnt, 0),
       avgSubFee: calcAvg(data.subSum, data.subCnt, 0),
       avgDisco: calcAvg(data.discoSum, data.discoCnt, 1) + '%',
@@ -3009,14 +3086,16 @@ function getDetailedAMData(amName) {
       privateDining: { count: data.privateDining.length, rids: data.privateDining },
       partnerFeedExcluded: { count: data.partnerFeedExcluded.length, rids: data.partnerFeedExcluded },
       
-      // Categories with RIDs
-      systemMix: formatCategory(data.systemTypes),
-      qualityTiers: formatCategory(data.qualityTiers),
-      specialPrograms: formatCategory(data.specialPrograms),
-      exclusivePricing: formatCategory(data.exclusivePricing),
-      noBookingReasons: formatCategory(data.noBookingReasons),
-      topMetros: formatCategory(data.metros),
-      systemOfRecord: formatCategory(data.systemOfRecord),
+      // Enhanced categories WITH per-category metrics (avgYield, avgSubFee)
+      systemMix: formatMetricCategory(data.systemTypes),
+      qualityTiers: formatMetricCategory(data.qualityTiers),
+      
+      // Simple categories (RIDs only)
+      specialPrograms: formatSimpleCategory(data.specialPrograms),
+      exclusivePricing: formatSimpleCategory(data.exclusivePricing),
+      noBookingReasons: formatSimpleCategory(data.noBookingReasons),
+      topMetros: formatSimpleCategory(data.metros),
+      systemOfRecord: formatSimpleCategory(data.systemOfRecord),
       
       durationMs: new Date() - startTime
     };

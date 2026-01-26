@@ -55,6 +55,19 @@ When providing code changes:
 □ Are there ZERO placeholder comments?
 ```
 
+### 🧠 Anti-Rationalization Check
+
+**If your reasoning includes ANY of these, STOP and ask permission:**
+
+- "I'll just clean this up while I'm here..."
+- "This could be more efficient if I..."
+- "These functions should really be combined..."
+- "This unused variable should be removed..."
+- "Let me simplify this logic..."
+- "This pattern could be modernized..."
+
+**You do NOT have permission to improve code that wasn't discussed.**
+
 ---
 
 ## Project Overview
@@ -90,6 +103,42 @@ for (let i = 0; i < data.length; i += batchSize) {
 
 // ❌ WRONG: Single massive write
 sheet.getRange(1, 1, 30000, 50).setValues(hugeArray); // Will timeout
+```
+
+### 1b. Time-Aware Batch Continuation (for 6-minute limits)
+For long-running processes that may exceed GAS limits:
+```javascript
+function processBatchWithContinuation(startRow) {
+  const BATCH_SIZE = 500;
+  const MAX_TIME = 270000; // 4.5 minutes (leave buffer)
+  const startTime = Date.now();
+  
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Data');
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = startRow; i < data.length; i++) {
+    if (Date.now() - startTime > MAX_TIME) {
+      // Save progress and schedule continuation
+      PropertiesService.getScriptProperties().setProperty('lastRow', i.toString());
+      ScriptApp.newTrigger('continueProcessing').timeBased().after(1000).create();
+      Logger.log(`Paused at row ${i}, continuation scheduled.`);
+      return;
+    }
+    // Process row...
+    if (i % BATCH_SIZE === 0) SpreadsheetApp.flush();
+  }
+  // Cleanup when complete
+  PropertiesService.getScriptProperties().deleteProperty('lastRow');
+}
+
+function continueProcessing() {
+  const lastRow = parseInt(PropertiesService.getScriptProperties().getProperty('lastRow') || '1');
+  // Delete the trigger that called us
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'continueProcessing') ScriptApp.deleteTrigger(t);
+  });
+  processBatchWithContinuation(lastRow);
+}
 ```
 
 ### 2. Column Lookup Pattern (Fuzzy Matching)
@@ -305,6 +354,88 @@ See `targets.json` for deployment destinations.
 
 ---
 
+## Multi-Model Collaboration Protocol
+
+This codebase may be worked on by multiple AI models (Claude, Gemini, GPT-4, Cursor). This is normal.
+
+### Core Principles
+
+| Principle | Implementation |
+|-----------|----------------|
+| No ego | Build on other models' work; don't rewrite unnecessarily |
+| Critical eye | Evaluate all code for correctness, including from other models |
+| Consistency | Match existing patterns regardless of who wrote them |
+| Preservation | The Code Preservation Rules apply to ALL code, including other models' output |
+
+### Model Strengths (for reference)
+
+| Task | Best Model | Reason |
+|------|------------|--------|
+| Large codebase analysis | Gemini | 2M token context |
+| Nuanced code review | Claude | Detailed reasoning |
+| Quick iterations | GPT-4 | Fast responses |
+| Google Workspace APIs | Gemini | Native API knowledge |
+| Complex refactoring | Claude | Careful preservation |
+| Rapid prototyping | GPT-4 | Good first drafts |
+
+### When Continuing Another Model's Work
+
+1. Request full context if only partial code shared
+2. Identify patterns and style used
+3. Match those patterns EXACTLY
+4. Mark your contribution:
+```javascript
+// --- Continuation by [Model Name] ---
+```
+5. Do NOT refactor their existing code
+
+### Code Review Template (when reviewing another model's code)
+
+```
+## Code Review
+### Strengths
+- [What's done well]
+
+### Issues Found
+| Issue | Severity | Location |
+|-------|----------|----------|
+
+### Recommendation
+[Keep / Modify / Reconsider]
+
+### Changes (if needed)
+[Minimal, targeted only]
+```
+
+### Session Handoff Template (when switching models)
+
+```
+## Session Handoff
+
+### Completed
+- [Work done]
+
+### Files Modified
+| File | Changes |
+|------|---------|
+
+### Current State
+- Working: [what's functional]
+- In Progress: [what's incomplete]
+
+### ⚠️ DO NOT MODIFY
+- [Protected code]
+- [Patterns to maintain]
+
+### Next Steps
+1. [Continuation point]
+
+### Context
+[Key decisions, constraints, gotchas]
+```
+
+---
+
 ## AI Assistant Instructions
 
 ### Golden Rule: PRESERVE FIRST, MODIFY SECOND
@@ -343,3 +474,96 @@ This codebase works in production with 30,000+ rows. Every "inefficiency" exists
 - Proposing to "simplify" batch processing
 - Recommending consolidation of helper functions
 - Offering to "clean up" or "refactor" anything not discussed
+
+---
+
+## Response Protocols
+
+### New Feature Request
+1. **Confirm Understanding** — Restate intent, constraints, assumptions
+2. **Propose Approach** — Architecture, files to modify
+3. **Deliver Code** — Complete, commented, ready-to-use
+4. **Usage Instructions** — Deployment, testing
+5. **Extensions** — Note but don't implement unless asked
+
+### Debug/Fix Request
+1. **Root Cause** — Analyze the error
+2. **Minimal Fix** — Smallest change that works
+3. **Verification** — How to confirm it works
+
+### Architecture Request
+1. **Current State** — What exists
+2. **Proposed Structure** — How it should look
+3. **Roadmap** — Implementation order
+
+---
+
+## Communication Contract
+
+| You Give Me | I Will |
+|-------------|--------|
+| Vague idea | Ask 1-2 questions, then build |
+| Clear spec | Confirm understanding, build immediately |
+| Existing code + "add X" | Modify minimally, preserve everything |
+| Error message | Diagnose, provide targeted fix |
+| "What if..." | Explore idea, outline tradeoffs |
+
+**I will NOT:**
+- Add unnecessary preamble
+- Refactor outside scope
+- Assume without checking
+- Provide incomplete code
+- Use placeholder comments
+
+---
+
+## Quick Commands
+
+Use these shorthand commands for faster interaction:
+
+### Core Commands
+
+| Command | Effect |
+|---------|--------|
+| `[preserve]` | Maximum code preservation enforcement |
+| `[explain]` | Detailed comments and explanations |
+| `[minimal]` | Just code, no commentary |
+| `[debug]` | Diagnostic mode with error analysis |
+| `[architecture]` | Planning mode, discuss before coding |
+| `[extend]` | Build on existing code |
+| `[snippet]` | Just the relevant piece |
+| `[full]` | Complete file, production-ready |
+
+### Multi-Model Commands
+
+| Command | Effect |
+|---------|--------|
+| `[review]` | Evaluate code from another model |
+| `[continue]` | Resume another model's work |
+| `[compare]` | Side-by-side analysis |
+| `[handoff]` | Generate transfer summary |
+| `[integrate]` | Merge code into codebase |
+| `[reconcile]` | Resolve conflicts between models |
+
+### Intent Commands
+
+| Command | Effect |
+|---------|--------|
+| `[vibe]` | Interpret vague request into specific implementation |
+| `[systems]` | Architecture/design only, no code |
+| `[code]` | Output ONLY code, no explanation |
+
+**Combinations:** `[continue][preserve]`, `[debug][explain]`, `[integrate][full]`
+
+---
+
+## Context I Need
+
+For best results, provide:
+
+1. **What exists** — Relevant code or description of current state
+2. **What you want** — Desired outcome or behavior
+3. **Constraints** — Must-haves, can't-dos, performance requirements
+4. **Platform** — Where it runs (which sheet, sidebar, trigger, etc.)
+
+If any of these are missing, I'll ask before assuming.

@@ -1634,11 +1634,11 @@ const SCRIPTED_RESPONSES = {
   escalation: [
     {
       patterns: [/talk.*human/i, /real.*person/i, /speak.*someone/i, /contact.*support/i, /get.*help/i, /escalate/i],
-      response: `**Need Human Support?**\n\nFor issues I can't resolve, reach out to the InTouch support team:\n\n**Slack:** #ask-intouch\n\nThe team can help with:\n- Complex data issues\n- Access/permission problems\n- Bug reports\n- Feature requests`
+      response: `**Need Human Support?**\n\nFor issues I can't resolve, reach out to the InTouch support team on Slack.\n\nThe team can help with:\n- Complex data issues\n- Access/permission problems\n- Bug reports\n- Feature requests\n\n[SLACK_ACTION:ask-intouch]`
     },
     {
       patterns: [/bug/i, /broken/i, /not.*working/i, /error/i, /crash/i],
-      response: `**Reporting an Issue:**\n\nIf something isn't working correctly:\n\n1. **Try refreshing** the sidebar (close and reopen)\n2. **Check your connection** to the sheet\n3. **Note the error** message if any\n\nIf the problem persists, please report it in **#ask-intouch** on Slack with:\n- What you were trying to do\n- What happened instead\n- Any error messages`
+      response: `**Reporting an Issue:**\n\nIf something isn't working correctly:\n\n1. **Try refreshing** the sidebar (close and reopen)\n2. **Check your connection** to the sheet\n3. **Note the error** message if any\n\nIf the problem persists, please report it in #ask-intouch on Slack with:\n- What you were trying to do\n- What happened instead\n- Any error messages\n\n[SLACK_ACTION:ask-intouch]`
     }
   ]
 };

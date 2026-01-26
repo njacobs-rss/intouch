@@ -196,7 +196,7 @@
       font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.3px;
-      z-index: 900;
+      z-index: 2100; /* Above overlays so FAB stays accessible */
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .kh-fab:hover {
@@ -219,7 +219,7 @@
       box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.15);
       display: flex;
       flex-direction: column;
-      z-index: 950;
+      z-index: 2100; /* Above loading/results overlays (2000) so chat stays visible */
       overflow: hidden;
       opacity: 0;
       transform: translateY(100%);
@@ -453,6 +453,14 @@
     }
     .kh-action-btn.secondary:hover {
       background: #e2e8f0;
+    }
+    .kh-action-btn.slack {
+      background: #4a154b;
+      color: white;
+      border: none;
+    }
+    .kh-action-btn.slack:hover {
+      background: #611f69;
     }
     .kh-action-btn:disabled {
       opacity: 0.5;
@@ -1317,6 +1325,7 @@
       conversationHistory: [],
       pendingColumnAction: null,    // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
       pendingFunctionAction: null,  // Stores {functionName: 'manualUpdateNotesOnly', label: 'Refresh Notes'}
+      pendingSlackAction: null,     // Stores {channel: 'ask-intouch'} for Slack escalation
       modifiedColumns: {},          // Tracks which columns were modified this session: {'J': 'Customer Since', 'M': 'System Type'}
       lastModifiedMetric: null      // Tracks last modified metric for filtering advice context
     };
@@ -1390,6 +1399,8 @@
       // Reset conversation state
       khState.conversationHistory = [];
       khState.pendingColumnAction = null;
+      khState.pendingFunctionAction = null;
+      khState.pendingSlackAction = null;
       khState.modifiedColumns = {};
       
       // Clear messages and show welcome screen
@@ -1466,6 +1477,7 @@
       // Clear any pending actions if user asks something else
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
+      khState.pendingSlackAction = null;
 
       // Add user message to UI
       addKHMessage('user', query);
@@ -1490,7 +1502,7 @@
 
           if (result.success) {
             // Check for action tags and extract them
-            const { cleanedAnswer, columnAction, functionAction } = parseColumnAction(result.answer);
+            const { cleanedAnswer, columnAction, functionAction, slackAction } = parseColumnAction(result.answer);
             
             if (columnAction) {
               khState.pendingColumnAction = columnAction;
@@ -1498,9 +1510,12 @@
             if (functionAction) {
               khState.pendingFunctionAction = functionAction;
             }
+            if (slackAction) {
+              khState.pendingSlackAction = slackAction;
+            }
             
             // Show action buttons if there's a pending action
-            const hasAction = !!columnAction || !!functionAction;
+            const hasAction = !!columnAction || !!functionAction || !!slackAction;
             addKHMessage('assistant', cleanedAnswer, hasAction);
             
             // Add to history for follow-up context
@@ -1593,13 +1608,25 @@
         console.log('[parseColumnAction] Found function action:', functionAction);
       }
       
+      // Match Slack action format: [SLACK_ACTION:channel-name]
+      let slackAction = null;
+      const slackRegex = /\[SLACK_ACTION:([^\]]+)\]/g;
+      const slackMatch = slackRegex.exec(answer);
+      if (slackMatch) {
+        slackAction = {
+          channel: slackMatch[1].trim()
+        };
+        console.log('[parseColumnAction] Found Slack action:', slackAction);
+      }
+      
       // Remove all action tags from the displayed answer
       const cleanedAnswer = answer
         .replace(/\[COLUMN_ACTION:[^\]]+\]/g, '')
         .replace(/\[FUNCTION_ACTION:[^\]]+\]/g, '')
+        .replace(/\[SLACK_ACTION:[^\]]+\]/g, '')
         .trim();
       
-      return { cleanedAnswer, columnAction, functionAction };
+      return { cleanedAnswer, columnAction, functionAction, slackAction };
     }
     
     /**
@@ -1749,6 +1776,18 @@
                 </button>
               </div>
             `;
+          } else if (khState.pendingSlackAction) {
+            const channel = khState.pendingSlackAction.channel;
+            actionButtonsHtml = `
+              <div class="kh-action-buttons">
+                <button class="kh-action-btn slack" onclick="openSlackChannel('${channel}')">
+                  Open #${channel} in Slack
+                </button>
+                <button class="kh-action-btn secondary" onclick="dismissAction()">
+                  Not now
+                </button>
+              </div>
+            `;
           }
         }
         
@@ -1814,11 +1853,34 @@
     function dismissAction() {
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
+      khState.pendingSlackAction = null;
       // Remove the action buttons from the last message
       const actionButtons = document.querySelector('.kh-action-buttons');
       if (actionButtons) {
         actionButtons.remove();
       }
+    }
+    
+    /**
+     * Open a Slack channel in a new window
+     * @param {string} channel - The channel name (without #)
+     */
+    function openSlackChannel(channel) {
+      // Remove action buttons
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Open Slack channel (web URL format)
+      const slackUrl = 'https://slack.com/app_redirect?channel=' + encodeURIComponent(channel);
+      window.open(slackUrl, '_blank');
+      
+      // Clear the pending action
+      khState.pendingSlackAction = null;
+      
+      // Add confirmation message
+      addKHMessage('assistant', 'Opening #' + channel + ' in Slack. The support team is happy to help!');
     }
     
     /**

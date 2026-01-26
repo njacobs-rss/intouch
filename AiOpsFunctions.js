@@ -1584,6 +1584,22 @@ const SCRIPTED_RESPONSES = {
       patterns: [/how.*(filter|sort).*(revenue|yield|money)/i, /filter.*(high|low|top).*(revenue|yield)/i],
       response: `**Filtering by Revenue:**\n\n**To find top revenue accounts:**\n1. Click the **Revenue** column header\n2. Sort Z→A (high to low)\n3. Top accounts appear first\n\n**To find underperforming accounts:**\n1. Sort A→Z (low to high)\n2. Look for accounts with low yield relative to their system type\n\n**Pro tip:** Compare against Avg Yield for the system type to identify outliers.`
     }
+  ],
+  
+  // FAQ - Common questions from user guide (Step 1: Minimal set)
+  faq: [
+    {
+      patterns: [/metro.*vs.*macro/i, /macro.*vs.*metro/i, /difference.*metro.*macro/i, /difference.*macro.*metro/i],
+      response: `**Metro vs Macro:**\n\n- **Metro** = Major market area (e.g., "Los Angeles", "New York")\n- **Macro** = Neighborhood or sub-area (e.g., "Santa Monica", "Manhattan")\n\nBoth are in the **Location** section (Column I). Would you like me to change it?\n\n[COLUMN_ACTION:LOCATION:Metro]`
+    },
+    {
+      patterns: [/what.*is.*network/i, /what.*does.*network.*mean/i, /define.*network/i],
+      response: `**Network = Direct + Discovery**\n\nNetwork represents all OpenTable platform bookings:\n- **Direct** = OT app, OT website, saved restaurants\n- **Discovery** = Marketplace search/browse\n\nNote: Google is an attribution overlay within Direct/Discovery - never add it separately to Fullbook calculations.`
+    },
+    {
+      patterns: [/what.*is.*restref/i, /what.*does.*restref.*mean/i, /define.*restref/i],
+      response: `**RestRef** = Bookings made through the restaurant's own website using the OpenTable widget.\n\nThis is different from:\n- **Discovery** (marketplace browsing)\n- **Direct** (OT app/site)\n\nRestRef appears in the **Seated Covers** section.`
+    }
   ]
 };
 
@@ -1646,7 +1662,17 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 6. Check for "how to see/find/show" + known value patterns
+  // 6. Check FAQ patterns
+  for (const item of SCRIPTED_RESPONSES.faq) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched FAQ pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 8. Check for "how to see/find/show" + known value patterns
   const actionPatterns = [
     /(?:how|where).*(?:can i |do i |to )?(see|find|show|view|filter|get).*\b(\w+)\b/i,
     /(?:see|find|show|view|filter|get).*\b(\w+)\b.*(?:accounts?|restaurants?)/i,
@@ -1677,7 +1703,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 7. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
+  // 9. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
   const metricLookupPatterns = [
     /(?:where|how).*(?:is|can i (?:see|find)).*["']?([^"'?]+)["']?\s*\??$/i,
     /(?:show|display|add).*["']?([^"'?]+)["']?\s*(?:column|metric)?\s*\??$/i

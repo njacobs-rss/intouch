@@ -1599,6 +1599,34 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/what.*is.*restref/i, /what.*does.*restref.*mean/i, /define.*restref/i],
       response: `**RestRef** = Bookings made through the restaurant's own website using the OpenTable widget.\n\nThis is different from:\n- **Discovery** (marketplace browsing)\n- **Direct** (OT app/site)\n\nRestRef appears in the **Seated Covers** section.`
+    },
+    {
+      patterns: [/what.*is.*fullbook/i, /what.*does.*fullbook.*mean/i, /define.*fullbook/i],
+      response: `**Fullbook** = Total seated covers from all sources.\n\nFormula: **Network + RestRef + Phone/Walk-in + Third Party**\n\n- Network = Direct + Discovery (OT platform)\n- RestRef = Restaurant website widget\n- Phone/Walk-in = Manual entries\n- Third Party = Other booking platforms\n\nNote: Never add Google separately - it's already included in Direct/Discovery.`
+    },
+    {
+      patterns: [/what.*is.*system.*type/i, /system.*type.*mean/i, /define.*system.*type/i, /erg.*vs.*core/i, /core.*vs.*erg/i],
+      response: `**System Types:**\n\n- **ERG (ERB/GuestBridge)** = Legacy system, typically higher touch\n- **Core** = Modern system, more self-service\n\nSystem type affects expected yield and how you approach the account. You can filter by System Type in the Location section.`
+    }
+  ],
+  
+  // Workflows - Step-by-step guidance (Step 2)
+  workflows: [
+    {
+      patterns: [/how.*prep.*qbr/i, /qbr.*prep/i, /prepare.*qbr/i, /quarterly.*business.*review/i],
+      response: `**QBR Prep Workflow:**\n\n1. **Pull the AI Brief** - Click "AI Brief" button for account summary\n2. **Check Key Metrics:**\n   - Seated Covers trend (up/down?)\n   - Discovery % (marketplace dependency)\n   - Yield vs Avg Yield (revenue health)\n3. **Review Dynamic Notes** - Look for flagged issues\n4. **Check Term End Date** - Renewal conversation needed?\n5. **Generate BizInsights Deck** - For visual presentation\n\nWould you like help with any of these steps?`
+    },
+    {
+      patterns: [/how.*use.*ai.*brief/i, /what.*ai.*brief/i, /ai.*brief.*do/i],
+      response: `**AI Brief Feature:**\n\n1. Select an account (click any row)\n2. Click the **"AI Brief"** button in the sidebar\n3. Get an instant summary including:\n   - Account health snapshot\n   - Key metrics and trends\n   - Potential talking points\n   - Risk indicators\n\nThe AI Brief uses your account data to generate contextual insights for conversations.`
+    },
+    {
+      patterns: [/how.*change.*column/i, /switch.*column/i, /different.*column/i, /show.*different.*metric/i],
+      response: `**Changing Your View Column:**\n\n1. Ask me! Just say "show me [metric name]" or "change to [column]"\n2. Or use the dropdown in the sidebar\n3. Common options:\n   - Seated Covers, Discovery %, Yield\n   - Network, RestRef, Direct\n   - Term End Date, Status\n\nWhat would you like to see?`
+    },
+    {
+      patterns: [/how.*refresh.*notes/i, /update.*notes/i, /notes.*not.*showing/i, /refresh.*dynamic.*notes/i],
+      response: `**Refreshing Dynamic Notes:**\n\n1. Click the **"Refresh Notes"** button in the sidebar\n2. Notes update based on current data rules\n3. If still not showing:\n   - Check if the account has any flagged conditions\n   - Some accounts may not trigger any note rules\n\nWould you like me to refresh notes now?\n\n[NOTES_ACTION:REFRESH]`
     }
   ]
 };
@@ -1667,6 +1695,16 @@ function tryScriptedResponse(query) {
     for (const pattern of item.patterns) {
       if (pattern.test(normalizedQuery)) {
         console.log('[tryScriptedResponse] Matched FAQ pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 7. Check workflow patterns
+  for (const item of SCRIPTED_RESPONSES.workflows) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched workflow pattern');
         return { success: true, answer: item.response, source: 'scripted' };
       }
     }

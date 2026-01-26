@@ -2137,8 +2137,10 @@ function askInTouchGuide(userQuery, conversationHistory) {
 
 /**
  * Feedback logging sheet configuration
+ * All feedback from all sheets goes to this central master spreadsheet
  */
 const KH_FEEDBACK_CONFIG = {
+  MASTER_SPREADSHEET_ID: '1xDOgLdl5cT3T9okuL0WryH_vCyoV-f38kBbkEpkS1PI',
   SHEET_NAME: 'KH_Feedback',
   HEADERS: ['Timestamp', 'User', 'Source', 'Query', 'Response', 'Rating', 'Correction', 'Status']
 };
@@ -2157,12 +2159,21 @@ function logKnowledgeHubFeedback(feedback) {
       return { success: false, error: 'No feedback provided' };
     }
     
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(KH_FEEDBACK_CONFIG.SHEET_NAME);
+    // Get source spreadsheet name before opening master
+    const activeSs = SpreadsheetApp.getActiveSpreadsheet();
+    let source = 'Sidebar';
+    try {
+      const ssName = activeSs.getName();
+      if (ssName) source = ssName.substring(0, 30); // Truncate long names
+    } catch (e) {}
+    
+    // Open the central master feedback spreadsheet
+    const masterSs = SpreadsheetApp.openById(KH_FEEDBACK_CONFIG.MASTER_SPREADSHEET_ID);
+    let sheet = masterSs.getSheetByName(KH_FEEDBACK_CONFIG.SHEET_NAME);
     
     // Create feedback sheet if it doesn't exist
     if (!sheet) {
-      sheet = ss.insertSheet(KH_FEEDBACK_CONFIG.SHEET_NAME);
+      sheet = masterSs.insertSheet(KH_FEEDBACK_CONFIG.SHEET_NAME);
       sheet.getRange(1, 1, 1, KH_FEEDBACK_CONFIG.HEADERS.length)
         .setValues([KH_FEEDBACK_CONFIG.HEADERS])
         .setFontWeight('bold')
@@ -2185,13 +2196,6 @@ function logKnowledgeHubFeedback(feedback) {
       return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
     };
     
-    // Determine source based on spreadsheet name or default to Sidebar
-    let source = 'Sidebar';
-    try {
-      const ssName = ss.getName();
-      if (ssName) source = ssName.substring(0, 30); // Truncate long names
-    } catch (e) {}
-    
     // Add feedback row with source identifier
     const row = [
       new Date(),
@@ -2206,7 +2210,7 @@ function logKnowledgeHubFeedback(feedback) {
     
     sheet.appendRow(row);
     
-    console.log('KH Feedback logged: ' + feedback.rating + (feedback.correction ? ' + correction' : ''));
+    console.log('KH Feedback logged to master: ' + feedback.rating + (feedback.correction ? ' + correction' : ''));
     
     return {
       success: true,
@@ -2227,12 +2231,13 @@ function logKnowledgeHubFeedback(feedback) {
 /**
  * Get pending feedback corrections for review
  * Use this to review and improve the system instruction
+ * Reads from the central master feedback spreadsheet
  * @returns {Array} Array of feedback entries needing review
  */
 function getKHFeedbackForReview() {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(KH_FEEDBACK_CONFIG.SHEET_NAME);
+    const masterSs = SpreadsheetApp.openById(KH_FEEDBACK_CONFIG.MASTER_SPREADSHEET_ID);
+    const sheet = masterSs.getSheetByName(KH_FEEDBACK_CONFIG.SHEET_NAME);
     
     if (!sheet || sheet.getLastRow() < 2) {
       return { success: true, data: [], message: 'No feedback yet' };

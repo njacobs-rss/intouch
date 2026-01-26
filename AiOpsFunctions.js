@@ -1628,6 +1628,18 @@ const SCRIPTED_RESPONSES = {
       patterns: [/how.*refresh.*notes/i, /update.*notes/i, /notes.*not.*showing/i, /refresh.*dynamic.*notes/i],
       response: `**Refreshing Dynamic Notes:**\n\n1. Click the **"Refresh Notes"** button in the sidebar\n2. Notes update based on current data rules\n3. If still not showing:\n   - Check if the account has any flagged conditions\n   - Some accounts may not trigger any note rules\n\nWould you like me to refresh notes now?\n\n[NOTES_ACTION:REFRESH]`
     }
+  ],
+  
+  // Escalation - Direct user to Slack support (Step 3)
+  escalation: [
+    {
+      patterns: [/talk.*human/i, /real.*person/i, /speak.*someone/i, /contact.*support/i, /get.*help/i, /escalate/i],
+      response: `**Need Human Support?**\n\nFor issues I can't resolve, reach out to the InTouch support team:\n\n**Slack:** #ask-intouch\n\nThe team can help with:\n- Complex data issues\n- Access/permission problems\n- Bug reports\n- Feature requests`
+    },
+    {
+      patterns: [/bug/i, /broken/i, /not.*working/i, /error/i, /crash/i],
+      response: `**Reporting an Issue:**\n\nIf something isn't working correctly:\n\n1. **Try refreshing** the sidebar (close and reopen)\n2. **Check your connection** to the sheet\n3. **Note the error** message if any\n\nIf the problem persists, please report it in **#ask-intouch** on Slack with:\n- What you were trying to do\n- What happened instead\n- Any error messages`
+    }
   ]
 };
 
@@ -1710,7 +1722,17 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 8. Check for "how to see/find/show" + known value patterns
+  // 8. Check escalation patterns (user wants human help)
+  for (const item of SCRIPTED_RESPONSES.escalation) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched escalation pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 9. Check for "how to see/find/show" + known value patterns
   const actionPatterns = [
     /(?:how|where).*(?:can i |do i |to )?(see|find|show|view|filter|get).*\b(\w+)\b/i,
     /(?:see|find|show|view|filter|get).*\b(\w+)\b.*(?:accounts?|restaurants?)/i,
@@ -1741,7 +1763,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 9. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
+  // 10. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
   const metricLookupPatterns = [
     /(?:where|how).*(?:is|can i (?:see|find)).*["']?([^"'?]+)["']?\s*\??$/i,
     /(?:show|display|add).*["']?([^"'?]+)["']?\s*(?:column|metric)?\s*\??$/i

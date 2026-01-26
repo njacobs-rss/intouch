@@ -29,7 +29,16 @@ function checkAdminAccess() {
 
 // CONFIGURATION
 var TARGET_FOLDER_ID = '1oqbXf4CPouogLMvlB5rzZipOwiGZyRwE'; 
-var TARGET_PHRASE = 'iQ'; 
+var TARGET_NAME_REGEX = /iQ/i; // Case-insensitive regex match (replaces 'iQ' string)
+
+/**
+ * HELPER: Centralized file matching logic
+ * @param {string} filename - Name of the file to check
+ * @returns {boolean} True if file matches criteria
+ */
+function isTargetFile_(filename) {
+  return TARGET_NAME_REGEX.test(filename);
+} 
 
 /**
  * UI TRIGGER: Open the Admin Sidebar
@@ -100,7 +109,7 @@ function runUpdateSheetSafe(sheetName, hideSheet) {
     
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       
       try {
         var targetSS = SpreadsheetApp.openById(file.getId());
@@ -165,7 +174,7 @@ function runCopySheet(sourceSheetName, newSheetName, hideSheet) {
     
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       
       try {
         var targetSS = SpreadsheetApp.openById(file.getId());
@@ -514,7 +523,7 @@ function runCreateEmployeeTabs() {
     
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       
       try {
         var targetSS = SpreadsheetApp.openById(file.getId());
@@ -613,7 +622,7 @@ function startQueuedFleetRefresh(scope, updateNotes) {
     var file = files.next();
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       fileIds.push({ id: file.getId(), name: file.getName() });
     }
   }
@@ -1106,7 +1115,7 @@ function getFleetFileList() {
     var file = files.next();
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       fleetFiles.push({
         name: file.getName(),
         id: file.getId()
@@ -1225,7 +1234,7 @@ function verifyRangeHeaders(config) {
     
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       
       try {
         var targetSS = SpreadsheetApp.openById(file.getId());
@@ -1318,7 +1327,7 @@ function pushRangeToFleet(config, forceOverwrite) {
     
     if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
         file.getId() !== ss.getId() && 
-        file.getName().includes(TARGET_PHRASE)) {
+        isTargetFile_(file.getName())) {
       
       try {
         var targetSS = SpreadsheetApp.openById(file.getId());

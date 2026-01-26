@@ -1477,7 +1477,51 @@ When user confirms with "yes", "sure", "go for it", "ya", "please", "do it" - th
 - Use CATEGORY_KEY in the action tag (e.g., ACCOUNT_STATUS, not M)
 - For fixed columns (iQ in Column H, Smart Select in Column D), explain they're always visible
 - For complex questions, recommend the most impactful metric first
-- The frontend handles column rotation - you just specify the category and metric`;
+- The frontend handles column rotation - you just specify the category and metric
+
+## ESCALATION TO HUMAN SUPPORT (TIER 3)
+
+You are Tier 2 support. If you cannot resolve an issue, escalate to Tier 3 (human support via Slack).
+
+### When to Escalate
+
+**Escalate to #ask-intouch when:**
+1. User says "still not working" or "already tried that" after your suggestions
+2. Same issue mentioned 3+ times in conversation history
+3. User explicitly asks for human help
+4. Issue requires backend/admin access (data corrections, account fixes, permission issues)
+5. You genuinely don't know the answer and can't find it in your knowledge
+6. Technical errors that need investigation (API failures, broken functions)
+
+### How to Escalate
+
+When escalating, use this format:
+
+"I think this needs human attention. Please post in **#ask-intouch** on Slack with:
+- Your spreadsheet name
+- What you're trying to do
+- What's happening instead
+- What you've already tried
+
+[SLACK_LINK:#ask-intouch]
+
+The team typically responds within a few hours during business hours."
+
+### Never Escalate For
+- Column change requests (you can do this with COLUMN_ACTION)
+- Feature explanations (you have this knowledge)
+- Standard troubleshooting (try RESET, refresh notes, etc. first)
+- Questions about metrics or terminology (you know these)
+
+### Escalation Signals to Watch For
+- Frustration language: "frustrated", "give up", "waste of time", "impossible"
+- Repetition: user repeating the same question or problem
+- Explicit requests: "talk to someone", "human help", "real person"
+- Backend issues: "data is wrong", "account is missing", "need admin access"
+
+### SLACK_LINK Action Format
+When suggesting Slack, include: [SLACK_LINK:#ask-intouch]
+The frontend will render this as a clickable link/button.`;
 
 /**
  * Get the Gemini API key from script properties
@@ -1584,6 +1628,152 @@ const SCRIPTED_RESPONSES = {
       patterns: [/how.*(filter|sort).*(revenue|yield|money)/i, /filter.*(high|low|top).*(revenue|yield)/i],
       response: `**Filtering by Revenue:**\n\n**To find top revenue accounts:**\n1. Click the **Revenue** column header\n2. Sort Z→A (high to low)\n3. Top accounts appear first\n\n**To find underperforming accounts:**\n1. Sort A→Z (low to high)\n2. Look for accounts with low yield relative to their system type\n\n**Pro tip:** Compare against Avg Yield for the system type to identify outliers.`
     }
+  ],
+  
+  // FAQ - Common questions from user guide
+  faq: [
+    {
+      patterns: [/(?:what|difference).*metro.*macro/i, /metro.*vs.*macro/i, /macro.*vs.*metro/i, /(?:explain|tell).*metro.*macro/i],
+      response: `**Metro vs Macro:**\n\n- **Metro** = Major market area (e.g., "Los Angeles", "New York")\n- **Macro** = Neighborhood or sub-area (e.g., "Santa Monica", "Manhattan")\n\nBoth are in the **Location** section (Column I). Would you like me to change it?\n\n[COLUMN_ACTION:LOCATION:Metro]`
+    },
+    {
+      patterns: [/what.*(?:is|does|means?).*\bnetwork\b/i, /\bnetwork\b.*(?:mean|definition|explain)/i, /define.*\bnetwork\b/i, /\bnetwork\b.*covers?/i],
+      response: `**Network = Direct + Discovery**\n\nNetwork represents all OpenTable platform bookings:\n- **Direct** = OT app, OT website, saved restaurants\n- **Discovery** = Marketplace search/browse\n\n⚠️ **Important:** Google is an attribution overlay within Direct/Discovery - never add it separately to Fullbook calculations.\n\nWould you like to see Network covers?\n\n[COLUMN_ACTION:SEATED_COVERS:CVR Last Month - Network]`
+    },
+    {
+      patterns: [/what.*(?:is|does|means?).*restref/i, /restref.*(?:mean|definition|explain)/i, /define.*restref/i],
+      response: `**RestRef** = Bookings made through the restaurant's own website using the OpenTable widget.\n\nThis is different from:\n- **Discovery** (marketplace browsing)\n- **Direct** (OT app/site)\n\nRestRef appears in the **Seated Covers** section.\n\n[COLUMN_ACTION:SEATED_COVERS:CVR Last Month - RestRef]`
+    },
+    {
+      patterns: [/what.*(?:is|does|means?).*fullbook/i, /fullbook.*(?:mean|definition|explain)/i, /define.*fullbook/i],
+      response: `**Fullbook** = Total seated covers from ALL sources:\n\n\`\`\`\nFullbook = Network + RestRef + Phone/Walk-In\n        = (Direct + Discovery) + RestRef + Phone/Walk-In\n\`\`\`\n\n⚠️ Google is NOT added separately - it's already attributed within Direct/Discovery.\n\n[COLUMN_ACTION:SEATED_COVERS:CVR Last Month - Fullbook]`
+    },
+    {
+      patterns: [/what.*(?:is|does).*contract.?alerts?/i, /contract.?alerts?.*(?:mean|show|indicate)/i],
+      response: `**Contract Alerts** shows contract status warnings:\n\n- **EXPIRED** = Contract has lapsed (urgent - same-week outreach needed)\n- **Expiring Soon** = Term ending within 45 days\n- **Term Pending** = Renewal conversation needed\n\nFound in the **Dates & Activity** section.\n\n[COLUMN_ACTION:DATES_ACTIVITY:Contract Alerts]`
+    },
+    {
+      patterns: [/what.*(?:is|does).*last.?engaged/i, /last.?engaged.*(?:mean|show|indicate)/i],
+      response: `**Last Engaged Date** shows your most recent recorded interaction with an account.\n\n**Coverage Guidelines:**\n- <30 days = Active engagement ✅\n- 30-60 days = Monitor 🟡\n- 60-90 days = At risk 🟠\n- >90 days = Critical - reach out ASAP 🔴\n\n[COLUMN_ACTION:DATES_ACTIVITY:Last Engaged Date]`
+    },
+    {
+      patterns: [/what.*(?:is|does).*health.?flags?/i, /health.?flags?.*(?:mean|show|indicate)/i, /flags?.*(?:in|on).*iq/i],
+      response: `**Health Flags** are warning indicators that appear in the iQ column:\n\n- The **number** in a red iQ cell = count of flags on that account\n- **Hover over** any red iQ cell to see the specific flags\n- Common flags: No bookings, contract issues, configuration problems\n\nWant to see the Health Flags column directly?\n\n[COLUMN_ACTION:SYSTEM_STATS:HEALTH FLAGS - LM]`
+    },
+    {
+      patterns: [/how.*know.*focus.?20/i, /check.*(?:if|whether).*focus.?20/i, /(?:is|are).*(?:in|on).*focus.?20/i],
+      response: `**To check if an account is in Focus20:**\n\nLook at the **Focus20 column** - it displays the date the account was added.\n- **Has a date** = In Focus20\n- **Empty/blank** = Not in Focus20\n\nWant me to show the Focus20 column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Focus20]`
+    },
+    {
+      patterns: [/what.*(?:is|does).*yield/i, /yield.*(?:mean|definition|explain)/i, /rev(?:enue)?.?yield/i],
+      response: `**Revenue Yield** = Total revenue ÷ online seated covers\n\nThis tells you the average revenue generated per seated cover. Higher yield = more efficient monetization.\n\nFound in the **Revenue** section.\n\n[COLUMN_ACTION:REVENUE:Rev Yield - Total Last Month]`
+    },
+    {
+      patterns: [/what.*(?:is|does).*pos.?match/i, /pos.?match.*(?:mean|percentage)/i],
+      response: `**POS Match %** = Percentage of reservations with matched POS (Point of Sale) checks.\n\nHigher match % means better data accuracy for check averages and guest spend tracking.\n\nFound in the **Percentage Metrics** section.\n\n[COLUMN_ACTION:PERCENTAGE_METRICS:POS Match %]`
+    },
+    {
+      patterns: [/what.*(?:is|are).*pi\b/i, /\bpi\b.*(?:mean|definition|stand)/i, /promoted.?inventory/i],
+      response: `**PI (Promoted Inventory)** = Paid promotional placements:\n\n- **PR (Promoted Results)** = Higher search ranking\n- **CP (Custom Promotions)** = Special offers/deals\n- **BP (Bonus Points)** = Extra loyalty points for diners\n\n"Active PI" means at least one PI campaign is currently running.\n\n[COLUMN_ACTION:SYSTEM_STATS:Active PI]`
+    },
+    {
+      patterns: [/what.*(?:is|are).*xp\b/i, /\bxp\b.*(?:mean|definition|stand)/i, /experiences?.*(?:mean|what)/i],
+      response: `**XP (Experiences)** = Special dining experiences like:\n- Chef's table\n- Tasting menus\n- Wine pairings\n- Special events\n\n"Active XP" means the restaurant has at least one live/bookable Experience.\n\n[COLUMN_ACTION:SYSTEM_STATS:Active XP]`
+    },
+    {
+      patterns: [/(?:what|where).*(?:is|are).*sidebar/i, /(?:how|where).*(?:open|find|access).*(?:sidebar|panel|ai)/i, /intouch.*panel/i],
+      response: `**To open the InTouch AI Panel:**\n\n1. Click **InTouch✔ai** in the menu bar (top of screen)\n2. Select **Open InTouch AI Panel**\n3. The sidebar opens on the right with 3 tabs:\n   - **Meeting Prep** - AI Brief & Presentations\n   - **Pricing Simulator** - Model scenarios\n   - **Bucket Summary** - Portfolio snapshot\n\nYou're already in the chat - so the panel is open! Use the tabs at the top to switch features.`
+    },
+    {
+      patterns: [/column.*(?:dropdown|menu).*(?:won't|doesn't|not).*(?:appear|show|work|open)/i, /(?:can't|cannot).*(?:change|select).*column/i, /double.?click.*not.*work/i],
+      response: `**If the column dropdown won't appear:**\n\n1. Make sure you're **double-clicking** (not single-click)\n   - Single-click = sorts the column\n   - Double-click = opens the dropdown menu\n\n2. Some columns are **fixed** and can't be changed:\n   - Column D (Smart Select)\n   - Column F (Parent Account)\n   - Column H (iQ)\n\n3. Try clicking directly on the **header text** in Row 2\n\nStill not working? Click **RESET** and try again.`
+    },
+    {
+      patterns: [/(?:account|data).*(?:list|dropdown).*(?:empty|blank|missing|not.*(?:show|load))/i, /sidebar.*(?:empty|blank|no.*data)/i, /(?:can't|cannot).*(?:see|find).*accounts?.*sidebar/i],
+      response: `**If your account list is empty in the sidebar:**\n\n1. **Wait 5-10 seconds** - data is loading from the sheet\n2. If still empty after 30 seconds, **refresh your browser** (Ctrl+R / Cmd+R)\n3. Make sure STATCORE sheet exists and has data\n\nIf the problem persists after refresh, there may be a data issue. Post in **#ask-intouch** on Slack with your spreadsheet name.`
+    }
+  ],
+  
+  // Workflow guidance - step-by-step help for common tasks
+  workflows: [
+    {
+      patterns: [/(?:how|help).*(?:daily|morning).*(?:review|check|routine)/i, /daily.*account.*review/i, /start.*(?:my|the).*day/i],
+      response: `**Daily Account Review Workflow:**\n\n1. Open your AM tab (your name at bottom)\n2. Click **RESET** for a clean, default view\n3. Scan the **iQ column** - any red cells need attention\n4. Hover over red iQ cells to see specific flags\n5. Check **Contract Alerts** for expirations\n6. Use **Smart Select** to mark accounts you'll work on today\n\nWant me to show Contract Alerts?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Contract Alerts]`
+    },
+    {
+      patterns: [/(?:how|help).*(?:find|identify).*(?:at.?risk|churn|danger)/i, /at.?risk.*(?:accounts?|workflow)/i, /(?:find|spot).*(?:churn|risk)/i],
+      response: `**Finding At-Risk Accounts:**\n\n**Key Warning Signs:**\n1. **Red iQ cells** with high numbers (3+)\n2. **No Bookings >30 Days** showing "0-Fullbook" or "0-Network"\n3. **Contract Alerts** showing "EXPIRED"\n4. **Last Engaged Date** in red (>60 days)\n5. **Past Due** amounts in Revenue section\n\n**Recommended columns:**\n- No Bookings >30 Days\n- Contract Alerts\n- Last Engaged Date\n\nWant me to show No Bookings?\n\n[COLUMN_ACTION:ACCOUNT_STATUS:No Bookings >30 Days]`
+    },
+    {
+      patterns: [/(?:how|help).*(?:find|identify).*(?:growth|opportunity|opportunities|upsell)/i, /growth.*(?:accounts?|opportunity|hunting)/i, /(?:find|spot).*(?:growth|potential)/i],
+      response: `**Finding Growth Opportunities:**\n\n**Look for these signals:**\n1. **High booking volume** but **low Discovery%** = Marketplace opportunity\n2. **No Active PI** on busy accounts = Promoted Inventory opportunity\n3. **No Active XP** on quality restaurants = Experiences opportunity\n\n**Recommended columns:**\n- Disco % Current (sort low-to-high)\n- Active PI\n- Active XP\n- CVR Last Month - Network (sort high-to-low)\n\nWant me to show Discovery %?\n\n[COLUMN_ACTION:PERCENTAGE_METRICS:Disco % Current]`
+    },
+    {
+      patterns: [/(?:how|help).*(?:prepare|prep).*(?:meeting|qbr|review)/i, /meeting.*(?:prep|preparation)/i, /(?:before|prepare).*(?:meeting|call)/i],
+      response: `**Meeting Preparation Workflow:**\n\n1. Open **InTouch AI Panel** (InTouch✔ai menu)\n2. Go to **Meeting Prep** tab\n3. Search for your account name\n4. Choose your prep method:\n   - **✦ Launch AI Brief** - Get AI-generated insights (paste into Gemini)\n   - **⊕ Create Presentation** - Generate a full QBR deck\n\n**Before the meeting, review:**\n- iQ score and any flags\n- Contract status\n- Recent booking trends\n- Revenue metrics\n\nYou're in the chat now - switch to the **Meeting Prep** tab above!`
+    },
+    {
+      patterns: [/(?:how|help).*(?:renewal|renew|contract)/i, /renewal.*(?:workflow|conversation|prep)/i, /(?:prepare|prep).*renewal/i],
+      response: `**Renewal Conversation Workflow:**\n\n**Configure your view:**\n1. Show **Current Term End Date** - see when contracts expire\n2. Show **Contract Alerts** - see EXPIRED and expiring soon\n3. Show **Customer Since** - tenure context\n4. Show **Revenue - Total Last Month** - value context\n\n**Sort by Term End Date** to prioritize upcoming renewals.\n\nWant me to show Term End Date?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Current Term End Date]`
+    },
+    {
+      patterns: [/(?:how|help).*(?:use|manage|set).*focus.?20/i, /(?:prioritize|priority).*(?:week|accounts)/i, /focus.?20.*(?:workflow|strategy)/i],
+      response: `**Prioritizing with Focus20:**\n\n**Weekly Setup:**\n1. Click **RESET** for a clean view\n2. Scan iQ column and Contract Alerts\n3. Check **Smart Select** boxes next to priority accounts (aim for 10-20)\n4. Click the **+** button to add them to Focus20\n5. Verify Focus20 column shows today's date\n\n**End of Week:**\n1. Check boxes next to completed accounts\n2. Click **X** button to remove them\n3. Repeat setup for next week\n\nWant to see your Focus20 dates?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Focus20]`
+    },
+    {
+      patterns: [/(?:how|help).*(?:use|create).*(?:temp|temporary|working).*(?:list|filter)/i, /smart.?select.*(?:filter|temporary)/i, /(?:isolate|filter).*(?:specific|certain).*accounts/i],
+      response: `**Using Smart Select for Temporary Lists:**\n\n1. Check **Smart Select** boxes next to accounts you want to isolate\n2. Click the **filter icon** in the Smart Select column header\n3. Set filter to show only **TRUE** values\n4. Work with your selected accounts\n5. When done, click **RESET** to clear filters and checkboxes\n\n**Tip:** This doesn't affect Focus20 - it's just a temporary working view.`
+    }
+  ],
+  
+  // Escalation patterns - detect frustrated users and offer Slack handoff
+  escalation: [
+    {
+      patterns: [
+        /still.*(?:not|isn't|won't|doesn't).*work/i,
+        /(?:already|i've|i have).*tried.*that/i,
+        /(?:nothing|none of).*(?:that|this|it).*(?:work|help)/i,
+        /(?:this|that).*(?:isn't|is not|doesn't|does not).*help/i,
+        /didn't.*(?:work|help|fix)/i,
+        /same.*(?:problem|issue|error)/i
+      ],
+      response: `I'm sorry the suggestions haven't resolved this yet. Let me connect you with the team.\n\n**Post in #ask-intouch on Slack:**\n\n📋 **Please include:**\n- Your spreadsheet name\n- What you were trying to do\n- What's happening instead\n- Any error messages you saw\n- What you've already tried\n\n[SLACK_LINK:#ask-intouch]\n\nThe team typically responds within a few hours during business hours.`
+    },
+    {
+      patterns: [
+        /(?:can|could).*(?:someone|a human|a person|real person).*help/i,
+        /(?:need|want).*(?:talk|speak).*(?:someone|support|human)/i,
+        /(?:is there|can i).*(?:someone|human).*(?:help|talk|contact)/i,
+        /(?:real|actual).*(?:person|human|support)/i
+      ],
+      response: `Absolutely! For personalized help, reach out to the team directly.\n\n**Post in #ask-intouch on Slack:**\n\n📋 **Include:**\n- Your spreadsheet name\n- Brief description of what you need help with\n\n[SLACK_LINK:#ask-intouch]\n\nThe team monitors this channel and typically responds within a few hours.`
+    },
+    {
+      patterns: [
+        /(?:data|account|info).*(?:wrong|incorrect|missing|outdated)/i,
+        /(?:wrong|incorrect|missing|outdated).*(?:data|info|information)/i,
+        /(?:need|require).*(?:fix|update|correct).*(?:data|statcore|account)/i,
+        /(?:data|backend).*(?:issue|problem|bug)/i
+      ],
+      response: `This sounds like it might need backend/admin attention.\n\n**Post in #ask-intouch on Slack** with:\n- The specific account (RID or name)\n- What data appears wrong\n- What you expected to see\n\n[SLACK_LINK:#ask-intouch]\n\n**For urgent data issues** affecting meetings today, mention that in your message for priority handling.`
+    },
+    {
+      patterns: [
+        /(?:give|giving).*up/i,
+        /(?:so|very|really).*frustrat/i,
+        /this.*(?:is|feels).*(?:impossible|hopeless)/i,
+        /(?:waste|wasting).*(?:time|my time)/i
+      ],
+      response: `I understand this is frustrating. Let's get you human help right away.\n\n**Post in #ask-intouch on Slack:**\n\n📋 **Share:**\n- Your spreadsheet name\n- What you're trying to accomplish\n- The issue you're facing\n\n[SLACK_LINK:#ask-intouch]\n\nThe team will help you get unstuck. They're great at solving tricky issues!`
+    },
+    {
+      patterns: [
+        /(?:bug|broken|error).*(?:report|submit)/i,
+        /(?:report|submit).*(?:bug|issue|error)/i,
+        /(?:how|where).*(?:report|submit|log).*(?:bug|issue|problem)/i
+      ],
+      response: `**To report a bug or issue:**\n\n**Post in #ask-intouch on Slack** with:\n- Your spreadsheet name\n- Steps to reproduce the issue\n- What happened vs. what you expected\n- Screenshots if helpful\n\n[SLACK_LINK:#ask-intouch]\n\nThe team tracks and prioritizes bug reports from this channel.`
+    }
   ]
 };
 
@@ -1646,7 +1836,37 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 6. Check for "how to see/find/show" + known value patterns
+  // 6. Check FAQ patterns (from user guide)
+  for (const item of SCRIPTED_RESPONSES.faq) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched FAQ pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 7. Check workflow guidance patterns
+  for (const item of SCRIPTED_RESPONSES.workflows) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched workflow pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 8. Check escalation patterns (frustrated user → Slack handoff)
+  for (const item of SCRIPTED_RESPONSES.escalation) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched escalation pattern → Slack handoff');
+        return { success: true, answer: item.response, source: 'escalation' };
+      }
+    }
+  }
+  
+  // 10. Check for "how to see/find/show" + known value patterns
   const actionPatterns = [
     /(?:how|where).*(?:can i |do i |to )?(see|find|show|view|filter|get).*\b(\w+)\b/i,
     /(?:see|find|show|view|filter|get).*\b(\w+)\b.*(?:accounts?|restaurants?)/i,
@@ -1677,7 +1897,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 7. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
+  // 11. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
   const metricLookupPatterns = [
     /(?:where|how).*(?:is|can i (?:see|find)).*["']?([^"'?]+)["']?\s*\??$/i,
     /(?:show|display|add).*["']?([^"'?]+)["']?\s*(?:column|metric)?\s*\??$/i
@@ -1736,18 +1956,59 @@ function askInTouchGuide(userQuery, conversationHistory) {
     }
     
     // STEP 1: Try scripted responses first (fast path - no API call)
-    // Skip scripted for follow-up conversations (has history) to maintain context
-    if (!conversationHistory || conversationHistory === 'null' || conversationHistory === '[]') {
-      const scriptedResult = tryScriptedResponse(userQuery);
-      if (scriptedResult) {
-        console.log('[askInTouchGuide] Using scripted response (no API call)');
-        scriptedResult.requestId = requestId;
-        scriptedResult.durationMs = new Date() - startTime;
-        return scriptedResult;
+    const scriptedResult = tryScriptedResponse(userQuery);
+    if (scriptedResult) {
+      console.log('[askInTouchGuide] Using scripted response (no API call), source: ' + scriptedResult.source);
+      scriptedResult.requestId = requestId;
+      scriptedResult.durationMs = new Date() - startTime;
+      return scriptedResult;
+    }
+    
+    // STEP 2: Check conversation history for escalation signals
+    if (conversationHistory && conversationHistory !== 'null' && conversationHistory !== '[]') {
+      try {
+        const history = JSON.parse(conversationHistory);
+        const userMessages = history.filter(m => m.role === 'user');
+        
+        // Check for repeat questions (same topic asked 3+ times)
+        if (userMessages.length >= 3) {
+          const recentUserMsgs = userMessages.slice(-4).map(m => m.content.toLowerCase());
+          
+          // Look for frustration signals in recent messages
+          const frustrationSignals = [
+            'still not', 'still broken', 'still doesn\'t', 'still won\'t',
+            'already tried', 'didn\'t work', 'doesn\'t work', 'not working',
+            'same problem', 'same issue', 'again'
+          ];
+          
+          let frustrationCount = 0;
+          for (const msg of recentUserMsgs) {
+            for (const signal of frustrationSignals) {
+              if (msg.includes(signal)) {
+                frustrationCount++;
+                break;
+              }
+            }
+          }
+          
+          // If 2+ recent messages show frustration, escalate
+          if (frustrationCount >= 2) {
+            console.log('[askInTouchGuide] Detected repeated frustration signals (' + frustrationCount + ') → escalating to Slack');
+            return {
+              success: true,
+              answer: `I can see we've been going back and forth on this. Let me connect you with the team for personalized help.\n\n**Post in #ask-intouch on Slack:**\n\n📋 **Please include:**\n- Your spreadsheet name\n- What you're trying to accomplish\n- What's happening vs. what you expected\n- What we've already tried\n\n[SLACK_LINK:#ask-intouch]\n\nThe team is great at solving tricky issues and typically responds within a few hours.`,
+              source: 'escalation',
+              requestId: requestId,
+              durationMs: new Date() - startTime
+            };
+          }
+        }
+      } catch (e) {
+        console.log('[askInTouchGuide] Could not parse conversation history for escalation check: ' + e.message);
       }
     }
     
-    // STEP 2: Fall through to Gemini for complex/novel questions
+    // STEP 3: Fall through to Gemini for complex/novel questions
     console.log('[askInTouchGuide] No scripted match, calling Gemini API');
     const apiKey = getGeminiApiKey_();
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;

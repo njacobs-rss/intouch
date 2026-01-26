@@ -1792,7 +1792,12 @@ const ACCOUNT_DATA_PATTERNS = [
   
   // Health / iQ
   /health\s*(flags?|issues?)/i,
-  /iq\s*(score|flags?)/i
+  /iq\s*(score|flags?)/i,
+  
+  // Smart Select / Action requests
+  /add\s*(them|those|these)?\s*to\s*(my\s*)?(smart\s*)?select/i,
+  /check\s*(them|those|these)\s*(in|on)\s*(smart\s*)?select/i,
+  /smart\s*select/i
 ];
 
 /**
@@ -3228,6 +3233,22 @@ function getDetailedAMData(amName) {
 }
 
 /**
+ * Normalize RID for comparison - handles number/string formatting differences
+ * @param {*} rid - The RID value (could be number, string, etc.)
+ * @returns {string} Normalized RID string
+ */
+function normalizeRID_(rid) {
+  if (rid === null || rid === undefined || rid === '') return '';
+  // Convert to string, remove decimals (e.g., "1234.0" -> "1234"), trim whitespace
+  let str = String(rid).trim();
+  // Remove trailing .0 if present (Excel/Sheets often adds this)
+  if (str.match(/^\d+\.0+$/)) {
+    str = str.replace(/\.0+$/, '');
+  }
+  return str;
+}
+
+/**
  * Check RIDs in Smart Select (Column D) on the AM's tab
  * @param {Array<string>} rids - Array of RID strings to check
  * @param {string} amName - The AM whose tab to modify (for verification)
@@ -3241,41 +3262,66 @@ function checkRIDsInSmartSelect(rids, amName) {
       return { success: false, error: 'No RIDs provided' };
     }
     
+    console.log(`[${functionName}] Attempting to check ${rids.length} RIDs for AM: "${amName}"`);
+    console.log(`[${functionName}] First few RIDs: ${rids.slice(0, 5).join(', ')}`);
+    
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const activeSheet = ss.getActiveSheet();
     const currentAM = String(activeSheet.getRange('B2').getValue() || '').trim();
     
-    // Verify we're on the correct tab
-    if (currentAM.toLowerCase() !== amName.toLowerCase()) {
-      return {
-        success: false,
-        wrongTab: true,
-        currentTab: currentAM,
-        expectedTab: amName,
-        error: `You are on ${currentAM || 'an unknown tab'}'s sheet, not ${amName}'s.`
-      };
+    console.log(`[${functionName}] Current sheet B2 value: "${currentAM}"`);
+    
+    // Verify we're on the correct tab (if amName is provided)
+    if (amName && amName.trim() !== '') {
+      if (currentAM.toLowerCase() !== amName.toLowerCase()) {
+        console.log(`[${functionName}] Tab mismatch: current="${currentAM}", expected="${amName}"`);
+        return {
+          success: false,
+          wrongTab: true,
+          currentTab: currentAM,
+          expectedTab: amName,
+          error: `You are on ${currentAM || 'an unknown tab'}'s sheet, not ${amName}'s.`
+        };
+      }
     }
     
     // Find RID column (Column A) and Smart Select column (Column D)
     const lastRow = activeSheet.getLastRow();
+    if (lastRow < 3) {
+      return { success: false, error: 'Sheet appears to have no data rows' };
+    }
+    
     const ridCol = 1;  // Column A
     const smartSelectCol = 4;  // Column D
     
     // Get all RIDs from column A (starting from row 3, data starts after headers)
-    const allRids = activeSheet.getRange(3, ridCol, lastRow - 2, 1).getValues().map(r => String(r[0]));
+    const rawRids = activeSheet.getRange(3, ridCol, lastRow - 2, 1).getValues();
+    const allRids = rawRids.map(r => normalizeRID_(r[0]));
+    
+    console.log(`[${functionName}] Found ${allRids.length} RIDs on sheet. First few: ${allRids.slice(0, 5).join(', ')}`);
+    
+    // Normalize RIDs to check
+    const ridsToCheck = rids.map(r => normalizeRID_(r)).filter(r => r !== '');
+    
+    console.log(`[${functionName}] Looking for ${ridsToCheck.length} normalized RIDs`);
     
     // Find which rows to check
     const rowsToCheck = [];
-    const ridsToCheck = rids.map(r => String(r).trim());
-    
     allRids.forEach((sheetRid, idx) => {
-      if (ridsToCheck.includes(sheetRid)) {
+      if (sheetRid && ridsToCheck.includes(sheetRid)) {
         rowsToCheck.push(idx + 3);  // +3 because data starts at row 3
       }
     });
     
+    console.log(`[${functionName}] Matched ${rowsToCheck.length} rows`);
+    
     if (rowsToCheck.length === 0) {
-      return { success: false, error: 'None of the specified RIDs were found on this sheet' };
+      // Provide more helpful error message
+      return { 
+        success: false, 
+        error: `None of the ${ridsToCheck.length} specified RIDs were found on this sheet. Make sure you're on the correct AM's tab.`,
+        hint: `Sheet has ${allRids.length} accounts. Current tab: ${currentAM}`
+      };
     }
     
     // Check the Smart Select boxes for these rows
@@ -3285,10 +3331,17 @@ function checkRIDsInSmartSelect(rids, amName) {
     
     SpreadsheetApp.flush();
     
+    const notFound = ridsToCheck.length - rowsToCheck.length;
+    let message = `Checked ${rowsToCheck.length} account${rowsToCheck.length > 1 ? 's' : ''} in Smart Select.`;
+    if (notFound > 0) {
+      message += ` (${notFound} RIDs were not found on this sheet)`;
+    }
+    
     return {
       success: true,
       checkedCount: rowsToCheck.length,
-      message: `Checked ${rowsToCheck.length} account${rowsToCheck.length > 1 ? 's' : ''} in Smart Select.`
+      notFoundCount: notFound,
+      message: message
     };
     
   } catch (e) {

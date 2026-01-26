@@ -1359,7 +1359,8 @@
       pendingTeamAnalysisAction: false, // True when team analysis is pending
       currentAMContext: null,       // Stores {isAMTab, fullName, isTeamView, sheetName}
       modifiedColumns: {},          // Tracks which columns were modified this session
-      lastModifiedMetric: null      // Tracks last modified metric for filtering advice context
+      lastModifiedMetric: null,     // Tracks last modified metric for filtering advice context
+      lastListedRIDs: null          // Stores RIDs from the last list response for "add them" follow-ups
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1439,6 +1440,7 @@
       khState.pendingTeamAnalysisAction = false;
       khState.currentAMContext = null;
       khState.modifiedColumns = {};
+      khState.lastListedRIDs = null;
       
       // Clear messages and show welcome screen
       if (khEls.messages) {
@@ -1516,11 +1518,20 @@
         }
       }
 
+      // Check if user is asking to add previously listed RIDs to Smart Select
+      if (isAddToSmartSelectRequest(query) && khState.lastListedRIDs && khState.lastListedRIDs.length > 0) {
+        console.log(`[sendKHMessage] User asking to add ${khState.lastListedRIDs.length} previously listed RIDs to Smart Select`);
+        khState.pendingSmartSelectAction = { rids: khState.lastListedRIDs };
+        addKHMessage('user', query);
+        khEls.input.value = '';
+        executeSmartSelectAction();
+        return;
+      }
+      
       // Clear any pending actions if user asks something else
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
-      khState.pendingPortfolioAction = null;
 
       // Add user message to UI
       addKHMessage('user', query);
@@ -1580,6 +1591,13 @@
               ? `<div class="kh-data-indicator">📊 ${result.dataSource.amName} (${result.dataSource.totalAccounts} accounts)</div>`
               : '';
             
+            // Extract and store any RIDs listed in the response for "add them" follow-ups
+            const extractedRIDs = extractRIDsFromMessage(cleanedAnswer);
+            if (extractedRIDs && extractedRIDs.length > 0) {
+              console.log(`[sendKHMessage] Storing ${extractedRIDs.length} RIDs from response for potential Smart Select`);
+              khState.lastListedRIDs = extractedRIDs;
+            }
+            
             addKHMessage('assistant', cleanedAnswer, hasAction, dataIndicator);
             
             // Add to history for follow-up context
@@ -1612,6 +1630,68 @@
         query.startsWith(phrase + ' ') || 
         query.startsWith(phrase + '!')
       );
+    }
+    
+    /**
+     * Extract RIDs from a message that lists accounts
+     * Looks for patterns like "• 1234567 - Restaurant Name" or "**1234567** - Name"
+     * @param {string} content - The message content
+     * @returns {Array|null} Array of RID strings, or null if none found
+     */
+    function extractRIDsFromMessage(content) {
+      if (!content) return null;
+      
+      const rids = [];
+      
+      // Pattern 1: Bullet list format "• 1234567 - Restaurant Name"
+      const bulletPattern = /[•\-\*]\s*(\d{4,10})\s*[\-–]/g;
+      let match;
+      while ((match = bulletPattern.exec(content)) !== null) {
+        if (!rids.includes(match[1])) {
+          rids.push(match[1]);
+        }
+      }
+      
+      // Pattern 2: Bold RID format "**1234567** - Name"
+      const boldPattern = /\*\*(\d{4,10})\*\*/g;
+      while ((match = boldPattern.exec(content)) !== null) {
+        if (!rids.includes(match[1])) {
+          rids.push(match[1]);
+        }
+      }
+      
+      // Pattern 3: RID at start of line "1234567 - Restaurant"
+      const linePattern = /^(\d{4,10})\s*[\-–]/gm;
+      while ((match = linePattern.exec(content)) !== null) {
+        if (!rids.includes(match[1])) {
+          rids.push(match[1]);
+        }
+      }
+      
+      if (rids.length > 0) {
+        console.log(`[extractRIDsFromMessage] Found ${rids.length} RIDs in message`);
+        return rids;
+      }
+      
+      return null;
+    }
+    
+    /**
+     * Check if query is asking to add previously listed items to Smart Select
+     * @param {string} query - The user's query
+     * @returns {boolean} True if this is an "add them" type request
+     */
+    function isAddToSmartSelectRequest(query) {
+      if (!query) return false;
+      const patterns = [
+        /add\s*(them|those|these|the\s*rids?|all)?\s*to\s*(my\s*)?(smart\s*)?select/i,
+        /check\s*(them|those|these|all)\s*(in|on)\s*(smart\s*)?select/i,
+        /put\s*(them|those|these)\s*(in|on)\s*(smart\s*)?select/i,
+        /select\s*(them|those|these|all)/i,
+        /yes,?\s*(add|check)\s*(them)?/i,
+        /^(yes|yeah|yep|sure|ok|please|do it)\s*$/i  // Simple confirmation after RID list
+      ];
+      return patterns.some(p => p.test(query.trim()));
     }
     
     /**
@@ -2054,10 +2134,13 @@
      * Execute Smart Select action - check specified RIDs in Column D
      */
     function executeSmartSelectAction() {
-      if (!khState.pendingSmartSelectAction || !khState.pendingSmartSelectAction.rids) return;
+      if (!khState.pendingSmartSelectAction || !khState.pendingSmartSelectAction.rids) {
+        addKHMessage('error', 'No RIDs to check. Please ask me to list the accounts first, then I can add them to Smart Select.');
+        return;
+      }
       
       const rids = khState.pendingSmartSelectAction.rids;
-      const amName = khState.currentAMContext ? khState.currentAMContext.fullName : null;
+      const amName = khState.currentAMContext ? khState.currentAMContext.fullName : '';
       
       // Remove action buttons
       const actionButtons = document.querySelector('.kh-action-buttons');
@@ -2070,7 +2153,8 @@
       if (khEls.sendBtn) khEls.sendBtn.disabled = true;
       const loadingEl = addKHMessage('loading', '');
       
-      console.log(`[executeSmartSelectAction] Checking ${rids.length} RIDs for AM: ${amName}`);
+      console.log(`[executeSmartSelectAction] Checking ${rids.length} RIDs for AM: "${amName}"`);
+      console.log(`[executeSmartSelectAction] First few RIDs:`, rids.slice(0, 5));
       
       google.script.run
         .withSuccessHandler((result) => {
@@ -2079,18 +2163,26 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           
           if (result.success) {
-            addKHMessage('assistant', `Done! I've checked **${result.checkedCount}** account${result.checkedCount > 1 ? 's' : ''} in Smart Select (Column D). You can now use the + or X buttons to add or remove them from Focus20, or take other bulk actions.
-
-If you have any other questions about your account data I'd be happy to dive in with you!`);
+            let message = `Done! I've checked **${result.checkedCount}** account${result.checkedCount > 1 ? 's' : ''} in Smart Select (Column D). You can now use the + or X buttons to add or remove them from Focus20, or take other bulk actions.`;
+            
+            if (result.notFoundCount > 0) {
+              message += `\n\n*Note: ${result.notFoundCount} RIDs were not found on this sheet (they may be filtered out or on a different tab).*`;
+            }
+            
+            message += `\n\nIf you have any other questions about your account data I'd be happy to dive in with you!`;
+            addKHMessage('assistant', message);
           } else if (result.wrongTab) {
             // User is on wrong tab - show warning
             addKHMessage('assistant', `**Heads up:** You are not currently on **${result.expectedTab}**'s tab. You're on **${result.currentTab || 'a different sheet'}**.
 
-Would you like me to check these RIDs anyway? (They may not be visible on this tab)
-
-[The Smart Select action was cancelled]`);
+Please navigate to ${result.expectedTab}'s tab and try again, or ask about the accounts on your current tab.`);
           } else {
-            addKHMessage('error', 'Could not check RIDs: ' + (result.error || 'Unknown error'));
+            // Provide more helpful error
+            let errorMsg = result.error || 'Unknown error';
+            if (result.hint) {
+              errorMsg += `\n\n*${result.hint}*`;
+            }
+            addKHMessage('assistant', `Could not check RIDs: ${errorMsg}\n\nMake sure you're on the correct AM's tab and try again.`);
           }
           
           khState.pendingSmartSelectAction = null;
@@ -2102,7 +2194,7 @@ Would you like me to check these RIDs anyway? (They may not be visible on this t
           addKHMessage('error', 'Error: ' + error.message);
           khState.pendingSmartSelectAction = null;
         })
-        .checkRIDsInSmartSelect(rids, amName || '');
+        .checkRIDsInSmartSelect(rids, amName);
     }
 
     // =========================================================

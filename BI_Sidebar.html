@@ -320,6 +320,18 @@
       border: 1px solid #e2e8f0;
     }
 
+    /* Data source indicator - shows which AM's data was loaded */
+    .kh-data-indicator {
+      font-size: 10px;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      display: inline-block;
+      border-left: 2px solid #22c55e;
+    }
+
     .kh-loading-dots {
       display: flex;
       gap: 4px;
@@ -1555,9 +1567,20 @@
               khState.pendingTeamAnalysisAction = true;
             }
             
+            // Store AM context if data was injected
+            if (result.amContext) {
+              khState.currentAMContext = result.amContext;
+            }
+            
             // Show action buttons if there's a pending action
             const hasAction = !!columnAction || !!functionAction || !!slackAction || !!smartSelectAction || !!teamAnalysisAction;
-            addKHMessage('assistant', cleanedAnswer, hasAction);
+            
+            // Add data source indicator if data was injected
+            const dataIndicator = result.dataInjected && result.dataSource 
+              ? `<div class="kh-data-indicator">📊 ${result.dataSource.amName} (${result.dataSource.totalAccounts} accounts)</div>`
+              : '';
+            
+            addKHMessage('assistant', cleanedAnswer, hasAction, dataIndicator);
             
             // Add to history for follow-up context
             khState.conversationHistory.push({ role: 'user', content: query });
@@ -1802,7 +1825,7 @@
     // Track last query for feedback
     let khLastQuery = '';
 
-    function addKHMessage(type, content, showActionButtons = false) {
+    function addKHMessage(type, content, showActionButtons = false, dataIndicator = '') {
       if (!khEls.messages) return null;
       const msgEl = document.createElement('div');
       msgEl.className = 'kh-message ' + type;
@@ -1815,6 +1838,9 @@
         msgEl.id = msgId;
         msgEl.dataset.response = content;
         msgEl.dataset.query = khLastQuery;
+        
+        // Data indicator shows which AM's data was loaded
+        const indicatorHtml = dataIndicator || '';
         
         let actionButtonsHtml = '';
         if (showActionButtons) {
@@ -1879,7 +1905,7 @@
           }
         }
         
-        msgEl.innerHTML = formatKHResponse(content) + actionButtonsHtml + `
+        msgEl.innerHTML = indicatorHtml + formatKHResponse(content) + actionButtonsHtml + `
           <div class="kh-feedback">
             <span class="kh-feedback-label">Rate</span>
             <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'helpful')" title="Helpful">👍</button>

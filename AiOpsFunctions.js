@@ -1648,25 +1648,118 @@ When you see data, proactively flag these issues:
 /**
  * Patterns to detect account data questions
  * These questions should trigger data injection
+ * IMPORTANT: Must be broad enough to catch follow-up questions like "how many are on pro"
  */
 const ACCOUNT_DATA_PATTERNS = [
+  // General "how many" questions - very broad to catch follow-ups
   /how\s*many\s*(rids?|accounts?|restaurants?)/i,
+  /how\s*many\s*(are|is|have|do|on|in|running|using|with)/i,
+  /how\s*many\s+\w+/i,  // "how many pro", "how many core", etc.
+  
+  // Bucket/portfolio questions
   /my\s*(bucket|book|portfolio)/i,
   /(bucket|book|portfolio)\s*(size|count|total)/i,
+  
+  // Contract status
   /term\s*pending/i,
   /contract\s*(status|renewals?|expir)/i,
+  /expired?\s*(contracts?|accounts?)?/i,
+  /canceling|cancelling/i,
+  
+  // System types - specific keywords
   /system\s*(mix|types?)/i,
+  /\b(core|pro|basic)\b.*accounts?/i,
+  /accounts?\s*(on|are|is)?\s*(core|pro|basic)/i,
+  /on\s*(core|pro|basic)\b/i,
+  /(are|is|running|using|have)\s*(core|pro|basic)/i,
+  
+  // Quality tiers
   /quality\s*tiers?/i,
-  /no\s*booking/i,
-  /active\s*(pi|xp)/i,
+  /\b(platinum|gold|silver|bronze)\b/i,
+  /rest(aurant)?\s*quality/i,
+  
+  // PI - Promoted Inventory (multiple aliases)
+  /\bpi\b/i,
+  /promoted?\s*inventory/i,
+  /active\s*pi/i,
+  /(running|using|have|with)\s*(pi|promoted)/i,
+  
+  // XP - Experiences (multiple aliases)
+  /\bxp\b/i,
+  /experiences?/i,
+  /active\s*xp/i,
+  /(running|using|have|with)\s*(xp|experiences?)/i,
+  
+  // PD - Private Dining (multiple aliases)
+  /\bpd\b/i,
+  /private\s*dining/i,
+  /(have|offer|with)\s*private\s*dining/i,
+  
+  // IB - Instant Booking (multiple aliases)
+  /\bib\b/i,
+  /instant\s*book(ing)?/i,
+  
+  // Stripe / Payment / Credit Cards
+  /stripe/i,
+  /credit\s*cards?/i,
+  /payment\s*(method|status|issue)/i,
+  /(can|can't|cannot)\s*(take|accept|process)\s*(credit\s*)?cards?/i,
+  /payment\s*processing/i,
+  
+  // Pricing
   /(freemium|ayce|exclusive\s*pricing)/i,
+  /pricing\s*(mix|model)/i,
+  /free\s*google/i,
+  
+  // Booking issues
+  /no\s*booking/i,
+  /booking\s*(issues?|problems?)/i,
+  /0[\s-]*(fullbook|network)/i,
+  /stopped?\s*booking/i,
+  /not\s*booking/i,
+  
+  // Discovery / Covers
+  /discovery\s*%?/i,
+  /disco\s*%?/i,
+  /covers?/i,
+  /cvr/i,
+  
+  // Revenue / Yield
+  /revenue/i,
+  /yield/i,
+  /sub\s*fees?/i,
+  
+  // POS
+  /pos\s*(match|type|integration)?/i,
+  /point\s*of\s*sale/i,
+  
+  // List/show requests
   /which\s*(rids?|accounts?|ones?)/i,
   /list\s*(them|the\s*rids?|accounts?)/i,
   /show\s*(me\s*)?(the\s*)?(rids?|accounts?|list)/i,
+  
+  // Analysis requests
   /analyze\s*my/i,
   /snapshot/i,
   /bucket\s*summary/i,
-  /portfolio\s*analysis/i
+  /portfolio\s*analysis/i,
+  
+  // Partner feed
+  /partner\s*feed/i,
+  
+  // Metros / Location
+  /metros?/i,
+  /top\s*metros?/i,
+  /macro/i,
+  /neighborhood/i,
+  
+  // System of Record
+  /system\s*of\s*record/i,
+  /sor\b/i,
+  
+  // Health / iQ
+  /health\s*(flags?|issues?)/i,
+  /iq\s*(score|flags?)/i
 ];
 
 /**
@@ -2045,7 +2138,16 @@ function tryScriptedResponse(query) {
  */
 function isAccountDataQuestion(query) {
   if (!query) return false;
-  return ACCOUNT_DATA_PATTERNS.some(pattern => pattern.test(query));
+  
+  for (const pattern of ACCOUNT_DATA_PATTERNS) {
+    if (pattern.test(query)) {
+      console.log(`[isAccountDataQuestion] ✓ Matched pattern: ${pattern} for query: "${query}"`);
+      return true;
+    }
+  }
+  
+  console.log(`[isAccountDataQuestion] ✗ No pattern matched for query: "${query}"`);
+  return false;
 }
 
 /**
@@ -2247,7 +2349,12 @@ function askInTouchGuide(userQuery, conversationHistory) {
       answer: answer,
       requestId: requestId,
       durationMs: durationMs,
-      amContext: amContext  // Include AM context for frontend
+      amContext: amContext,  // Include AM context for frontend
+      dataInjected: !!(injectedData && injectedData.success),  // Flag for visual indicator
+      dataSource: injectedData && injectedData.success ? {
+        amName: injectedData.amName,
+        totalAccounts: injectedData.totalAccounts
+      } : null
     };
     
   } catch (error) {

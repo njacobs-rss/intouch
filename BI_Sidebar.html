@@ -1343,10 +1343,9 @@
       pendingColumnAction: null,    // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
       pendingFunctionAction: null,  // Stores {functionName: 'manualUpdateNotesOnly', label: 'Refresh Notes'}
       pendingSlackAction: null,     // Stores {channel: 'ask-intouch'} for Slack escalation
-      pendingPortfolioAction: null, // Stores {type: 'CONFIRM'|'TEAM'|'SELECT_AM', amName: 'John Smith'}
-      currentAMContext: null,       // Stores {isAMTab, firstName, fullName, sheetName}
-      availableAMs: null,           // Stores [{firstName, fullName}, ...] - cached
-      lastPortfolioData: null,      // Stores last fetched portfolio data for follow-up questions
+      pendingSmartSelectAction: null, // Stores {rids: ['12345', '67890', ...]} for checking RIDs
+      pendingTeamAnalysisAction: false, // True when team analysis is pending
+      currentAMContext: null,       // Stores {isAMTab, fullName, isTeamView, sheetName}
       modifiedColumns: {},          // Tracks which columns were modified this session
       lastModifiedMetric: null      // Tracks last modified metric for filtering advice context
     };
@@ -1424,8 +1423,9 @@
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
-      khState.pendingPortfolioAction = null;
-      khState.lastPortfolioData = null;
+      khState.pendingSmartSelectAction = null;
+      khState.pendingTeamAnalysisAction = false;
+      khState.currentAMContext = null;
       khState.modifiedColumns = {};
       
       // Clear messages and show welcome screen
@@ -1533,7 +1533,7 @@
 
           if (result.success) {
             // Check for action tags and extract them
-            const { cleanedAnswer, columnAction, functionAction, slackAction, portfolioAction } = parseColumnAction(result.answer);
+            const { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction } = parseColumnAction(result.answer);
             
             if (columnAction) {
               khState.pendingColumnAction = columnAction;
@@ -1544,12 +1544,19 @@
             if (slackAction) {
               khState.pendingSlackAction = slackAction;
             }
-            if (portfolioAction) {
-              khState.pendingPortfolioAction = portfolioAction;
+            if (smartSelectAction) {
+              khState.pendingSmartSelectAction = smartSelectAction;
+              // Store AM context for tab verification
+              if (result.amContext && result.amContext.fullName) {
+                khState.currentAMContext = result.amContext;
+              }
+            }
+            if (teamAnalysisAction) {
+              khState.pendingTeamAnalysisAction = true;
             }
             
             // Show action buttons if there's a pending action
-            const hasAction = !!columnAction || !!functionAction || !!slackAction || !!portfolioAction;
+            const hasAction = !!columnAction || !!functionAction || !!slackAction || !!smartSelectAction || !!teamAnalysisAction;
             addKHMessage('assistant', cleanedAnswer, hasAction);
             
             // Add to history for follow-up context
@@ -1586,13 +1593,14 @@
     
     /**
      * Parse action tags from AI response
-     * Supports [COLUMN_ACTION:...], [FUNCTION_ACTION:...], [SLACK_ACTION:...], [PORTFOLIO_ACTION:...]
-     * Returns { cleanedAnswer, columnAction, functionAction, slackAction, portfolioAction }
+     * Supports [COLUMN_ACTION:...], [FUNCTION_ACTION:...], [SLACK_ACTION:...], [SMART_SELECT_ACTION:...], [TEAM_ANALYSIS_ACTION]
+     * Returns { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction }
      */
     function parseColumnAction(answer) {
       let columnAction = null;
       let functionAction = null;
-      let portfolioAction = null;
+      let smartSelectAction = null;
+      let teamAnalysisAction = false;
       
       // Match category-based column format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
       const columnRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
@@ -1654,30 +1662,23 @@
         console.log('[parseColumnAction] Found Slack action:', slackAction);
       }
       
-      // Match Portfolio action formats:
-      // [PORTFOLIO_ACTION:CONFIRM:AM Name] - Confirm analysis for specific AM
-      // [PORTFOLIO_ACTION:TEAM] - Team-wide analysis
-      // [PORTFOLIO_ACTION:SELECT_AM] - Show AM selection list
-      const portfolioConfirmRegex = /\[PORTFOLIO_ACTION:CONFIRM:([^\]]+)\]/g;
-      const portfolioConfirmMatch = portfolioConfirmRegex.exec(answer);
-      if (portfolioConfirmMatch) {
-        portfolioAction = {
-          type: 'CONFIRM',
-          amName: portfolioConfirmMatch[1].trim()
-        };
-        console.log('[parseColumnAction] Found portfolio confirm action:', portfolioAction);
+      // Match Smart Select action format: [SMART_SELECT_ACTION:rid1,rid2,rid3,...]
+      const smartSelectRegex = /\[SMART_SELECT_ACTION:([^\]]+)\]/g;
+      const smartSelectMatch = smartSelectRegex.exec(answer);
+      if (smartSelectMatch) {
+        const ridsString = smartSelectMatch[1].trim();
+        const rids = ridsString.split(',').map(r => r.trim()).filter(r => r);
+        if (rids.length > 0) {
+          smartSelectAction = { rids: rids };
+          console.log('[parseColumnAction] Found Smart Select action:', smartSelectAction);
+        }
       }
       
-      const portfolioTeamRegex = /\[PORTFOLIO_ACTION:TEAM\]/g;
-      if (portfolioTeamRegex.test(answer)) {
-        portfolioAction = { type: 'TEAM' };
-        console.log('[parseColumnAction] Found portfolio team action');
-      }
-      
-      const portfolioSelectRegex = /\[PORTFOLIO_ACTION:SELECT_AM\]/g;
-      if (portfolioSelectRegex.test(answer)) {
-        portfolioAction = { type: 'SELECT_AM' };
-        console.log('[parseColumnAction] Found portfolio select AM action');
+      // Match Team Analysis action: [TEAM_ANALYSIS_ACTION]
+      const teamAnalysisRegex = /\[TEAM_ANALYSIS_ACTION\]/g;
+      if (teamAnalysisRegex.test(answer)) {
+        teamAnalysisAction = true;
+        console.log('[parseColumnAction] Found Team Analysis action');
       }
       
       // Remove all action tags from the displayed answer
@@ -1685,10 +1686,12 @@
         .replace(/\[COLUMN_ACTION:[^\]]+\]/g, '')
         .replace(/\[FUNCTION_ACTION:[^\]]+\]/g, '')
         .replace(/\[SLACK_ACTION:[^\]]+\]/g, '')
-        .replace(/\[PORTFOLIO_ACTION:[^\]]*\]/g, '')
+        .replace(/\[SMART_SELECT_ACTION:[^\]]+\]/g, '')
+        .replace(/\[TEAM_ANALYSIS_ACTION\]/g, '')
+        .replace(/\[PORTFOLIO_ACTION:[^\]]*\]/g, '')  // Keep for backward compatibility
         .trim();
       
-      return { cleanedAnswer, columnAction, functionAction, slackAction, portfolioAction };
+      return { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction };
     }
     
     /**
@@ -1850,45 +1853,29 @@
                 </button>
               </div>
             `;
-          } else if (khState.pendingPortfolioAction) {
-            const action = khState.pendingPortfolioAction;
-            if (action.type === 'CONFIRM') {
-              actionButtonsHtml = `
-                <div class="kh-action-buttons">
-                  <button class="kh-action-btn primary" onclick="executePortfolioAction()">
-                    <span>📊</span> Analyze Portfolio
-                  </button>
-                  <button class="kh-action-btn secondary" onclick="showAMSelectionList()">
-                    Different AM
-                  </button>
-                  <button class="kh-action-btn secondary" onclick="executeTeamAnalysis()">
-                    Team Summary
-                  </button>
-                </div>
-              `;
-            } else if (action.type === 'TEAM') {
-              actionButtonsHtml = `
-                <div class="kh-action-buttons">
-                  <button class="kh-action-btn primary" onclick="executeTeamAnalysis()">
-                    <span>👥</span> Analyze Team
-                  </button>
-                  <button class="kh-action-btn secondary" onclick="dismissAction()">
-                    Not now
-                  </button>
-                </div>
-              `;
-            } else if (action.type === 'SELECT_AM') {
-              actionButtonsHtml = `
-                <div class="kh-action-buttons">
-                  <button class="kh-action-btn primary" onclick="showAMSelectionList()">
-                    <span>👤</span> Select AM
-                  </button>
-                  <button class="kh-action-btn secondary" onclick="dismissAction()">
-                    Not now
-                  </button>
-                </div>
-              `;
-            }
+          } else if (khState.pendingSmartSelectAction) {
+            const count = khState.pendingSmartSelectAction.rids.length;
+            actionButtonsHtml = `
+              <div class="kh-action-buttons">
+                <button class="kh-action-btn primary" onclick="executeSmartSelectAction()">
+                  <span>✓</span> Check ${count} in Smart Select
+                </button>
+                <button class="kh-action-btn secondary" onclick="dismissAction()">
+                  Not now
+                </button>
+              </div>
+            `;
+          } else if (khState.pendingTeamAnalysisAction) {
+            actionButtonsHtml = `
+              <div class="kh-action-buttons">
+                <button class="kh-action-btn primary" onclick="executeTeamAnalysis()">
+                  <span>👥</span> Run Team Analysis
+                </button>
+                <button class="kh-action-btn secondary" onclick="dismissAction()">
+                  Not now
+                </button>
+              </div>
+            `;
           }
         }
         
@@ -1955,16 +1942,12 @@
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
-      khState.pendingPortfolioAction = null;
+      khState.pendingSmartSelectAction = null;
+      khState.pendingTeamAnalysisAction = false;
       // Remove the action buttons from the last message
       const actionButtons = document.querySelector('.kh-action-buttons');
       if (actionButtons) {
         actionButtons.remove();
-      }
-      // Also remove AM selection if present
-      const amSelection = document.querySelector('.kh-am-selection');
-      if (amSelection) {
-        amSelection.remove();
       }
     }
     
@@ -2038,7 +2021,66 @@
     }
 
     // =========================================================
-    // --- PORTFOLIO ANALYSIS FUNCTIONS ---
+    // --- SMART SELECT ACTION ---
+    // =========================================================
+    
+    /**
+     * Execute Smart Select action - check specified RIDs in Column D
+     */
+    function executeSmartSelectAction() {
+      if (!khState.pendingSmartSelectAction || !khState.pendingSmartSelectAction.rids) return;
+      
+      const rids = khState.pendingSmartSelectAction.rids;
+      const amName = khState.currentAMContext ? khState.currentAMContext.fullName : null;
+      
+      // Remove action buttons
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      console.log(`[executeSmartSelectAction] Checking ${rids.length} RIDs for AM: ${amName}`);
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            addKHMessage('assistant', `Done! I've checked **${result.checkedCount}** account${result.checkedCount > 1 ? 's' : ''} in Smart Select (Column D). You can now use the + or X buttons to add or remove them from Focus20, or take other bulk actions.
+
+If you have any other questions about your account data I'd be happy to dive in with you!`);
+          } else if (result.wrongTab) {
+            // User is on wrong tab - show warning
+            addKHMessage('assistant', `**Heads up:** You are not currently on **${result.expectedTab}**'s tab. You're on **${result.currentTab || 'a different sheet'}**.
+
+Would you like me to check these RIDs anyway? (They may not be visible on this tab)
+
+[The Smart Select action was cancelled]`);
+          } else {
+            addKHMessage('error', 'Could not check RIDs: ' + (result.error || 'Unknown error'));
+          }
+          
+          khState.pendingSmartSelectAction = null;
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+          khState.pendingSmartSelectAction = null;
+        })
+        .checkRIDsInSmartSelect(rids, amName || '');
+    }
+
+    // =========================================================
+    // --- PORTFOLIO/TEAM ANALYSIS FUNCTIONS ---
     // =========================================================
     
     /**
@@ -2127,9 +2169,10 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           
           if (result.success) {
-            khState.lastPortfolioData = result.data;
             const formattedAnalysis = formatTeamAnalysis(result.data);
-            addKHMessage('assistant', formattedAnalysis);
+            addKHMessage('assistant', formattedAnalysis + `
+
+If you have any other questions about the team data I'd be happy to dive in with you!`);
             
             khState.conversationHistory.push({ 
               role: 'assistant', 
@@ -2138,14 +2181,14 @@
           } else {
             addKHMessage('error', 'Could not analyze team: ' + (result.error || 'Unknown error'));
           }
-          khState.pendingPortfolioAction = null;
+          khState.pendingTeamAnalysisAction = false;
         })
         .withFailureHandler((error) => {
           if (loadingEl) loadingEl.remove();
           khState.isLoading = false;
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           addKHMessage('error', 'Error: ' + error.message);
-          khState.pendingPortfolioAction = null;
+          khState.pendingTeamAnalysisAction = false;
         })
         .getTeamPortfolioAnalysis();
     }

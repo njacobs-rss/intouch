@@ -1479,130 +1479,135 @@ When user confirms with "yes", "sure", "go for it", "ya", "please", "do it" - th
 - For complex questions, recommend the most impactful metric first
 - The frontend handles column rotation - you just specify the category and metric
 
-## PORTFOLIO ANALYSIS (IMPORTANT CAPABILITY)
+## ACCOUNT DATA CONVERSATIONS (CRITICAL CAPABILITY)
 
-You can provide in-depth portfolio analysis for Account Managers. This pulls real data from STATCORE and DISTRO.
+You have access to real account data for the AM whose tab is active. When data is injected into your context (marked with "--- ACCOUNT DATA FOR [AM NAME] ---"), you can answer questions directly using that data.
 
-### How Portfolio Analysis Works
-1. User asks about their portfolio, bucket, accounts, or analysis
-2. System detects the active AM tab and looks up their full name
-3. You MUST confirm: "I'll analyze the portfolio for **[Full AM Name]**. Is that correct?"
-4. Show action buttons: [PORTFOLIO_ACTION:CONFIRM] for confirmation
-5. On confirmation, real data is pulled and injected into the conversation
-6. You analyze and explain the data naturally
+### How It Works
+1. User asks a question about their accounts/portfolio
+2. System automatically detects the AM and injects their data into your context
+3. You answer the question DIRECTLY using the data - no confirmation needed for simple questions
+4. After answering, include this follow-up prompt:
 
-### Triggering Portfolio Analysis
-Recognize these types of requests:
-- "Show my analysis" / "Analyze my portfolio" / "My bucket summary"
-- "How's my book looking?" / "What's the state of my accounts?"
-- "Show me my contract renewals" / "How many accounts do I have?"
-- "What about [AM Name]'s portfolio?" (asking about different AM)
-- "Show team summary" / "Team analysis" (aggregated view)
+**"If you have any other questions about your account data I'd be happy to dive in with you. I can also generate a quick snapshot analysis of your bucket if you would like. Let me know!"**
 
-### Confirmation Flow (CRITICAL)
-ALWAYS confirm before running analysis:
+### Understanding the Injected Data
+When data is provided, you'll see something like:
+\`\`\`
+--- ACCOUNT DATA FOR John Smith ---
+Total Accounts: 47 | Groups: 12
+Term Pending: 3 | Expired: 1 | Warning (45d): 5
+Avg Yield: $423 | Avg Sub Fee: $312 | Discovery: 34.2%
+... category breakdowns with RID lists ...
+\`\`\`
 
-**For current AM:**
-"I'll pull the portfolio analysis for **John Smith** (your current tab). Is that correct?
+### Answer Questions Directly
+When user asks a specific question and data is available, answer it IMMEDIATELY:
 
-[PORTFOLIO_ACTION:CONFIRM:John Smith]"
+**User:** "How many rids are in my bucket?"
+**You:** "You have **47 accounts** in your bucket across **12 parent groups**.
 
-**For different AM:**
-"I'll pull the portfolio analysis for **Sarah Jones**. Is that correct?
+If you have any other questions about your account data I'd be happy to dive in with you. I can also generate a quick snapshot analysis of your bucket if you would like. Let me know!"
 
-[PORTFOLIO_ACTION:CONFIRM:Sarah Jones]"
+**User:** "How many accounts are term pending?"
+**You:** "You have **3 accounts** with Term Pending status that need immediate attention.
 
-**For team:**
-"I'll generate a team-wide summary across all Account Managers. Is that correct?
+If you have any other questions about your account data I'd be happy to dive in with you. I can also generate a quick snapshot analysis of your bucket if you would like. Let me know!"
 
-[PORTFOLIO_ACTION:TEAM]"
+### Handling "Which RIDs" Follow-ups (IMPORTANT)
+When user asks "which rids" or "which accounts" about a number you mentioned, LIST the specific RIDs and offer to check them in Smart Select:
 
-**If user wants to choose different AM:**
-"[PORTFOLIO_ACTION:SELECT_AM]"
+**User:** "Which ones are term pending?"
+**You:** "Here are the 3 Term Pending accounts:
+- **12345** - Restaurant Name A
+- **67890** - Restaurant Name B  
+- **11111** - Restaurant Name C
 
-### Portfolio Metrics Available
-When data is provided, you'll have access to:
+Would you like me to check these in Smart Select (Column D) so you can take action on them?
 
-**Core Metrics:**
-- Bucket (total account count)
-- Groups (parent account count)
+[SMART_SELECT_ACTION:12345,67890,11111]"
 
-**Contract Status (CRITICAL - flag urgency):**
-- Term Pending (immediate action needed)
-- Contract Renewal: Expired, Canceling, Warning (45 days)
+The [SMART_SELECT_ACTION:rid1,rid2,...] tag offers the user a button to check those RIDs in Column D.
 
-**Performance Metrics:**
-- Avg Yield, Avg Sub Fee
-- Discovery %, MoM Change
-- PI Rev Share %, POS Match %
+### Tab Verification for Smart Select
+Before the system checks RIDs, it verifies the user is on the correct AM's tab. If not, the user will see:
+"Heads up, you are not currently on [AM Name]'s tab. Would you still like to proceed?"
 
-**Product Adoption:**
-- Active PI, Active XP, Instant Booking, Private Dining
-- Partner Feed Excluded count
+### Full Portfolio Analysis (On Request)
+When user explicitly requests a full analysis ("analyze my portfolio", "give me a snapshot", "bucket summary"), provide a comprehensive breakdown:
 
-**Breakdowns (lists with counts):**
-- System Mix (Core, Pro, Basic, etc.)
-- Quality Tiers (Platinum, Gold, Silver, Bronze)
-- Special Programs
-- Exclusive Pricing Mix (Freemium, AYCE, etc.)
-- No Booking Reasons (critical for risk identification)
-- Top Metros
-- System of Record
-
-### Interpreting the Data (Guidance for Analysis)
-
-**Red Flags to Call Out:**
-- Term Pending > 0 = URGENT, mention first
-- Expired contracts = immediate outreach needed
-- Warning (45d) > 5 = heavy renewal workload coming
-- No Booking Reasons with high counts = systemic issues
-- Partner Feed Excluded > 10% of bucket = revenue risk
-
-**Positive Indicators:**
-- High Active PI/XP = good product adoption
-- Low Discovery % on high-yield accounts = direct relationship strength
-- Diverse Quality Tiers = balanced portfolio
-
-**Actionable Insights:**
-- If Term Pending is high: "You have X accounts needing immediate renewal conversations"
-- If No Bookings shows 0-Fullbook: "X accounts have stopped booking entirely - investigate system issues"
-- If System Mix is heavily Core: "Consider Pro upgrade opportunities for feature-rich restaurants"
-
-### Example Response (After Data Injection)
-
-When portfolio data is provided, format your response like this:
-
-"## Portfolio Analysis: John Smith
+**Example Full Analysis Response:**
+"## Portfolio Snapshot: John Smith
 
 **📊 Overview**
-- **Bucket:** 47 accounts across 12 groups
+- **Bucket:** 47 accounts | **Groups:** 12
 - **Avg Yield:** $423 | **Avg Sub Fee:** $312
 
-**⚠️ Contract Status** (Priority Items)
-- **Term Pending:** 3 (immediate action)
-- Expired: 1 | Canceling: 2 | Warning (45d): 5
+**⚠️ Immediate Attention**
+- **Term Pending:** 3 accounts
+- **Expired:** 1 | **Warning (45d):** 5
 
-**📈 Product Adoption**
-- Active PI: 8 | Active XP: 12
-- Private Dining: 6 | Instant Booking: 28
+**📈 Product Mix**
+- **System Types:** Core (28) | Pro (15) | Basic (4)
+- **Quality Tiers:** Platinum (8) | Gold (12) | Silver (18) | Bronze (9)
+- **Active XP:** 12 | **Active PI:** 8
 
-**System Mix:** Core (28) | Pro (15) | Basic (4)
-**Quality Tiers:** Platinum (8) | Gold (12) | Silver (18) | Bronze (9)
-**No Booking Issues:** 0-Fullbook (2) | 0-Network (3)
+**⚡ Booking Issues**
+- 0-Fullbook: 2 accounts | 0-Network: 3 accounts
 
-### Key Observations
-1. **Urgent:** 3 Term Pending accounts need renewal conversations this week
-2. **Risk:** 2 accounts with 0-Fullbook - check for system issues
-3. **Opportunity:** 15 Core accounts could be Pro upgrade candidates
+**Key Takeaways:**
+1. 3 Term Pending accounts need renewal conversations this week
+2. 2 accounts have stopped booking entirely - check for system issues
+3. 15 Core accounts could be Pro upgrade candidates
 
-Would you like me to dive deeper into any of these areas?"
+If you have any other questions about your account data I'd be happy to dive in with you!"
 
-### Rules for Portfolio Analysis
-- ALWAYS confirm the AM name before pulling data
-- NEVER make up numbers - only use data that's been provided
-- Prioritize contract status issues (Term Pending, Expired) in your analysis
-- Offer to drill deeper into specific areas
-- If asked about data not available, explain what IS available`;
+### Category Breakdowns with RIDs
+The data includes RID lists for each category. When discussing categories, you can tell the user how many and offer to show which:
+
+**User:** "How many accounts on Freemium?"
+**You:** "You have **8 accounts** on Freemium pricing.
+
+Would you like to see which specific accounts? I can also check them in Smart Select for you."
+
+### Red Flags to Always Mention
+When you see data, proactively flag these issues:
+- Term Pending > 0 → Always mention, these are urgent
+- 0-Fullbook accounts → Complete booking stoppage, needs investigation
+- Expired contracts → Immediate outreach required
+- Partner Feed Excluded > 10% of bucket → Revenue risk
+
+### Rules for Account Data Conversations
+- **Answer directly** - don't ask for confirmation on simple data questions
+- **Use actual numbers** from the injected data - NEVER make up numbers
+- **Always include the follow-up prompt** after answering a data question
+- **List RIDs** when user asks "which" accounts
+- **Offer Smart Select** when listing RIDs: [SMART_SELECT_ACTION:rid1,rid2,...]
+- If no data is injected, explain you need to fetch data for the AM first`;
+
+/**
+ * Patterns to detect account data questions
+ * These questions should trigger data injection
+ */
+const ACCOUNT_DATA_PATTERNS = [
+  /how\s*many\s*(rids?|accounts?|restaurants?)/i,
+  /my\s*(bucket|book|portfolio)/i,
+  /(bucket|book|portfolio)\s*(size|count|total)/i,
+  /term\s*pending/i,
+  /contract\s*(status|renewals?|expir)/i,
+  /system\s*(mix|types?)/i,
+  /quality\s*tiers?/i,
+  /no\s*booking/i,
+  /active\s*(pi|xp)/i,
+  /(freemium|ayce|exclusive\s*pricing)/i,
+  /which\s*(rids?|accounts?|ones?)/i,
+  /list\s*(them|the\s*rids?|accounts?)/i,
+  /show\s*(me\s*)?(the\s*)?(rids?|accounts?|list)/i,
+  /analyze\s*my/i,
+  /snapshot/i,
+  /bucket\s*summary/i,
+  /portfolio\s*analysis/i
+];
 
 /**
  * Get the Gemini API key from script properties
@@ -1767,63 +1772,25 @@ const SCRIPTED_RESPONSES = {
     }
   ],
   
-  // Portfolio Analysis - Triggers portfolio analysis flow
+  // Portfolio / Account Data - These now go to Gemini with data injection
+  // Keeping minimal scripted responses only for edge cases
   portfolio: [
     {
-      patterns: [
-        /show.*my.*(analysis|portfolio|bucket|summary)/i,
-        /my.*(portfolio|bucket|book).*(analysis|summary|looking)/i,
-        /analyze.*my.*(portfolio|bucket|accounts|book)/i,
-        /how.*my.*(book|portfolio|bucket|accounts).*(looking|doing)/i,
-        /what.*(is|does).*my.*(bucket|portfolio|book).*(look|like)/i,
-        /how.*many.*(rids?|accounts?|restaurants?).*(in|do|have)/i,
-        /how.*many.*(rids?|accounts?|restaurants?).*my/i,
-        /my.*(rid|account|restaurant).*count/i,
-        /what.*my.*bucket/i,
-        /how.*big.*my.*(bucket|book|portfolio)/i,
-        /size.*of.*my.*(bucket|book|portfolio)/i
-      ],
-      // This response will trigger the confirmation flow with AM detection
-      needsAMContext: true,
-      getResponse: function(amContext) {
-        if (amContext && amContext.isAMTab && amContext.isTeamView) {
-          // User is on Manager Lens / ALL TEAM view
-          return `You're on the **Manager Lens** view. Would you like to see the team-wide analysis?\n\n[PORTFOLIO_ACTION:TEAM]`;
-        } else if (amContext && amContext.isAMTab && amContext.fullName) {
-          // User is on a specific AM's tab
-          return `I'll pull the portfolio analysis for **${amContext.fullName}**. Is that correct?\n\n[PORTFOLIO_ACTION:CONFIRM:${amContext.fullName}]`;
-        } else if (amContext && amContext.isAMTab) {
-          // AM tab but couldn't determine AM name
-          return `I couldn't determine the Account Manager for this tab. Would you like to select an AM to analyze?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
-        } else {
-          // Not on an AM tab
-          return `I don't detect an AM tab. Would you like to select an Account Manager to analyze, or see the team summary?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
-        }
-      }
-    },
-    {
+      // Team-wide analysis request when NOT on an AM tab
       patterns: [
         /team.*(summary|analysis|portfolio)/i,
         /(summary|analysis|portfolio).*team/i,
         /all.*am.*(summary|analysis)/i,
         /everyone.*(summary|portfolio|analysis)/i
       ],
-      response: `I'll generate a team-wide summary across all Account Managers. Is that correct?\n\n[PORTFOLIO_ACTION:TEAM]`
-    },
-    {
-      patterns: [
-        /contract.*(renewals?|status|expir)/i,
-        /term.*pending/i,
-        /expir.*(contracts?|accounts?)/i
-      ],
       needsAMContext: true,
       getResponse: function(amContext) {
+        // Only use scripted for team requests when on manager lens
         if (amContext && amContext.isTeamView) {
-          return `You're on the Manager Lens. I'll show the team-wide contract status.\n\n[PORTFOLIO_ACTION:TEAM]`;
-        } else if (amContext && amContext.fullName) {
-          return `I'll pull your contract status breakdown. Analyzing portfolio for **${amContext.fullName}**...\n\n[PORTFOLIO_ACTION:CONFIRM:${amContext.fullName}]`;
+          return `I can generate a team-wide analysis. This pulls data across all Account Managers. Give me a moment...\n\n[TEAM_ANALYSIS_ACTION]`;
         }
-        return `I can show contract status. Would you like to select an AM?\n\n[PORTFOLIO_ACTION:SELECT_AM]`;
+        // Otherwise let it fall through to Gemini with data injection
+        return null;
       }
     }
   ]
@@ -1979,7 +1946,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 11. Check portfolio analysis patterns
+  // 11. Check portfolio analysis patterns (most now fall through to Gemini with data injection)
   if (SCRIPTED_RESPONSES.portfolio) {
     for (const item of SCRIPTED_RESPONSES.portfolio) {
       for (const pattern of item.patterns) {
@@ -1990,6 +1957,11 @@ function tryScriptedResponse(query) {
           if (item.needsAMContext && typeof item.getResponse === 'function') {
             const amContext = getActiveAMContext();
             const response = item.getResponse(amContext);
+            // If getResponse returns null, fall through to Gemini
+            if (response === null) {
+              console.log('[tryScriptedResponse] Portfolio pattern returned null, falling through to Gemini');
+              return null;
+            }
             return { success: true, answer: response, source: 'scripted' };
           }
           
@@ -2004,6 +1976,72 @@ function tryScriptedResponse(query) {
   
   // No match - fall through to Gemini
   return null;
+}
+
+/**
+ * Check if query is about account data and needs data injection
+ * @param {string} query - The user's question
+ * @returns {boolean} True if this is an account data question
+ */
+function isAccountDataQuestion(query) {
+  if (!query) return false;
+  return ACCOUNT_DATA_PATTERNS.some(pattern => pattern.test(query));
+}
+
+/**
+ * Format account data for injection into Gemini context
+ * @param {Object} data - The detailed AM data object
+ * @returns {string} Formatted data string for injection
+ */
+function formatDataForInjection(data) {
+  if (!data || !data.success) return '';
+  
+  let text = `\n--- ACCOUNT DATA FOR ${data.amName} ---\n`;
+  text += `Total Accounts: ${data.totalAccounts} | Groups: ${data.totalGroups}\n`;
+  text += `Term Pending: ${data.termPending.count} | Expired: ${data.termExpired.count} | Warning (45d): ${data.termWarning.count}\n`;
+  text += `Avg Yield: $${data.avgYield} | Avg Sub Fee: $${data.avgSubFee} | Discovery: ${data.avgDisco}\n`;
+  text += `MoM Change: ${data.momChange} | PI Rev Share: ${data.piRevShare} | POS Match: ${data.posMatch}\n\n`;
+  
+  // Features
+  text += `Active PI: ${data.activePI.count} | Active XP: ${data.activeXP.count}\n`;
+  text += `Instant Booking: ${data.instantBooking.count} | Private Dining: ${data.privateDining.count}\n`;
+  text += `Partner Feed Excluded: ${data.partnerFeedExcluded.count}\n\n`;
+  
+  // Category breakdowns with RID details
+  const formatCategory = (name, items) => {
+    if (!items || items.length === 0) return '';
+    let result = `${name}:\n`;
+    items.forEach(item => {
+      const ridList = item.rids.slice(0, 5).map(r => r.rid).join(', ');
+      const more = item.rids.length > 5 ? ` (+${item.rids.length - 5} more)` : '';
+      result += `  - ${item.name}: ${item.count} [RIDs: ${ridList}${more}]\n`;
+    });
+    return result;
+  };
+  
+  // Single-category items with RID details
+  const formatSingleCategory = (name, obj) => {
+    if (!obj || obj.count === 0) return '';
+    const ridList = obj.rids.slice(0, 5).map(r => `${r.rid} (${r.name})`).join(', ');
+    const more = obj.rids.length > 5 ? ` (+${obj.rids.length - 5} more)` : '';
+    return `${name}: ${obj.count} [${ridList}${more}]\n`;
+  };
+  
+  text += formatSingleCategory('Term Pending RIDs', data.termPending);
+  text += formatSingleCategory('Expired RIDs', data.termExpired);
+  text += formatSingleCategory('Warning (45d) RIDs', data.termWarning);
+  text += '\n';
+  
+  text += formatCategory('System Mix', data.systemMix);
+  text += formatCategory('Quality Tiers', data.qualityTiers);
+  text += formatCategory('Exclusive Pricing', data.exclusivePricing);
+  text += formatCategory('No Booking Reasons', data.noBookingReasons);
+  text += formatCategory('Special Programs', data.specialPrograms);
+  text += formatCategory('Top Metros', data.topMetros);
+  
+  text += `--- END ACCOUNT DATA ---\n`;
+  
+  return text;
 }
 
 /**
@@ -2042,8 +2080,29 @@ function askInTouchGuide(userQuery, conversationHistory) {
       }
     }
     
-    // STEP 2: Fall through to Gemini for complex/novel questions
-    console.log('[askInTouchGuide] No scripted match, calling Gemini API');
+    // STEP 2: Check if this is an account data question - if so, inject data
+    let injectedData = null;
+    let amContext = null;
+    
+    if (isAccountDataQuestion(userQuery)) {
+      console.log('[askInTouchGuide] Detected account data question, fetching data...');
+      amContext = getActiveAMContext();
+      
+      if (amContext.isAMTab && amContext.fullName) {
+        console.log(`[askInTouchGuide] Injecting data for: ${amContext.fullName}`);
+        injectedData = getDetailedAMData(amContext.fullName);
+        
+        if (!injectedData.success) {
+          console.log('[askInTouchGuide] Failed to get data: ' + injectedData.error);
+          injectedData = null;
+        }
+      } else if (amContext.isTeamView) {
+        console.log('[askInTouchGuide] Team view detected - will mention team context');
+      }
+    }
+    
+    // STEP 3: Call Gemini with optional data injection
+    console.log('[askInTouchGuide] Calling Gemini API');
     const apiKey = getGeminiApiKey_();
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
     
@@ -2065,10 +2124,23 @@ function askInTouchGuide(userQuery, conversationHistory) {
       }
     }
     
+    // Build the user message - optionally inject data
+    let userMessage = userQuery;
+    
+    if (injectedData && injectedData.success) {
+      const dataText = formatDataForInjection(injectedData);
+      userMessage = userQuery + '\n\n' + dataText;
+      console.log('[askInTouchGuide] Data injected into query');
+    } else if (amContext && amContext.isTeamView) {
+      userMessage = userQuery + '\n\n[CONTEXT: User is on Manager Lens / Team view - no individual AM data available. Offer team-wide analysis if relevant.]';
+    } else if (amContext && amContext.isAMTab && !amContext.fullName) {
+      userMessage = userQuery + '\n\n[CONTEXT: User is on an AM tab but the AM name could not be determined from B2.]';
+    }
+    
     // Add current user query
     contents.push({
       role: 'user',
-      parts: [{ text: userQuery }]
+      parts: [{ text: userMessage }]
     });
     
     const payload = {
@@ -2077,7 +2149,7 @@ function askInTouchGuide(userQuery, conversationHistory) {
       },
       contents: contents,
       generationConfig: {
-        maxOutputTokens: 1024,
+        maxOutputTokens: 1500,  // Increased for data responses
         temperature: 0.3,  // Lower for factual accuracy
         topP: 0.9
       }
@@ -2114,7 +2186,8 @@ function askInTouchGuide(userQuery, conversationHistory) {
       success: true,
       answer: answer,
       requestId: requestId,
-      durationMs: durationMs
+      durationMs: durationMs,
+      amContext: amContext  // Include AM context for frontend
     };
     
   } catch (error) {
@@ -2545,6 +2618,318 @@ function getAvailableAMTabs() {
   } catch (e) {
     console.error(`[${functionName}] Error: ${e.message}`);
     return { success: false, ams: [], error: e.message };
+  }
+}
+
+/**
+ * Get detailed AM data with RIDs tracked per category
+ * This function returns both counts AND lists of RIDs for each category
+ * Used for conversational AI to answer specific questions and enable "which rids" follow-ups
+ * @param {string} amName - The full AM name to analyze
+ * @returns {Object} Detailed portfolio data with RID lists
+ */
+function getDetailedAMData(amName) {
+  const functionName = 'getDetailedAMData';
+  const startTime = new Date();
+  
+  console.log(`[${functionName}] Getting detailed data for: "${amName}"`);
+  
+  try {
+    if (!amName || amName.trim() === '') {
+      return { success: false, error: 'No AM name provided' };
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const statSheet = ss.getSheetByName('STATCORE');
+    const distroSheet = ss.getSheetByName('DISTRO');
+    
+    if (!statSheet || !distroSheet) {
+      return { success: false, error: 'Missing STATCORE or DISTRO sheets' };
+    }
+    
+    // Get headers and data
+    const sHead = statSheet.getRange(2, 1, 1, statSheet.getLastColumn()).getValues()[0];
+    const sData = statSheet.getRange(3, 1, statSheet.getLastRow()-2, statSheet.getLastColumn()).getValues();
+    
+    const dHead = distroSheet.getRange(1, 1, 1, distroSheet.getLastColumn()).getValues()[0];
+    const dData = distroSheet.getRange(2, 1, distroSheet.getLastRow()-1, distroSheet.getLastColumn()).getValues();
+    
+    // Column mapping
+    const findCol = (headers, keyword) => headers.findIndex(h => 
+      String(h).toLowerCase().replace(/[^a-z0-9]/g, "").includes(keyword.toLowerCase().replace(/[^a-z0-9]/g, ""))
+    );
+    
+    const map = {
+      s_rid: findCol(sHead, "rid"),
+      am: findCol(sHead, "accountmanager"),
+      parent: findCol(sHead, "parentaccount"),
+      accName: findCol(sHead, "accountname"),
+      status: findCol(sHead, "status"),
+      accStatus: findCol(sHead, "accountstatus"),
+      termEnd: findCol(sHead, "termenddate"),
+      metro: findCol(sHead, "metro"),
+      sor: findCol(sHead, "systemofrecord"),
+      sysType: findCol(sHead, "systemtype"),
+      qual: findCol(sHead, "quality"),
+      programs: findCol(sHead, "specialprograms"),
+      pricing: findCol(sHead, "exclusivepricing"),
+      ib: findCol(sHead, "instantbooking"),
+      pd: findCol(sHead, "privatedining"),
+      d_rid: findCol(dHead, "rid"),
+      subfees: findCol(dHead, "subslastmonth"),
+      yield: findCol(dHead, "revyield"),
+      noBook: findCol(dHead, "nobookings"),
+      disco: findCol(dHead, "discocurrent"),
+      mom: findCol(dHead, "discomom"),
+      xp: findCol(dHead, "activexp"),
+      pi: findCol(dHead, "activepi"),
+      piShare: findCol(dHead, "pirevshare"),
+      pos: findCol(dHead, "posmatch"),
+      pf: findCol(dHead, "partnerfeed")
+    };
+    
+    if (map.am === -1) map.am = 13;
+    
+    // Build DISTRO lookup
+    const dMap = new Map();
+    dData.forEach(row => {
+      if (row[map.d_rid]) dMap.set(String(row[map.d_rid]), row);
+    });
+    
+    // Initialize tracking objects - stores arrays of {rid, name}
+    const data = {
+      allRids: [],
+      groups: new Set(),
+      termPending: [],
+      termExpired: [],
+      termWarning: [],
+      systemTypes: {},      // { "Core": [{rid, name}], "Pro": [{rid, name}] }
+      qualityTiers: {},     // { "Platinum": [{rid, name}], "Gold": [{rid, name}] }
+      specialPrograms: {},  // { "VIP": [{rid, name}] }
+      exclusivePricing: {}, // { "Freemium": [{rid, name}] }
+      noBookingReasons: {}, // { "0-Fullbook": [{rid, name}] }
+      metros: {},           // { "LA": [{rid, name}] }
+      systemOfRecord: {},   // { "OT": [{rid, name}] }
+      activePI: [],
+      activeXP: [],
+      instantBooking: [],
+      privateDining: [],
+      partnerFeedExcluded: [],
+      // Numeric aggregations
+      subSum: 0, subCnt: 0,
+      yldSum: 0, yldCnt: 0,
+      discoSum: 0, discoCnt: 0,
+      momSum: 0, momCnt: 0,
+      piShareSum: 0, piShareCnt: 0,
+      posSum: 0, posCnt: 0
+    };
+    
+    const today = new Date();
+    const warnDate = new Date();
+    warnDate.setDate(today.getDate() + 45);
+    
+    const isTrue = v => v === true || String(v).toLowerCase() === 'true' || String(v).toLowerCase() === 'yes' || v === 1;
+    
+    const addNum = (key, val) => {
+      const n = parseFloat(val);
+      if (!isNaN(n)) {
+        data[key + 'Sum'] += n;
+        data[key + 'Cnt']++;
+      }
+    };
+    
+    const addToCategory = (category, value, rid, name) => {
+      const cleanVal = String(value || '').trim();
+      if (!cleanVal) return;
+      if (!data[category][cleanVal]) data[category][cleanVal] = [];
+      data[category][cleanVal].push({ rid, name });
+    };
+    
+    // Process each row for this AM
+    sData.forEach(row => {
+      const rowAM = String(row[map.am] || "").trim();
+      if (rowAM.toLowerCase() !== amName.toLowerCase().trim()) return;
+      
+      const rid = String(row[map.s_rid] || '');
+      const name = String(row[map.accName] || 'Unknown');
+      const dRow = dMap.get(rid);
+      
+      data.allRids.push({ rid, name });
+      
+      if (map.parent > -1 && row[map.parent]) data.groups.add(row[map.parent]);
+      
+      // Contract status
+      if (map.termEnd > -1) {
+        const d = row[map.termEnd];
+        if (d instanceof Date) {
+          if (d < today) data.termExpired.push({ rid, name });
+          else if (d <= warnDate) data.termWarning.push({ rid, name });
+        }
+      }
+      
+      const st = String(row[map.status]||"") + String(row[map.accStatus]||"");
+      if (st.toLowerCase().includes("term") || st.toLowerCase().includes("cancel")) {
+        data.termPending.push({ rid, name });
+      }
+      
+      // Categories with RID tracking
+      addToCategory('systemTypes', row[map.sysType], rid, name);
+      addToCategory('qualityTiers', row[map.qual], rid, name);
+      addToCategory('specialPrograms', row[map.programs], rid, name);
+      addToCategory('exclusivePricing', row[map.pricing], rid, name);
+      addToCategory('metros', row[map.metro], rid, name);
+      addToCategory('systemOfRecord', row[map.sor], rid, name);
+      
+      // Features
+      if (map.ib > -1 && isTrue(row[map.ib])) data.instantBooking.push({ rid, name });
+      if (map.pd > -1 && isTrue(row[map.pd])) data.privateDining.push({ rid, name });
+      
+      // DISTRO metrics
+      if (dRow) {
+        addNum('sub', dRow[map.subfees]);
+        addNum('yld', dRow[map.yield]);
+        addNum('disco', dRow[map.disco]);
+        addNum('mom', dRow[map.mom]);
+        addNum('piShare', dRow[map.piShare]);
+        addNum('pos', dRow[map.pos]);
+        
+        if (map.xp > -1 && isTrue(dRow[map.xp])) data.activeXP.push({ rid, name });
+        if (map.pi > -1 && isTrue(dRow[map.pi])) data.activePI.push({ rid, name });
+        
+        const pf = String(dRow[map.pf]||"").toUpperCase();
+        if (pf.includes("EXCLUDED") || pf === "FALSE") data.partnerFeedExcluded.push({ rid, name });
+        
+        addToCategory('noBookingReasons', dRow[map.noBook], rid, name);
+      }
+    });
+    
+    // Calculate averages
+    const calcAvg = (sum, cnt, decimals) => cnt > 0 ? (sum / cnt).toFixed(decimals) : '0';
+    
+    // Format category to sorted list with counts
+    const formatCategory = (cat) => {
+      return Object.entries(cat)
+        .map(([key, arr]) => ({ name: key, count: arr.length, rids: arr }))
+        .sort((a, b) => b.count - a.count);
+    };
+    
+    const result = {
+      success: true,
+      amName: amName,
+      generatedAt: new Date().toISOString(),
+      
+      // Core counts
+      totalAccounts: data.allRids.length,
+      totalGroups: data.groups.size,
+      
+      // Contract status with RIDs
+      termPending: { count: data.termPending.length, rids: data.termPending },
+      termExpired: { count: data.termExpired.length, rids: data.termExpired },
+      termWarning: { count: data.termWarning.length, rids: data.termWarning },
+      
+      // Averages
+      avgYield: calcAvg(data.yldSum, data.yldCnt, 0),
+      avgSubFee: calcAvg(data.subSum, data.subCnt, 0),
+      avgDisco: calcAvg(data.discoSum, data.discoCnt, 1) + '%',
+      momChange: calcAvg(data.momSum, data.momCnt, 1) + '%',
+      piRevShare: calcAvg(data.piShareSum, data.piShareCnt, 1) + '%',
+      posMatch: calcAvg(data.posSum, data.posCnt, 0) + '%',
+      
+      // Features with RIDs
+      activePI: { count: data.activePI.length, rids: data.activePI },
+      activeXP: { count: data.activeXP.length, rids: data.activeXP },
+      instantBooking: { count: data.instantBooking.length, rids: data.instantBooking },
+      privateDining: { count: data.privateDining.length, rids: data.privateDining },
+      partnerFeedExcluded: { count: data.partnerFeedExcluded.length, rids: data.partnerFeedExcluded },
+      
+      // Categories with RIDs
+      systemMix: formatCategory(data.systemTypes),
+      qualityTiers: formatCategory(data.qualityTiers),
+      specialPrograms: formatCategory(data.specialPrograms),
+      exclusivePricing: formatCategory(data.exclusivePricing),
+      noBookingReasons: formatCategory(data.noBookingReasons),
+      topMetros: formatCategory(data.metros),
+      systemOfRecord: formatCategory(data.systemOfRecord),
+      
+      durationMs: new Date() - startTime
+    };
+    
+    console.log(`[${functionName}] Found ${result.totalAccounts} accounts in ${result.durationMs}ms`);
+    return result;
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Check RIDs in Smart Select (Column D) on the AM's tab
+ * @param {Array<string>} rids - Array of RID strings to check
+ * @param {string} amName - The AM whose tab to modify (for verification)
+ * @returns {Object} Result with success status
+ */
+function checkRIDsInSmartSelect(rids, amName) {
+  const functionName = 'checkRIDsInSmartSelect';
+  
+  try {
+    if (!rids || rids.length === 0) {
+      return { success: false, error: 'No RIDs provided' };
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const activeSheet = ss.getActiveSheet();
+    const currentAM = String(activeSheet.getRange('B2').getValue() || '').trim();
+    
+    // Verify we're on the correct tab
+    if (currentAM.toLowerCase() !== amName.toLowerCase()) {
+      return {
+        success: false,
+        wrongTab: true,
+        currentTab: currentAM,
+        expectedTab: amName,
+        error: `You are on ${currentAM || 'an unknown tab'}'s sheet, not ${amName}'s.`
+      };
+    }
+    
+    // Find RID column (Column A) and Smart Select column (Column D)
+    const lastRow = activeSheet.getLastRow();
+    const ridCol = 1;  // Column A
+    const smartSelectCol = 4;  // Column D
+    
+    // Get all RIDs from column A (starting from row 3, data starts after headers)
+    const allRids = activeSheet.getRange(3, ridCol, lastRow - 2, 1).getValues().map(r => String(r[0]));
+    
+    // Find which rows to check
+    const rowsToCheck = [];
+    const ridsToCheck = rids.map(r => String(r).trim());
+    
+    allRids.forEach((sheetRid, idx) => {
+      if (ridsToCheck.includes(sheetRid)) {
+        rowsToCheck.push(idx + 3);  // +3 because data starts at row 3
+      }
+    });
+    
+    if (rowsToCheck.length === 0) {
+      return { success: false, error: 'None of the specified RIDs were found on this sheet' };
+    }
+    
+    // Check the Smart Select boxes for these rows
+    rowsToCheck.forEach(row => {
+      activeSheet.getRange(row, smartSelectCol).setValue(true);
+    });
+    
+    SpreadsheetApp.flush();
+    
+    return {
+      success: true,
+      checkedCount: rowsToCheck.length,
+      message: `Checked ${rowsToCheck.length} account${rowsToCheck.length > 1 ? 's' : ''} in Smart Select.`
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
   }
 }
 

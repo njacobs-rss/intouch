@@ -1662,7 +1662,21 @@ When you see data, proactively flag these issues:
 - **Always include the follow-up prompt** after answering a data question
 - **List RIDs only when asked** - "which ones?", "list them", "which rids?"
 - **Offer Smart Select only after listing** - Not after count questions
-- If no data is injected, explain you need to fetch data for the AM first`;
+- If no data is injected, explain you need to fetch data for the AM first
+
+### Switching Between AMs
+When user asks about a DIFFERENT AM (e.g., "what about Erin", "show me Kevin's data"):
+- The system will automatically inject that AM's data
+- The data header will show the new AM's name
+- Answer using that AM's data just like you would for the active AM
+- If the requested AM isn't found, say: "I couldn't find an AM named [name]. Available AMs are: [list first names]"
+
+### CRITICAL: Never Output Code
+**NEVER output code, function calls, or code-like syntax.** If you don't have data for something:
+- Say "I don't have that specific data available" 
+- Explain what data IS available
+- NEVER output things like \`print(...)\`, \`tool_code\`, or any programming syntax
+- You are a conversational assistant, not a code executor`;
 
 /**
  * Patterns to detect account data questions
@@ -2165,8 +2179,86 @@ function isAccountDataQuestion(query) {
     }
   }
   
+  // Also check if asking about a different AM
+  if (extractAMNameFromQuery(query)) {
+    console.log(`[isAccountDataQuestion] ✓ Detected different AM query: "${query}"`);
+    return true;
+  }
+  
   console.log(`[isAccountDataQuestion] ✗ No pattern matched for query: "${query}"`);
   return false;
+}
+
+/**
+ * Extract AM name from query if user is asking about a different AM
+ * @param {string} query - The user's question
+ * @returns {string|null} The AM name if found, null otherwise
+ */
+function extractAMNameFromQuery(query) {
+  if (!query) return null;
+  
+  // Patterns for asking about different AMs
+  const patterns = [
+    /what\s+about\s+(\w+)/i,                    // "what about Erin"
+    /show\s+(?:me\s+)?(\w+)'?s?\s+data/i,       // "show me Erin's data", "show Erin data"
+    /(\w+)'?s?\s+(?:bucket|portfolio|accounts)/i, // "Erin's bucket", "Erin's accounts"
+    /how\s+(?:about|is)\s+(\w+)/i,              // "how about Erin", "how is Erin"
+    /switch\s+to\s+(\w+)/i,                     // "switch to Erin"
+    /(?:and|what\s+about)\s+for\s+(\w+)/i,     // "and for Erin", "what about for Erin"
+  ];
+  
+  for (const pattern of patterns) {
+    const match = query.match(pattern);
+    if (match && match[1]) {
+      const potentialName = match[1].trim();
+      // Filter out common words that aren't names
+      const skipWords = ['the', 'my', 'this', 'that', 'their', 'your', 'team', 'all'];
+      if (!skipWords.includes(potentialName.toLowerCase())) {
+        console.log(`[extractAMNameFromQuery] Found potential AM name: "${potentialName}"`);
+        return potentialName;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Find AM full name from first name or partial match
+ * @param {string} searchName - The name to search for
+ * @returns {Object|null} { fullName, tabName } if found, null otherwise
+ */
+function findAMByName(searchName) {
+  if (!searchName) return null;
+  
+  const availableTabs = getAvailableAMTabs();
+  if (!availableTabs.success || !availableTabs.ams.length) return null;
+  
+  const searchLower = searchName.toLowerCase().trim();
+  
+  for (const am of availableTabs.ams) {
+    // Check if first name matches (tab name is usually first name)
+    if (am.tabName && am.tabName.toLowerCase() === searchLower) {
+      console.log(`[findAMByName] Matched tab name: "${am.tabName}" → "${am.fullName}"`);
+      return { fullName: am.fullName, tabName: am.tabName };
+    }
+    
+    // Check if full name starts with the search term
+    if (am.fullName && am.fullName.toLowerCase().startsWith(searchLower)) {
+      console.log(`[findAMByName] Matched full name start: "${searchName}" → "${am.fullName}"`);
+      return { fullName: am.fullName, tabName: am.tabName };
+    }
+    
+    // Check if first name of full name matches
+    const firstName = am.fullName ? am.fullName.split(' ')[0].toLowerCase() : '';
+    if (firstName === searchLower) {
+      console.log(`[findAMByName] Matched first name: "${searchName}" → "${am.fullName}"`);
+      return { fullName: am.fullName, tabName: am.tabName };
+    }
+  }
+  
+  console.log(`[findAMByName] No match found for: "${searchName}"`);
+  return null;
 }
 
 /**
@@ -2279,20 +2371,46 @@ function askInTouchGuide(userQuery, conversationHistory) {
     // STEP 2: Check if this is an account data question - if so, inject data
     let injectedData = null;
     let amContext = null;
+    let targetAMName = null;
     
     if (isAccountDataQuestion(userQuery)) {
       console.log('[askInTouchGuide] Detected account data question, fetching data...');
-      amContext = getActiveAMContext();
       
-      if (amContext.isAMTab && amContext.fullName) {
-        console.log(`[askInTouchGuide] Injecting data for: ${amContext.fullName}`);
-        injectedData = getDetailedAMData(amContext.fullName);
+      // First check if user is asking about a DIFFERENT AM
+      const extractedName = extractAMNameFromQuery(userQuery);
+      if (extractedName) {
+        const foundAM = findAMByName(extractedName);
+        if (foundAM) {
+          console.log(`[askInTouchGuide] User asking about different AM: ${foundAM.fullName}`);
+          targetAMName = foundAM.fullName;
+          amContext = {
+            isAMTab: true,
+            fullName: foundAM.fullName,
+            isTeamView: false,
+            sheetName: foundAM.tabName,
+            isDifferentAM: true  // Flag that this is not the active tab's AM
+          };
+        }
+      }
+      
+      // If not asking about different AM, use active tab context
+      if (!targetAMName) {
+        amContext = getActiveAMContext();
+        if (amContext.isAMTab && amContext.fullName) {
+          targetAMName = amContext.fullName;
+        }
+      }
+      
+      // Fetch data for the target AM
+      if (targetAMName) {
+        console.log(`[askInTouchGuide] Injecting data for: ${targetAMName}`);
+        injectedData = getDetailedAMData(targetAMName);
         
         if (!injectedData.success) {
           console.log('[askInTouchGuide] Failed to get data: ' + injectedData.error);
           injectedData = null;
         }
-      } else if (amContext.isTeamView) {
+      } else if (amContext && amContext.isTeamView) {
         console.log('[askInTouchGuide] Team view detected - will mention team context');
       }
     }

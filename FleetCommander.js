@@ -599,7 +599,7 @@ var QUEUE_CFG = {
   sources: {
     statcore: { ssId: '1Qa3S3USt-TOdVctormnunF4P8L010C3pSCx9zl5aTtM', sheet: 'StatcoreNA' },
     syscore:  { ssId: '1V4C9mIL4ISP4rx2tJcpPhflM-RIi4eft_xDZWAgWmGU', sheet: 'SEND' },
-    dagcore:  { ssId: '1Rp42PivUzqnm3VzV15g_R9KcairXX9dWGOfIjeotzTQ', sheet: 'SEND' }
+    dagcore:  { ssId: '1atxJQcNKTJyE17NhjbXmKIKUwr8uiuexRIgEcAceNcs', sheet: 'SEND' }
   }
 };
 

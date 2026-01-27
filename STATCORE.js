@@ -240,7 +240,7 @@ function runDAGCOREUpdates(targetSS) {
   const batchSize = 4000; // Optimized for 30k rows
 
   try {
-    const sourceSpreadsheet = SpreadsheetApp.openById('1Rp42PivUzqnm3VzV15g_R9KcairXX9dWGOfIjeotzTQ');
+    const sourceSpreadsheet = SpreadsheetApp.openById('1atxJQcNKTJyE17NhjbXmKIKUwr8uiuexRIgEcAceNcs');
     const sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
     if (!sourceSheet) throw new Error("Source sheet 'SEND' not found in DAGCORE Spreadsheet");
 

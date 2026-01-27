@@ -23,6 +23,10 @@ const CENTRAL_LOG_CONFIG = {
       name: 'API_Usage',
       headers: ['User', 'Timestamp', 'Worksheet Name', 'Prompt Tokens', 'Response Tokens', 'Total Tokens', 'Query Type']
     },
+    PROMPT_LOG: {
+      name: 'Prompt_Log',
+      headers: ['User', 'Timestamp', 'Worksheet Name', 'Prompt Text', 'Query Type']
+    },
     FLEET_OPS: {
       name: 'Fleet_Ops',
       headers: ['User', 'Timestamp', 'Operation', 'Target', 'Success', 'Errors', 'Warnings', 'Details']
@@ -231,6 +235,33 @@ function logApiUsage(usageData, queryType) {
     
   } catch (err) {
     console.error(`[logApiUsage] failed: ${err.message}`);
+  }
+}
+
+/**
+ * PROMPT LOGGING FUNCTION
+ * Logs user prompts to the central 'Prompt_Log' sheet
+ * @param {string} promptText - The user's question/prompt
+ * @param {string} queryType - Type of query (e.g., 'chat', 'scripted')
+ */
+function logUserPrompt(promptText, queryType) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userEmail = Session.getActiveUser().getEmail();
+    const fileName = ss.getName();
+    
+    const sheet = getCentralLogSheet_('PROMPT_LOG');
+    // ['User', 'Timestamp', 'Worksheet Name', 'Prompt Text', 'Query Type']
+    sheet.appendRow([
+      userEmail,
+      new Date(),
+      fileName,
+      promptText,
+      queryType || 'chat'
+    ]);
+    
+  } catch (err) {
+    console.error(`[logUserPrompt] failed: ${err.message}`);
   }
 }
 

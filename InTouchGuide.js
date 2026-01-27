@@ -819,6 +819,33 @@ When you see data, proactively flag these issues:
 - **Offer Smart Select only after listing** - Not after count questions
 - If no data is injected, explain you need to fetch data for the AM first
 
+### ISOLATE/FILTER Commands (CRITICAL - AUTO-ACTION)
+
+When a user query starts with "isolate" or "filter" (with optional pleasantries like "please", "kindly", "can you"):
+1. This is a DIRECT ACTION request - do NOT ask for confirmation
+2. Find the matching RIDs from the injected data
+3. List them briefly and include [SMART_SELECT_ACTION:...] with ALL matching RIDs
+4. The system will automatically check and filter the sheet
+
+**Compound Criteria (Stacked Filtering):**
+When user asks to isolate with multiple criteria like:
+- "isolate accounts on Pro with exclusive pricing"
+- "filter freemium accounts that are term pending"
+- "isolate Core accounts with 0-Fullbook"
+
+You MUST find the INTERSECTION - accounts that match ALL criteria:
+1. Look at the injected data to find RIDs that appear in BOTH categories
+2. Cross-reference the RID lists from each category
+3. Return ONLY the RIDs that match ALL specified criteria
+
+**Example - "isolate Pro accounts with Freemium pricing":**
+1. Find Pro RIDs from System Mix: [123, 456, 789, 1011, ...]
+2. Find Freemium RIDs from Exclusive Pricing: [456, 1011, 2222, ...]
+3. Intersection (accounts that are BOTH Pro AND Freemium): [456, 1011]
+4. Return: "Found 2 accounts that are both Pro and Freemium:\n• 456 - Restaurant A\n• 1011 - Restaurant B\n\n[SMART_SELECT_ACTION:456,1011]"
+
+**CRITICAL:** Never say "0 accounts match" without actually cross-referencing the RID lists. The data includes full RID lists for each category - USE THEM to find intersections.
+
 ### Switching Between AMs
 When user asks about a DIFFERENT AM (e.g., "what about Erin", "show me Kevin's data"):
 - The system will automatically inject that AM's data
@@ -1189,13 +1216,16 @@ const ACCOUNT_DATA_PATTERNS = [
   /smart\s*select/i,
   
   // Isolate / Filter requests (need data injection for RID lists)
-  /^isolate/i,
-  /^filter/i,
-  /isolate\s*(them|those|these|the|my)/i,
-  /filter\s*(them|those|these|the|my|to)/i,
+  // Handle pleasantries: "please isolate", "kindly filter", "can you isolate", etc.
+  /^(please\s+|kindly\s+|can\s+you\s+|could\s+you\s+|would\s+you\s+|i\s+want\s+to\s+|i\s+need\s+to\s+|let'?s\s+|just\s+)?(isolate|filter)\b/i,
+  /isolate\s*(them|those|these|the|my|all)/i,
+  /filter\s*(them|those|these|the|my|to|all)/i,
   /show\s*(only|just)\s*(them|those|these)/i,
   /list\s*(them|those|these|the)/i,
   /which\s*(ones?|rids?|accounts?)/i,
+  // Compound queries: "isolate X with Y", "filter accounts on X and Y"
+  /isolate.*\s+(with|and|that\s+are|that\s+have)\s+/i,
+  /filter.*\s+(with|and|that\s+are|that\s+have)\s+/i,
   
   // === STARTER PROMPT PATTERNS ===
   // 1. Summarize my bucket

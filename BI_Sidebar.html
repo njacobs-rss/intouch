@@ -1605,9 +1605,11 @@
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
       
-      // Detect auto-isolate mode: query starts with "isolate" or "filter"
+      // Detect auto-isolate mode: query starts with "isolate" or "filter" (with optional pleasantries)
       const lowerQuery = query.toLowerCase();
-      khState.autoIsolateMode = /^(isolate|filter)\b/i.test(lowerQuery);
+      // Match: "isolate...", "filter...", "please isolate...", "kindly filter...", "can you isolate...", etc.
+      const isolatePattern = /^(please\s+|kindly\s+|can\s+you\s+|could\s+you\s+|would\s+you\s+|i\s+want\s+to\s+|i\s+need\s+to\s+|let'?s\s+|just\s+)?(isolate|filter)\b/i;
+      khState.autoIsolateMode = isolatePattern.test(lowerQuery);
       if (khState.autoIsolateMode) {
         console.log('[sendKHMessage] Auto-isolate mode activated (query starts with isolate/filter)');
       }

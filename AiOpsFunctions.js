@@ -668,6 +668,16 @@ function getAccountBaseline(target) {
   return agg;
 }
 
+/**
+ * Alias for getAccountBaseline - called by sidebar's Pricing Simulator
+ * Returns { revenue, subFee, direct, discovery, google, network }
+ * @param {string} target - RID or Group name
+ * @returns {Object} Revenue and cover data
+ */
+function getAccountRevenue(target) {
+  return getAccountBaseline(target);
+}
+
 function runPricingSimulation(cfg) {
   const baseline = getAccountBaseline(cfg.target || "");
   const baseRev = baseline.revenue || 0;
@@ -843,6 +853,233 @@ function showExportSuccessModal_(fileName, url, duration) {
 // =============================================================
 
 // =============================================================
+// SECTION 5B: DYNAMIC COLUMN ACTIONS
+// =============================================================
+// These functions support the [COLUMN_ACTION:...] feature in the AI chat
+// =============================================================
+
+/**
+ * Maps metric names to their column letters
+ * Used by findColumnForMetric to locate which column can display a metric
+ */
+const DYNAMIC_COLUMN_MAP = {
+  // Column E - Account IDs
+  'Insights': 'E', 'Users': 'E', 'OT4R': 'E',
+  
+  // Column G - Account Name variants
+  'Account Name (SFDC)': 'G', 'Account Name (Google)': 'G', 
+  'Account Name (Bistro Settings)': 'G', 'Account Name (OT Profile)': 'G',
+  
+  // Column I - Location
+  'Metro': 'I', 'Neighborhood': 'I', 'Macro': 'I',
+  
+  // Columns J-L - Dates & Activity
+  'AM Assigned Date': 'J', 'Task Created By': 'J', 'Task Date': 'J', 'Task Type': 'J',
+  'Event Created By': 'J', 'Event Date': 'J', 'Event Type': 'J', 'L90 Total Meetings': 'J',
+  'Last Engaged Date': 'K', 'Current Term End Date': 'K', 'Focus20': 'K',
+  'Customer Since': 'L', 'Contract Alerts': 'L',
+  
+  // Columns M-O - Account + Status Info
+  'Status': 'M', 'System Status': 'M', 'System Type': 'N', 
+  'No Bookings >30 Days': 'M', 'System of Record': 'O',
+  
+  // Columns P-R - System Stats
+  'Active PI': 'P', 'Active XP': 'P', 'AutoTags Active - Last 30': 'P',
+  'CHRM-CC Req Min': 'P', 'CHRM-Days in Advance': 'P', 'CHRM-Max Party': 'P',
+  'Email Integration': 'P', 'Exclusive Pricing': 'P', 'HEALTH FLAGS - LM': 'P',
+  'Instant Booking': 'P', 'Integrations Total': 'P', 'PartnerFeed EXCLUDED': 'P',
+  'Payment Method': 'P', 'POS Type': 'P', 'Previous AM': 'P', 'Private Dining': 'P',
+  'PRO-Last Sent': 'P', 'Rest. Quality': 'Q', 'Shift w/MAX CAP': 'P',
+  'Special Programs': 'P', 'Stripe Status*': 'P', 'Target Zipcode': 'P',
+  
+  // Columns S-U - Percentage Metrics
+  'CVR - Fullbook YoY%': 'S', 'CVR - Network YoY%': 'S', 
+  'CVRs - Discovery % Avg. 12m': 'S', 'CVRs LM - Direct %': 'S',
+  'CVRs LM - Discovery %': 'S', 'Disco % Current': 'S', 'Disco % MoM (+/-)': 'S',
+  'Google % Avg. 12m': 'S', 'PI Rev Share %': 'S', 'POS Match %': 'S',
+  'Disco % WoW (+/-)*': 'S',
+  
+  // Columns V-X - Revenue
+  'Rev Yield - Total Last Month': 'V', 'Revenue - PI Last Month': 'V',
+  'Check Avg. Last 30': 'V', 'Revenue - Total 12m Avg.': 'V',
+  'Revenue - Subs Last Month': 'V', 'Revenue - Total Last Month': 'V',
+  'Total Due': 'V', 'Past Due': 'V',
+  
+  // Columns Y-AA - Seated Covers
+  'CVR Last Month - Direct': 'Y', 'CVR Last Month - Discovery': 'Y',
+  'CVR Last Month - Phone/Walkin': 'Y', 'CVR Last Month - Google': 'Y',
+  'CVR Last Month - PI BP': 'Y', 'CVR Last Month - PI CP': 'Y',
+  'CVR Last Month - PI PR': 'Y', 'CVRs Last Month - Total PI': 'Y',
+  'CVR Last Month - Fullbook': 'Y', 'CVR Last Month - Network': 'Y',
+  'CVR Last Month - RestRef': 'Y', 'CVRs 12m Avg. - Network': 'Y',
+  'CVRs 12m Avg. - Dir': 'Y', 'CVRs 12m Avg. - Disc': 'Y',
+  'CVRs 12m Avg. - Phone/Walkin': 'Y', 'CVRs 12m Avg. - Restref': 'Y',
+  'CVRs 12m Avg. - FullBook': 'Y', 'CVRs 12m Avg. - Google': 'Y',
+  
+  // Columns AB-AD - Pricing
+  'GOOGLE / DIRECT CVRS': 'AB', 'STANDARD COVER PRICE': 'AB',
+  'STANDARD EXPOSURE CVRS': 'AB', 'SUBFEES': 'AB'
+};
+
+/**
+ * Sets a dynamic column header value on the active AM sheet
+ * Called when user confirms a [COLUMN_ACTION:...] from the AI chat
+ * @param {string} columnLetter - The column letter (e.g., "J", "K", "AA")
+ * @param {string} metricName - The metric name to set in the dropdown
+ * @returns {Object} Result with success status
+ */
+function setDynamicColumnHeader(columnLetter, metricName) {
+  const functionName = 'setDynamicColumnHeader';
+  console.log(`[${functionName}] Setting column ${columnLetter} to "${metricName}"`);
+  
+  // Helper to normalize strings for comparison (handles special chars like > < etc.)
+  const normalizeForCompare = (s) => String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+  
+  try {
+    // Validate we're on an AM tab
+    const tabCheck = checkIfAMTab();
+    if (!tabCheck.isAMTab) {
+      return {
+        success: false,
+        error: 'Please navigate to an AM tab first. The active sheet "' + tabCheck.sheetName + '" is not an AM tab.'
+      };
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getActiveSheet();
+    
+    // Convert column letter to index
+    const colIndex = columnLetterToIndex_(columnLetter);
+    if (colIndex < 1) {
+      return { success: false, error: 'Invalid column letter: ' + columnLetter };
+    }
+    
+    // Get the cell in Row 2
+    const cell = sheet.getRange(2, colIndex);
+    const currentValue = String(cell.getValue()).trim();
+    
+    // Check if already set to this metric (using normalized comparison)
+    if (normalizeForCompare(currentValue) === normalizeForCompare(metricName)) {
+      console.log(`[${functionName}] Column ${columnLetter} already set to "${currentValue}"`);
+      return {
+        success: true,
+        alreadySet: true,
+        column: columnLetter,
+        metric: currentValue,
+        previousValue: currentValue,
+        sheetName: tabCheck.sheetName
+      };
+    }
+    
+    // Get data validation to verify the metric is valid for this column
+    const validation = cell.getDataValidation();
+    if (validation) {
+      const criteriaType = validation.getCriteriaType();
+      let validOptions = [];
+      
+      if (criteriaType === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
+        validOptions = validation.getCriteriaValues()[0] || [];
+      } else if (criteriaType === SpreadsheetApp.DataValidationCriteria.VALUE_IN_RANGE) {
+        try {
+          const range = validation.getCriteriaValues()[0];
+          if (range) validOptions = range.getValues().flat().filter(String);
+        } catch (e) {
+          console.log('Could not read validation range:', e.message);
+        }
+      }
+      
+      // Check if metricName is in the valid options (using normalized comparison)
+      const matchedOption = validOptions.find(opt => 
+        normalizeForCompare(opt) === normalizeForCompare(metricName)
+      );
+      
+      if (!matchedOption && validOptions.length > 0) {
+        // Check if maybe it's already set (current value matches requested)
+        const currentMatches = validOptions.find(opt => 
+          normalizeForCompare(opt) === normalizeForCompare(currentValue) &&
+          normalizeForCompare(opt) === normalizeForCompare(metricName)
+        );
+        
+        if (currentMatches) {
+          return {
+            success: true,
+            alreadySet: true,
+            column: columnLetter,
+            metric: currentValue,
+            previousValue: currentValue,
+            sheetName: tabCheck.sheetName
+          };
+        }
+        
+        return {
+          success: false,
+          error: `"${metricName}" is not available in column ${columnLetter}. Available options: ${validOptions.slice(0, 5).join(', ')}${validOptions.length > 5 ? '...' : ''}`
+        };
+      }
+      
+      // Use the exact matched option (preserves original case)
+      if (matchedOption) metricName = matchedOption;
+    }
+    
+    // Set the value
+    cell.setValue(metricName);
+    SpreadsheetApp.flush();
+    
+    console.log(`[${functionName}] Success: Column ${columnLetter} set to "${metricName}"`);
+    return {
+      success: true,
+      column: columnLetter,
+      metric: metricName,
+      previousValue: currentValue,
+      sheetName: tabCheck.sheetName
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error:`, e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Finds the first (leftmost) column that can display a given metric
+ * @param {string} metricName - The metric to find
+ * @returns {Object} {found: boolean, column: string, metric: string}
+ */
+function findColumnForMetric(metricName) {
+  const normalizedSearch = metricName.toLowerCase().trim();
+  
+  // First check exact match in our map
+  for (const [metric, col] of Object.entries(DYNAMIC_COLUMN_MAP)) {
+    if (metric.toLowerCase() === normalizedSearch) {
+      return { found: true, column: col, metric: metric };
+    }
+  }
+  
+  // Then check partial match
+  for (const [metric, col] of Object.entries(DYNAMIC_COLUMN_MAP)) {
+    if (metric.toLowerCase().includes(normalizedSearch) || 
+        normalizedSearch.includes(metric.toLowerCase())) {
+      return { found: true, column: col, metric: metric };
+    }
+  }
+  
+  return { found: false, column: null, metric: metricName };
+}
+
+/**
+ * Helper: Convert column letter to 1-based index
+ * @param {string} letters - Column letter(s) like "A", "Z", "AA", "AB"
+ * @returns {number} 1-based column index
+ */
+function columnLetterToIndex_(letters) {
+  let result = 0;
+  for (let i = 0; i < letters.length; i++) {
+    result = result * 26 + (letters.toUpperCase().charCodeAt(i) - 64);
+  }
+  return result;
+}
+
+// =============================================================
 // SECTION 6: BIZINSIGHTS HELPERS
 // =============================================================
 
@@ -912,6 +1149,44 @@ function debugAMContext() {
   }
   
   return { context, tabs: tabsResult };
+}
+
+/**
+ * Check if the active sheet is an AM tab by looking for "Smart Select" header in Row 2
+ * AM tabs have a specific structure with Smart Select column header
+ * @returns {Object} { isAMTab: boolean, sheetName: string }
+ */
+function checkIfAMTab() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const activeSheet = ss.getActiveSheet();
+    const sheetName = activeSheet.getName();
+    
+    // Known system sheets are not AM tabs
+    const systemSheets = ['setup', 'statcore', 'distro', 'refresh', 'kh_feedback', 'manager lens'];
+    if (systemSheets.includes(sheetName.toLowerCase())) {
+      return { isAMTab: false, sheetName: sheetName };
+    }
+    
+    // Check if sheet has the AM tab structure (Smart Select header in Row 2)
+    const lastCol = Math.min(activeSheet.getLastColumn(), 30); // Check first 30 cols
+    if (lastCol < 4) {
+      return { isAMTab: false, sheetName: sheetName };
+    }
+    
+    const row2Headers = activeSheet.getRange(2, 1, 1, lastCol).getValues()[0];
+    const hasSmartSelect = row2Headers.some(h => 
+      String(h).toLowerCase().replace(/\s/g, '') === 'smartselect'
+    );
+    
+    console.log(`[checkIfAMTab] Sheet "${sheetName}" - hasSmartSelect: ${hasSmartSelect}`);
+    
+    return { isAMTab: hasSmartSelect, sheetName: sheetName };
+    
+  } catch (e) {
+    console.error(`[checkIfAMTab] Error: ${e.message}`);
+    return { isAMTab: false, sheetName: 'Unknown' };
+  }
 }
 
 /**

@@ -1871,7 +1871,7 @@ function askInTouchGuide(userQuery, conversationHistory) {
       },
       contents: contents,
       generationConfig: {
-        maxOutputTokens: 1500,  // Increased for data responses
+        maxOutputTokens: 3000,  // Increased for large account lists (92+ RIDs with names)
         temperature: 0.3,  // Lower for factual accuracy
         topP: 0.9
       }
@@ -2291,6 +2291,137 @@ Present your analysis and proposed diffs, then wait for user confirmation before
 `;
 
   return md;
+}
+
+/**
+ * Reset InTouch view: clear Smart Select and remove filters
+ * Called from the chat sidebar after auto-isolate to reset the view
+ * @returns {Object} Result object with success status
+ */
+function resetInTouchView() {
+  const startTime = new Date();
+  
+  try {
+    // Use the existing reset function from Admin.js
+    resetAndReapplyFilters();
+    
+    console.log('[resetInTouchView] Reset complete - Smart Select cleared and filters reset');
+    
+    return {
+      success: true,
+      durationMs: new Date() - startTime
+    };
+    
+  } catch (error) {
+    console.error('[resetInTouchView] Error: ' + error.message);
+    return {
+      success: false,
+      error: error.message,
+      durationMs: new Date() - startTime
+    };
+  }
+}
+
+/**
+ * Filter Smart Select column (Column D) to show only TRUE values
+ * Called from the chat sidebar after checking RIDs in Smart Select
+ * Applies a filter to show only rows where Column D = TRUE
+ * @returns {Object} Result object with success status
+ */
+function filterSmartSelectTRUE() {
+  const startTime = new Date();
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const range = sheet.getDataRange();
+    
+    // Get the existing filter or create one if it doesn't exist
+    let filter = sheet.getFilter();
+    if (!filter) {
+      filter = range.createFilter();
+    }
+    
+    // Define the criteria: Show only rows where text is "TRUE"
+    const criteria = SpreadsheetApp.newFilterCriteria()
+      .whenTextEqualTo("TRUE")
+      .build();
+    
+    // Apply the criteria to Column D (Index 4 - 1-based)
+    filter.setColumnFilterCriteria(4, criteria);
+    
+    // Count how many rows are now visible (rough estimate)
+    const lastRow = sheet.getLastRow();
+    const colDValues = sheet.getRange(3, 4, lastRow - 2, 1).getValues(); // Start from row 3 (after headers)
+    const trueCount = colDValues.filter(row => String(row[0]).toUpperCase() === 'TRUE').length;
+    
+    console.log(`[filterSmartSelectTRUE] Applied filter - showing ${trueCount} accounts with TRUE in Column D`);
+    
+    return {
+      success: true,
+      filteredCount: trueCount,
+      sheetName: sheet.getName(),
+      durationMs: new Date() - startTime
+    };
+    
+  } catch (error) {
+    console.error('[filterSmartSelectTRUE] Error: ' + error.message);
+    return {
+      success: false,
+      error: error.message,
+      durationMs: new Date() - startTime
+    };
+  }
+}
+
+/**
+ * Combined action: Check RIDs in Smart Select AND apply filter
+ * Used for auto-isolate flow when user has >10 RIDs or uses "isolate"/"filter" keyword
+ * @param {Array} rids - Array of RID strings to check
+ * @param {string} expectedAM - The expected AM name for tab verification
+ * @returns {Object} Result object with success status and counts
+ */
+function checkAndFilterSmartSelect(rids, expectedAM) {
+  const startTime = new Date();
+  
+  try {
+    // Step 1: Check RIDs in Smart Select
+    const checkResult = checkRIDsInSmartSelect(rids, expectedAM);
+    
+    if (!checkResult.success) {
+      return checkResult; // Return the error from checkRIDsInSmartSelect
+    }
+    
+    // Step 2: Apply the filter
+    const filterResult = filterSmartSelectTRUE();
+    
+    if (!filterResult.success) {
+      return {
+        success: false,
+        error: 'Checked RIDs but failed to apply filter: ' + filterResult.error,
+        checkedCount: checkResult.checkedCount,
+        durationMs: new Date() - startTime
+      };
+    }
+    
+    console.log(`[checkAndFilterSmartSelect] Checked ${checkResult.checkedCount} RIDs and filtered to ${filterResult.filteredCount} rows`);
+    
+    return {
+      success: true,
+      checkedCount: checkResult.checkedCount,
+      filteredCount: filterResult.filteredCount,
+      notFoundCount: checkResult.notFoundCount || 0,
+      sheetName: filterResult.sheetName,
+      durationMs: new Date() - startTime
+    };
+    
+  } catch (error) {
+    console.error('[checkAndFilterSmartSelect] Error: ' + error.message);
+    return {
+      success: false,
+      error: error.message,
+      durationMs: new Date() - startTime
+    };
+  }
 }
 
 /**

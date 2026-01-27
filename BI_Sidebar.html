@@ -1407,7 +1407,9 @@
       currentAMContext: null,       // Stores {isAMTab, fullName, isTeamView, sheetName}
       modifiedColumns: {},          // Tracks which columns were modified this session
       lastModifiedMetric: null,     // Tracks last modified metric for filtering advice context
-      lastListedRIDs: null          // Stores RIDs from the last list response for "add them" follow-ups
+      lastListedRIDs: null,         // Stores RIDs from the last list response for "add them" follow-ups
+      autoIsolateMode: false,       // True when query started with "isolate" or "filter" - triggers auto check+filter
+      showResetButton: false        // True after auto-isolate to show Reset button alongside Focus20
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1497,6 +1499,8 @@
       khState.currentAMContext = null;
       khState.modifiedColumns = {};
       khState.lastListedRIDs = null;
+      khState.autoIsolateMode = false;
+      khState.showResetButton = false;
       
       // Clear messages and show welcome screen
       if (khEls.messages) {
@@ -1598,6 +1602,13 @@
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
+      
+      // Detect auto-isolate mode: query starts with "isolate" or "filter"
+      const lowerQuery = query.toLowerCase();
+      khState.autoIsolateMode = /^(isolate|filter)\b/i.test(lowerQuery);
+      if (khState.autoIsolateMode) {
+        console.log('[sendKHMessage] Auto-isolate mode activated (query starts with isolate/filter)');
+      }
 
       // Add user message to UI
       addKHMessage('user', query);
@@ -1649,9 +1660,6 @@
               khState.currentAMContext = result.amContext;
             }
             
-            // Show action buttons if there's a pending action
-            const hasAction = !!columnAction || !!functionAction || !!slackAction || !!smartSelectAction || !!teamAnalysisAction;
-            
             // Add data source indicator if data was injected
             const dataIndicator = result.dataInjected && result.dataSource 
               ? `<div class="kh-data-indicator">📊 ${result.dataSource.amName} (${result.dataSource.totalAccounts} accounts)</div>`
@@ -1664,7 +1672,23 @@
               khState.lastListedRIDs = extractedRIDs;
             }
             
-            addKHMessage('assistant', cleanedAnswer, hasAction, dataIndicator);
+            // Check if we should auto-isolate: >10 RIDs OR autoIsolateMode active
+            const shouldAutoIsolate = smartSelectAction && 
+              (smartSelectAction.rids.length > 10 || khState.autoIsolateMode);
+            
+            if (shouldAutoIsolate) {
+              console.log(`[sendKHMessage] Auto-isolate triggered: ${smartSelectAction.rids.length} RIDs, autoIsolateMode=${khState.autoIsolateMode}`);
+              // Show the message without action buttons (we'll auto-execute and add new buttons after)
+              addKHMessage('assistant', cleanedAnswer, false, dataIndicator);
+              // Auto-execute check+filter
+              executeAutoIsolate(smartSelectAction.rids, dataIndicator);
+              // Reset autoIsolateMode
+              khState.autoIsolateMode = false;
+            } else {
+              // Normal flow: show action buttons if there's a pending action
+              const hasAction = !!columnAction || !!functionAction || !!slackAction || !!smartSelectAction || !!teamAnalysisAction;
+              addKHMessage('assistant', cleanedAnswer, hasAction, dataIndicator);
+            }
             
             // Add to history for follow-up context
             khState.conversationHistory.push({ role: 'user', content: query });
@@ -2003,16 +2027,30 @@
             `;
           } else if (khState.pendingFunctionAction) {
             const label = khState.pendingFunctionAction.label || 'Run';
-            actionButtonsHtml = `
-              <div class="kh-action-buttons">
-                <button class="kh-action-btn primary" onclick="executeFunctionAction()">
-                  <span>▶</span> ${label}
-                </button>
-                <button class="kh-action-btn secondary" onclick="dismissAction()">
-                  Not now
-                </button>
-              </div>
-            `;
+            // Check if we should show Reset button (after auto-isolate)
+            if (khState.showResetButton) {
+              actionButtonsHtml = `
+                <div class="kh-action-buttons">
+                  <button class="kh-action-btn primary" onclick="executeFunctionAction()">
+                    <span>▶</span> ${label}
+                  </button>
+                  <button class="kh-action-btn secondary" onclick="executeReset()">
+                    <span>↺</span> Reset
+                  </button>
+                </div>
+              `;
+            } else {
+              actionButtonsHtml = `
+                <div class="kh-action-buttons">
+                  <button class="kh-action-btn primary" onclick="executeFunctionAction()">
+                    <span>▶</span> ${label}
+                  </button>
+                  <button class="kh-action-btn secondary" onclick="dismissAction()">
+                    Not now
+                  </button>
+                </div>
+              `;
+            }
           } else if (khState.pendingSlackAction) {
             const channel = khState.pendingSlackAction.channel;
             actionButtonsHtml = `
@@ -2116,6 +2154,8 @@
       khState.pendingSlackAction = null;
       khState.pendingSmartSelectAction = null;
       khState.pendingTeamAnalysisAction = false;
+      khState.autoIsolateMode = false;
+      khState.showResetButton = false;
       // Remove the action buttons from the last message
       const actionButtons = document.querySelector('.kh-action-buttons');
       if (actionButtons) {
@@ -2278,6 +2318,116 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
           khState.pendingSmartSelectAction = null;
         })
         .checkRIDsInSmartSelect(rids, amName);
+    }
+    
+    /**
+     * Execute auto-isolate flow: check RIDs in Smart Select AND apply filter
+     * Triggered when: >10 RIDs in response OR query started with "isolate"/"filter"
+     * @param {Array} rids - Array of RID strings
+     * @param {string} dataIndicator - Optional data indicator HTML
+     */
+    function executeAutoIsolate(rids, dataIndicator = '') {
+      if (!rids || rids.length === 0) {
+        addKHMessage('error', 'No RIDs to isolate.');
+        return;
+      }
+      
+      const amName = khState.currentAMContext ? khState.currentAMContext.fullName : '';
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      console.log(`[executeAutoIsolate] Auto-isolating ${rids.length} RIDs for AM: "${amName}"`);
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            let message = `✅ **Isolated ${result.checkedCount} account${result.checkedCount !== 1 ? 's' : ''}** - your sheet is now filtered to show only these RIDs.\n\n`;
+            
+            if (result.notFoundCount > 0) {
+              message += `*Note: ${result.notFoundCount} RIDs were not found on this sheet.*\n\n`;
+            }
+            
+            message += `**What would you like to do next?**`;
+            
+            // Set up Focus20 action for the button
+            khState.pendingFunctionAction = {
+              functionName: 'moveTrueAccountsToFocus20',
+              label: 'Add to Focus20'
+            };
+            
+            // Mark that we need to show Reset button too
+            khState.showResetButton = true;
+            
+            addKHMessage('assistant', message, true, dataIndicator);
+          } else if (result.wrongTab) {
+            addKHMessage('assistant', `**Heads up:** You are not currently on **${result.expectedTab}**'s tab. You're on **${result.currentTab || 'a different sheet'}**.
+
+Please navigate to ${result.expectedTab}'s tab and try again, or ask about the accounts on your current tab.`);
+          } else {
+            let errorMsg = result.error || 'Unknown error';
+            addKHMessage('assistant', `Could not isolate RIDs: ${errorMsg}\n\nMake sure you're on the correct AM's tab and try again.`);
+          }
+          
+          khState.pendingSmartSelectAction = null;
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+          khState.pendingSmartSelectAction = null;
+        })
+        .checkAndFilterSmartSelect(rids, amName);
+    }
+    
+    /**
+     * Execute Reset action - clears Smart Select and removes filter
+     * Called from the Reset button after auto-isolate
+     */
+    function executeReset() {
+      // Remove action buttons
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      // Show loading
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      console.log('[executeReset] Resetting Smart Select and filters');
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            addKHMessage('assistant', `✅ **Reset complete!** Smart Select has been cleared and all filters removed.\n\nWhat would you like to explore next?`);
+          } else {
+            addKHMessage('assistant', `Could not reset: ${result.error || 'Unknown error'}\n\nYou can manually reset by clicking the RESET button above Column E.`);
+          }
+          
+          // Clear pending actions
+          khState.pendingFunctionAction = null;
+          khState.showResetButton = false;
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + error.message);
+        })
+        .resetInTouchView();
     }
 
     // =========================================================

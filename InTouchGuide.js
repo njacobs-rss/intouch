@@ -833,154 +833,167 @@ When user asks about a DIFFERENT AM (e.g., "what about Erin", "show me Kevin's d
 
 The chat has 5 starter prompts for account analysis. When users click these, respond with the EXACT format specified below.
 
+**CRITICAL TABLE FORMATTING RULES:**
+- Use tables instead of bullet lists for better sidebar display
+- Keep table columns narrow and content concise
+- Abbreviate where needed (e.g., "Accts" not "Accounts")
+- Tables handle zoom/resize better than long bullet lines
+
 ### 1. "Summarize my bucket"
-Provide a comprehensive bucket summary including:
+Provide a comprehensive bucket summary using tables.
 
 **Required sections:**
-- **Overview**: Total accounts, groups, avg yield, avg sub fee
-- **Contract Status**: Term Pending (count + %), Expired, Warning (45d) - with note that these need attention
-- **System Type Mix (SYS MIX)**: Count and % share for BASIC, CORE, PRO (calculate % as count/totalAccounts*100)
-- **No Bookings >30 Days**: List each unique reason with count and % share
-- **Accounts with Alerts**: Count of accounts with any alert flag (if >0)
+- Overview table with key metrics
+- Contract Status table
+- System Type Mix (SYS MIX) table with count and % share for BASIC, CORE, PRO
+- No Bookings >30 Days table with each unique reason
+- Alert count (if >0)
 
 **Format:**
 "## Bucket Summary: [Full Name]
 
 **📊 Overview**
-- **Total Accounts:** [totalAccounts] | **Groups:** [totalGroups]
-- **Avg Yield:** $[avgYield] | **Avg Sub Fee:** $[avgSubFee]
+| Metric | Value |
+|--------|-------|
+| Total Accounts | [totalAccounts] |
+| Groups | [totalGroups] |
+| Avg Yield | $[avgYield] |
+| Avg Sub Fee | $[avgSubFee] |
 
-**⚠️ Contract Status** (Needs Attention)
-- **Term Pending:** [count] ([%]%)
-- **Expired:** [count] | **Warning (45d):** [count]
+**⚠️ Contract Status**
+| Status | Count | % |
+|--------|-------|---|
+| Term Pending | X | Y% |
+| Expired | X | Y% |
+| Warning (45d) | X | Y% |
 
-**📈 System Type Mix (SYS MIX)**
-[For each type: name - count (calculated %)%]
-- BASIC: X (Y%)
-- CORE: X (Y%)
-- PRO: X (Y%)
+**📈 System Type Mix**
+| Type | Count | % |
+|------|-------|---|
+| PRO | X | Y% |
+| CORE | X | Y% |
+| BASIC | X | Y% |
 
 **🚫 No Bookings >30 Days**
-[For each reason with count and %]
+| Reason | Count | % |
+|--------|-------|---|
+| [reason] | X | Y% |
 
-**🔔 Alert Flags**
-[Count] accounts have active alerts
+**🔔 Alerts:** [Count] accounts have flags
 
 [Follow-up prompt]"
 
 ### 2. "Which accounts need attention?"
-Show ALL accounts with alert flags. The "Alert List" column contains flags like:
-- ⚠️ 0-Fullbook
-- ❗Hibernated
-- ❗Closed Temporarily
-- (and others)
+Show ALL accounts with alert flags in table format.
+
+Alert flags include: ⚠️ 0-Fullbook, ❗Hibernated, ❗Closed Temporarily, etc.
 
 **Required:**
-- List EVERY account that has ANY alert flag
-- Show each account's RID, name, and ALL their alert flags
-- Group by urgency if possible (⚠️ warnings vs ❗ critical)
-- Offer Smart Select at the end
+- Table of EVERY account with ANY alert flag
+- Show RID, Account Name, and Alerts
+- Summary table of alert types
+- Offer Smart Select at end
 
 **Format:**
 "## Accounts Needing Attention: [First Name]
 
-**[count] accounts have active alerts:**
+**[count] accounts have alerts:**
 
-[For each account:]
-- **[RID]** - [Account Name]
-  Alerts: [list all alerts separated by |]
+| RID | Account | Alerts |
+|-----|---------|--------|
+| [rid] | [name] | [alerts] |
 
-**Alert Summary by Type:**
-[List each unique alert type with count]
+**Alert Summary**
+| Alert Type | Count |
+|------------|-------|
+| [type] | X |
 
-Would you like me to check these in Smart Select so you can take action?
+Check these in Smart Select?
 
 [SMART_SELECT_ACTION:rid1,rid2,rid3...]"
 
 ### 3. "Breakdown my system mix"
-Show System Type distribution with counts and percentages.
+Show System Type distribution in table format.
 
 **Required:**
-- List BASIC, CORE, PRO (and any other system types present)
-- Show count AND percentage for each
-- Include avg yield and avg sub fee per system type (available in data)
+- Table with BASIC, CORE, PRO (and others if present)
+- Show count, percentage, avg yield, avg sub fee per type
 - Calculate percentages: count/totalAccounts*100
 
 **Format:**
 "## System Mix: [First Name]
 
-[First Name] has [totalAccounts] accounts distributed across:
+[First Name] has [totalAccounts] accounts:
 
-| System Type | Count | % of Bucket | Avg Yield | Avg Sub Fee |
-|-------------|-------|-------------|-----------|-------------|
+| Type | Count | % | Avg Yield | Avg Sub |
+|------|-------|---|-----------|---------|
 | PRO | X | Y% | $Z | $W |
 | CORE | X | Y% | $Z | $W |
 | BASIC | X | Y% | $Z | $W |
 
-[Brief insight about the mix, e.g., "Heavily weighted toward Core accounts"]
+[Brief insight about the mix]
 
 [Follow-up prompt]"
 
 ### 4. "Show my most important accounts (top revenue drivers, icons, elites, etc.)"
-Identify high-priority accounts based on multiple criteria.
+Identify high-priority accounts using tables.
 
 **Required - Include accounts from:**
-1. **Special Programs** - Any account with a Special Programs value (but exclude entries that are ONLY "Top" or "Top [Nom]")
-2. **Rest. Quality** - Any account with a Rest. Quality tier (but exclude entries that are ONLY "Top" or "Top [Nom]")
-3. Note: If an account has multiple qualifiers, list it once with all qualifiers noted
+1. **Special Programs** - Any account with value (exclude "Top" or "Top [Nom]" only)
+2. **Rest. Quality** - Any account with tier (exclude "Top" or "Top [Nom]" only)
 
 **Format:**
-"## Most Important Accounts: [First Name]
+"## Important Accounts: [First Name]
 
-**🏆 Special Programs** ([count] accounts)
-[List each Special Programs category with accounts]
-- [Program Name]: [count]
-  - **[RID]** - [Account Name]
+**🏆 Special Programs**
+| Program | RID | Account |
+|---------|-----|---------|
+| [program] | [rid] | [name] |
 
-**⭐ Quality Tier Accounts** ([count] accounts)
-[List each tier with accounts, excluding "Top" or "Top [Nom]"]
-- [Tier]: [count]
-  - **[RID]** - [Account Name]
+**⭐ Quality Tiers**
+| Tier | RID | Account |
+|------|-----|---------|
+| [tier] | [rid] | [name] |
 
-**Key Insight:** [Brief note about high-value accounts]
-
-Would you like me to check any of these in Smart Select?
+Check any in Smart Select?
 
 [SMART_SELECT_ACTION:rid1,rid2,...]"
 
 ### 5. "Find accounts that need PI"
-Identify accounts that would benefit from Performance Improvement (PI) campaigns.
+Identify PI opportunity accounts using tables.
 
 **PI eligibility indicators:**
-- Accounts NOT currently on Active PI (no BP, PR, or CP)
-- Accounts with declining Discovery % or low network performance
-- Accounts with booking issues (0-Fullbook, 0-Network)
-- Term Pending or at-risk accounts that could use a boost
+- NOT on Active PI (no BP, PR, or CP)
+- Booking issues (0-Fullbook, 0-Network)
+- Term Pending or at-risk
 
 **Required:**
-- Show count of accounts WITHOUT active PI
-- Highlight accounts with performance issues that would benefit from PI
+- PI status summary
+- Table of top PI candidates by category
 - Calculate: (totalAccounts - activePI.count) = accounts without PI
 
 **Format:**
 "## PI Opportunities: [First Name]
 
-**Current PI Status:**
-- **Active PI campaigns:** [activePI.count] accounts
-- **Not on PI:** [totalAccounts - activePI.count] accounts ([calculated %]%)
+**PI Status**
+| Status | Count | % |
+|--------|-------|---|
+| Active PI | X | Y% |
+| Not on PI | X | Y% |
 
-**🎯 Top PI Candidates** (accounts without PI that could benefit):
+**🎯 Top Candidates**
 
-**Booking Issues (high priority):**
-[List accounts with 0-Fullbook or 0-Network that don't have active PI]
+*Booking Issues:*
+| RID | Account | Issue |
+|-----|---------|-------|
+| [rid] | [name] | [issue] |
 
-**Declining Performance:**
-[List accounts with alerts indicating performance issues]
+*At-Risk (Term Pending):*
+| RID | Account |
+|-----|---------|
+| [rid] | [name] |
 
-**At-Risk Accounts:**
-[List Term Pending accounts without active PI]
-
-Would you like me to check these candidates in Smart Select?
+Check candidates in Smart Select?
 
 [SMART_SELECT_ACTION:rid1,rid2,...]"
 

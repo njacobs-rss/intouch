@@ -1191,6 +1191,15 @@ const ACCOUNT_DATA_PATTERNS = [
   /check\s*(them|those|these)\s*(in|on)\s*(smart\s*)?select/i,
   /smart\s*select/i,
   
+  // Isolate / Filter requests (need data injection for RID lists)
+  /^isolate/i,
+  /^filter/i,
+  /isolate\s*(them|those|these|the|my)/i,
+  /filter\s*(them|those|these|the|my|to)/i,
+  /show\s*(only|just)\s*(them|those|these)/i,
+  /list\s*(them|those|these|the)/i,
+  /which\s*(ones?|rids?|accounts?)/i,
+  
   // === STARTER PROMPT PATTERNS ===
   // 1. Summarize my bucket
   /summarize\s*(my)?\s*bucket/i,
@@ -1581,27 +1590,27 @@ function formatDataForInjection(data) {
   text += `Partner Feed Excluded: ${data.partnerFeedExcluded.count}\n\n`;
   
   // Enhanced category with per-category metrics (System Mix, Quality Tiers)
-  // IMPORTANT: Include ALL RIDs so AI can list them without hallucinating
+  // IMPORTANT: Include ALL RIDs WITH NAMES so AI can list them without hallucinating
   const formatMetricCategory = (name, items) => {
     if (!items || items.length === 0) return '';
     let result = `${name} (with per-category avg yield & sub fee):\n`;
     items.forEach(item => {
-      // Include ALL RIDs - critical for "list them" follow-ups
-      const ridList = item.rids.map(r => r.rid).join(', ');
-      result += `  - ${item.name}: ${item.count} accounts | Avg Yield: $${item.avgYield} | Avg Sub: $${item.avgSubFee} [RIDs: ${ridList}]\n`;
+      // Include ALL RIDs with names - critical for "list them" and "isolate" follow-ups
+      const ridList = item.rids.map(r => `${r.rid} (${r.name})`).join(', ');
+      result += `  - ${item.name}: ${item.count} accounts | Avg Yield: $${item.avgYield} | Avg Sub: $${item.avgSubFee} [${ridList}]\n`;
     });
     return result;
   };
   
   // Simple category breakdowns with RID details
-  // IMPORTANT: Include ALL RIDs so AI can list them without hallucinating
+  // IMPORTANT: Include ALL RIDs WITH NAMES so AI can list them without hallucinating
   const formatSimpleCategory = (name, items) => {
     if (!items || items.length === 0) return '';
     let result = `${name}:\n`;
     items.forEach(item => {
-      // Include ALL RIDs - critical for "list them" follow-ups
-      const ridList = item.rids.map(r => r.rid).join(', ');
-      result += `  - ${item.name}: ${item.count} [RIDs: ${ridList}]\n`;
+      // Include ALL RIDs with names - critical for "list them" and "isolate" follow-ups
+      const ridList = item.rids.map(r => `${r.rid} (${r.name})`).join(', ');
+      result += `  - ${item.name}: ${item.count} [${ridList}]\n`;
     });
     return result;
   };

@@ -270,7 +270,7 @@
       transition: background 0.2s;
     }
     .kh-header-btn:hover { background: rgba(255,255,255,0.3); }
-    .kh-header-btn.kh-clear { font-size: 14px; }
+    .kh-header-btn.kh-clear { font-size: 18px; font-weight: bold; }
     .kh-header-btn.kh-minimize { font-size: 16px; font-weight: bold; }
 
     .kh-messages {
@@ -1404,13 +1404,15 @@
       pendingSlackAction: null,     // Stores {channel: 'ask-intouch'} for Slack escalation
       pendingSmartSelectAction: null, // Stores {rids: ['12345', '67890', ...]} for checking RIDs
       pendingTeamAnalysisAction: false, // True when team analysis is pending
+      pendingRetryQuery: null,      // Stores query to retry after navigating to AM tab
       currentAMContext: null,       // Stores {isAMTab, fullName, isTeamView, sheetName}
       modifiedColumns: {},          // Tracks which columns were modified this session
       lastModifiedMetric: null,     // Tracks last modified metric for filtering advice context
       lastListedRIDs: null,         // Stores RIDs from the last list response for "add them" follow-ups
       autoIsolateMode: false,       // True when query started with "isolate" or "filter" - triggers auto check+filter
       showResetButton: false,       // True after auto-isolate to show Reset button alongside Focus20
-      isolatedRIDs: null            // Stores currently isolated RIDs for layered filtering
+      isolatedRIDs: null,           // Stores currently isolated RIDs for layered filtering
+      shouldLogNextChat: true       // Log first chat after session/sidebar/newchat/expand - then reset
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1486,12 +1488,17 @@
         if (khEls.input) khEls.input.focus();
         // Initialize AM context when opening chat
         initAMContext();
+        // Log first chat after panel expand
+        khState.shouldLogNextChat = true;
       }
     }
     
     function clearKHChat() {
       // Reset conversation state
       khState.conversationHistory = [];
+      
+      // Log first chat after new chat clicked
+      khState.shouldLogNextChat = true;
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
@@ -1636,6 +1643,16 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
 
           if (result.success) {
+            // Reset log flag after successful chat (first message was logged)
+            khState.shouldLogNextChat = false;
+            
+            // Check if user needs to navigate to AM tab first
+            if (result.notOnAMTab) {
+              khState.pendingRetryQuery = result.originalQuery || query;
+              addKHMessage('assistant', result.answer, true);  // showActionButtons=true to trigger retry button
+              return;
+            }
+            
             // Check for action tags and extract them
             const { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction } = parseColumnAction(result.answer);
             
@@ -1711,7 +1728,7 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           addKHMessage('error', 'Error: ' + error.message);
         })
-        .askInTouchGuide(query, historyJson);
+        .askInTouchGuide(query, historyJson, khState.shouldLogNextChat);
     }
     
     /**
@@ -2087,6 +2104,14 @@
                 </button>
                 <button class="kh-action-btn secondary" onclick="dismissAction()">
                   Not now
+                </button>
+              </div>
+            `;
+          } else if (khState.pendingRetryQuery) {
+            actionButtonsHtml = `
+              <div class="kh-action-buttons">
+                <button class="kh-action-btn primary" onclick="executeRetryQuery()">
+                  Ok, Let's Go
                 </button>
               </div>
             `;
@@ -2585,6 +2610,25 @@ If you have any other questions about the team data I'd be happy to dive in with
     }
     
     /**
+     * Re-run the original query after user navigates to AM tab
+     */
+    function executeRetryQuery() {
+      // Remove action buttons
+      const actionButtons = document.querySelector('.kh-action-buttons');
+      if (actionButtons) {
+        actionButtons.remove();
+      }
+      
+      const queryToRetry = khState.pendingRetryQuery;
+      khState.pendingRetryQuery = null;
+      
+      if (queryToRetry) {
+        console.log('[executeRetryQuery] Re-running query: ' + queryToRetry);
+        sendKHMessage(queryToRetry);
+      }
+    }
+    
+    /**
      * Show list of available AMs for selection
      */
     function showAMSelectionList() {
@@ -2955,7 +2999,7 @@ If you have any other questions about the team data I'd be happy to dive in with
     <div class="kh-panel-header">
       <h4>✦ InTouch✔ Assist</h4>
       <div class="kh-header-buttons">
-        <button class="kh-header-btn kh-clear" id="khClear" title="Clear chat">✕</button>
+        <button class="kh-header-btn kh-clear" id="khClear" title="New chat">+</button>
         <button class="kh-header-btn kh-minimize" id="khMinimize" title="Minimize">─</button>
       </div>
     </div>

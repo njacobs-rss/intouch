@@ -2099,15 +2099,17 @@ function formatRankingDataForInjection(data) {
  * @param {string} conversationHistory - Optional JSON string of previous messages
  * @returns {Object} Response object with success status and answer
  */
-function askInTouchGuide(userQuery, conversationHistory) {
+function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
   const startTime = new Date();
   const requestId = Utilities.getUuid().substring(0, 8);
   
   console.log('=== INTOUCH GUIDE REQUEST [' + requestId + '] ===');
   console.log('Query: ' + userQuery);
   
-  // Log the chat interaction
-  logInteraction('Chat');
+  // Log only the first chat after session/sidebar/newchat/expand (controlled by client)
+  if (shouldLog) {
+    logInteraction('Chat');
+  }
   
   try {
     // Validate input
@@ -2166,12 +2168,13 @@ function askInTouchGuide(userQuery, conversationHistory) {
           console.log('[askInTouchGuide] User not on AM tab, returning navigation prompt');
           return {
             success: true,
-            answer: `I'd love to help with that, but I need to see your account data first!\n\n**Please navigate to your AM tab** (look for tabs with AM names like "John Smith" or "Jane Doe") and ask me again.\n\nOnce you're on an AM tab, I'll have access to your bucket data and can give you specific insights about your accounts.\n\n💡 **Tip:** You can also ask about a specific AM by name, like "Show me Sarah's bucket summary"`,
+            answer: `I'd love to help with that, but I need to see your account data first!\n\n**Please navigate to your AM tab** (look for tabs with AM names like "John Smith" or "Jane Doe"), then click the button below to re-run your question.\n\n💡 **Tip:** You can also ask about a specific AM by name, like "Show me Sarah's bucket summary"`,
             isScripted: false,
             dataInjected: false,
             requestId: requestId,
             durationMs: new Date() - startTime,
-            notOnAMTab: true  // Flag for client-side handling if needed
+            notOnAMTab: true,  // Flag for client-side handling
+            originalQuery: userQuery  // Pass original query for retry
           };
         }
       }

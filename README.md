@@ -15,6 +15,7 @@ Welcome to **InTouch AI**, your all-in-one tool for account management, meeting 
    - [Meeting Prep](#meeting-prep)
    - [Pricing Simulator](#pricing-simulator)
    - [Bucket Summary](#bucket-summary)
+   - [InTouch Chat (AI Assistant)](#intouch-chat-ai-assistant)
 4. [Menu Options](#menu-options)
 5. [Fleet Commander (Managers & Admins)](#fleet-commander-admin-panel)
 6. [Understanding Your Data](#understanding-your-data)
@@ -209,6 +210,80 @@ Get a quick snapshot of any Account Manager's entire portfolio.
 - Reasons for no bookings
 
 > **Note:** This feature shows a "Work in Progress" banner because some data points are still being refined.
+
+---
+
+### InTouch Chat (AI Assistant)
+
+The InTouch Chat is a conversational AI assistant that can answer questions about your portfolio, filter accounts, and help you navigate InTouch. Access it through the InTouch AI Panel.
+
+#### What Can InTouch Chat Do?
+
+| Capability | Example Prompts |
+|------------|-----------------|
+| **Portfolio Analysis** | "Summarize my bucket", "Breakdown my system mix", "Which accounts need attention?" |
+| **Filter & Isolate** | "Isolate my Pro accounts", "Filter accounts with expired contracts", "Find 0-Fullbook accounts" |
+| **Stacked Filtering** | "Isolate Core accounts that are term pending", "Filter Freemium accounts with 0-Fullbook" |
+| **Column Changes** | "Show me Metro instead of Macro", "Add Customer Since column", "Where is POS Type?" |
+| **Count & List** | "How many on Pro?", "Which accounts are Freemium?", "List my term pending accounts" |
+| **Team Comparisons** | "How do I rank against the team?", "Compare my metrics to other AMs" |
+| **Explanations** | "What is Discovery %?", "What does 0-Fullbook mean?", "Metro vs Macro?" |
+
+#### Starter Prompts
+
+The chat offers quick-start prompts for common tasks:
+
+1. **"Summarize my bucket"** - Full portfolio snapshot with system mix, contract status, and alerts
+2. **"Which accounts need attention?"** - Shows all accounts with alert flags
+3. **"Breakdown my system mix"** - Core/Pro/Basic distribution with avg yield per tier
+4. **"Show my most important accounts"** - Icons, Elites, special programs
+5. **"Find accounts that need PI"** - PI opportunity candidates
+6. **"How do I rank against the team?"** - Your metrics compared to other AMs
+
+#### Filtering & Isolation
+
+One of the most powerful features is account filtering. When you ask InTouch Chat to "isolate" or "filter" accounts:
+
+1. The chat finds matching accounts in your bucket
+2. Those accounts are automatically checked in **Smart Select** (Column D)
+3. Your view filters to show only those accounts
+4. You can then add them to Focus20 or take other bulk actions
+
+**Single criteria filtering:**
+- "Isolate my Pro accounts"
+- "Filter accounts with 0-Fullbook"
+- "Show me expired contracts"
+
+**Stacked filtering (multiple conditions):**
+- "Isolate Core accounts that are term pending"
+- "Filter Pro accounts with Freemium pricing"
+- "Find accounts on Basic with 0-Network"
+
+#### Asking About Other AMs
+
+You can ask about any AM's portfolio by name:
+- "What about Erin's bucket?"
+- "Show me Kevin's system mix"
+- "How many Pro accounts does Sarah have?"
+
+#### Tips for Best Results
+
+| Tip | Why It Helps |
+|-----|--------------|
+| Ask naturally | The chat understands conversational language - no special syntax needed |
+| Use "isolate" or "filter" | These trigger automatic account selection and filtering |
+| Ask follow-up questions | After getting a count, ask "which ones?" to see the list |
+| Specify the metric | "How many Pro?" is clearer than "How many types?" |
+| Check Smart Select after filtering | Filtered accounts are checked for bulk actions |
+
+#### What InTouch Chat Cannot Do
+
+- Edit account data directly (use SFDC for data changes)
+- Change account assignments
+- Access external systems or APIs
+- Delete or create accounts
+
+The chat helps you **identify and select** accounts - then you take action using InTouch's tools.
 
 ---
 

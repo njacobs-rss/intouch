@@ -12,6 +12,7 @@
  * Replaces: The old BI_createPresentation library call
  */
 function createBizInsightsDeck(config) {
+  logInteraction('Deck');
   const functionName = 'createBizInsightsDeck';
   const tz = Session.getScriptTimeZone();
   const timestamp = Utilities.formatDate(new Date(), tz, "MM/dd/yyyy hh:mm:ss a");

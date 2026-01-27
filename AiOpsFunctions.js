@@ -749,6 +749,7 @@ function runPricingSimulation(cfg) {
  * This fixes the "Unknown" Account and missing data in the AI Brief.
  */
 function local_getLLMBriefData(rid) {
+  logInteraction('AI Brief');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const gatheredData = {};
 

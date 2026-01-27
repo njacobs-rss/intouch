@@ -6,9 +6,8 @@
 
 const SESSION_LOG_CONFIG_ = {
   LOG_SHEET_NAME: 'Log',
-  HEADER: ['username', 'session timestamp', 'Worksheet Name'],
-  MAX_ROWS: 20000,
-  THROTTLE_SECONDS: 1800
+  HEADER: ['USER', 'Timestamp', 'Operation', 'Worksheet name'],
+  MAX_ROWS: 20000
 };
 
 // --- TRIGGERS ---
@@ -57,7 +56,7 @@ function onEdit(e) {
 
 function installableOnOpen() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  logSession_(ss);
+  logInteraction('Session Launched');
   console.log("[installableOnOpen] ⚡ Preloading Sidebar Data...");
   refreshSidebarCache(); 
 }
@@ -116,28 +115,35 @@ function openAdminPanel() {
 
 // --- LOGGING ENGINE ---
 
-function logSession_(ss, meta = {}) {
+/**
+ * GLOBAL LOGGING FUNCTION
+ * Logs user interactions to the 'Log' tab
+ * @param {string} operation - The action being performed (e.g., "Session Launched", "Chat")
+ * @param {Object} meta - Optional metadata
+ */
+function logInteraction(operation, meta = {}) {
   try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
     const userEmail = meta.userEmail || Session.getActiveUser().getEmail();
-    const cache = CacheService.getUserCache();
-    const lastLogKey = `LAST_LOG_${ss.getId()}`; 
-    if (cache.get(lastLogKey)) return;
-
     const fileName = ss.getName(); 
+    
+    // Lock to prevent race conditions during concurrent writes
     const lock = LockService.getDocumentLock();
     if (!lock.tryLock(5000)) return; 
 
     try {
       const logSheet = getOrCreateLogSheet_(ss, SESSION_LOG_CONFIG_);
       if (!logSheet) return;
-      logSheet.appendRow([userEmail, new Date(), fileName]);
+      
+      // ['USER', 'Timestamp', 'Operation', 'Worksheet name']
+      logSheet.appendRow([userEmail, new Date(), operation, fileName]);
+      
       if (logSheet.getLastRow() > SESSION_LOG_CONFIG_.MAX_ROWS) logSheet.deleteRow(2); 
-      cache.put(lastLogKey, 'true', SESSION_LOG_CONFIG_.THROTTLE_SECONDS);
     } finally {
       lock.releaseLock();
     }
   } catch (err) {
-    console.error(`[logSession] failed: ${err.message}`);
+    console.error(`[logInteraction] failed: ${err.message}`);
   }
 }
 

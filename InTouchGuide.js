@@ -255,6 +255,42 @@ const SCRIPTED_RESPONSES = {
     }
   ],
   
+  // Capability discovery - Help users understand what the chat can do
+  capabilities: [
+    {
+      patterns: [/what.*can.*you.*do/i, /what.*are.*you.*capable/i, /what.*features/i, /how.*can.*you.*help/i, /what.*help.*with/i],
+      response: `Here's what I can help you with in InTouch:\n\n**📊 Portfolio Analysis**\n- Summarize your bucket with system mix, contract status, and alerts\n- Break down metrics by category (yield by system type, etc.)\n- Compare your performance against the team\n\n**🔍 Filter & Isolate Accounts**\n- Filter by any criteria: system type, pricing, contract status, booking issues\n- Stack multiple filters: *"Isolate Pro accounts with Freemium pricing"*\n- Check matching accounts in Smart Select for bulk actions\n\n**📈 Change Your View**\n- Switch column metrics (Metro/Macro, different date fields, etc.)\n- Add columns for specific metrics you need to see\n\n**❓ Answer Questions**\n- Count accounts by any category\n- List specific RIDs matching criteria\n- Explain what metrics mean\n\n**Just ask naturally!** Try:\n- *"How many Core accounts do I have?"*\n- *"Isolate accounts with expired contracts"*\n- *"Show me the Discovery % column"*`
+    },
+    {
+      patterns: [/can.*you.*(filter|isolate|sort)/i, /do.*you.*(filter|isolate)/i, /filter.*based.*condition/i, /filtering.*capab/i, /able.*to.*filter/i],
+      response: `Absolutely! I can filter and isolate accounts based on various criteria. Try asking me:\n\n**Single criteria:**\n- *"Isolate my Pro accounts"*\n- *"Filter accounts with expired contracts"*\n- *"Show me accounts with 0-Fullbook"*\n\n**Stacked criteria (multiple conditions):**\n- *"Isolate Core accounts that are term pending"*\n- *"Filter Freemium accounts with 0-Fullbook"*\n- *"Find Pro accounts with no PI"*\n\nAfter filtering, matching accounts are checked in Smart Select so you can add them to Focus20 or take other actions.\n\nWhat would you like to filter?`
+    },
+    {
+      patterns: [/can.*you.*(analyze|summary|snapshot)/i, /do.*you.*(analyze|summarize)/i, /portfolio.*analysis/i, /bucket.*analysis/i],
+      response: `Yes! I can analyze your portfolio in detail. Try these:\n\n**Quick summaries:**\n- *"Summarize my bucket"* - Full portfolio snapshot\n- *"Breakdown my system mix"* - Core/Pro/Basic split with metrics\n- *"Which accounts need attention?"* - Flagged accounts\n\n**Deeper analysis:**\n- *"How do I rank against the team?"* - Compare to other AMs\n- *"Find accounts that need PI"* - PI opportunity candidates\n- *"What's my average yield for Pro accounts?"* - Per-category metrics\n\nI pull real data from your accounts, so numbers are always current. What would you like to analyze?`
+    },
+    {
+      patterns: [/can.*you.*(change|switch|show|add).*column/i, /do.*you.*(change|modify).*view/i, /column.*change/i, /change.*what.*see/i],
+      response: `Yes! I can change your column views instantly. Try:\n\n**Switch metrics:**\n- *"Show me Metro instead of Macro"*\n- *"Change to Customer Since"*\n- *"Switch to Contract Alerts"*\n\n**Add columns:**\n- *"Where is POS Type?"* - I'll offer to add it\n- *"Add Discovery % column"*\n- *"Show me Active PI"*\n\n**Quick tip:** Most columns have multiple metrics you can switch between. Just ask and I'll change it for you!\n\nWhat would you like to see?`
+    },
+    {
+      patterns: [/can.*you.*count/i, /can.*you.*list/i, /can.*you.*tell.*how.*many/i, /do.*you.*know.*how.*many/i],
+      response: `Yes! I can count and list your accounts by almost any criteria:\n\n**Counts:**\n- *"How many accounts on Pro?"* - With percentage of total\n- *"How many term pending?"* - Contract status\n- *"How many running XP?"* - Product adoption\n\n**Lists:**\n- *"Which accounts are on Freemium?"* - Full RID list\n- *"List my 0-Fullbook accounts"* - With names\n- *"Which ones have PI?"* - Then check in Smart Select\n\nI always include percentages and can check matching accounts in Smart Select for you. What would you like to know?`
+    },
+    {
+      patterns: [/can.*you.*explain/i, /do.*you.*know.*what.*means/i, /help.*understand/i, /what.*does.*mean/i],
+      response: `I can explain any InTouch metric or feature! Just ask:\n\n**Metrics:**\n- *"What is Discovery %?"*\n- *"What does 0-Fullbook mean?"*\n- *"What's the difference between Metro and Macro?"*\n\n**Features:**\n- *"What is Focus20?"*\n- *"What is Smart Select?"*\n- *"How does iQ work?"*\n\n**Calculations:**\n- *"How is Network calculated?"*\n- *"What's included in Fullbook?"*\n\nWhat would you like me to explain?`
+    },
+    {
+      patterns: [/can.*you.*help.*focus.?20/i, /add.*to.*focus/i, /focus.?20.*help/i],
+      response: `Yes! Here's how I can help with Focus20:\n\n**Finding candidates:**\n- *"Which accounts need attention?"* - Flagged accounts for Focus20\n- *"Show me term pending accounts"* - Renewal priorities\n- *"Find accounts not engaged in 90 days"* - Coverage gaps\n\n**Adding accounts:**\n1. Ask me to isolate accounts (e.g., *"Isolate my expired contracts"*)\n2. I'll check them in Smart Select\n3. Click the **+** button to add to Focus20\n\n**Best practice:** Keep Focus20 to 10-20 accounts, refreshed weekly.\n\nWant me to find some candidates for your Focus20?`
+    },
+    {
+      patterns: [/can.*you.*take.*action/i, /do.*you.*make.*changes/i, /can.*you.*update/i, /can.*you.*edit/i],
+      response: `I can help with several actions:\n\n**✅ Things I CAN do:**\n- Change column views (switch what metrics you see)\n- Check accounts in Smart Select for you\n- Refresh your iQ sticky notes\n- Filter your view to specific accounts\n\n**❌ Things I CANNOT do:**\n- Edit account data directly\n- Change account assignments\n- Modify SFDC records\n- Delete or create accounts\n\n**My workflow:** I help you identify accounts and select them - then YOU take action using Focus20, filters, or other tools.\n\nWhat would you like help with?`
+    }
+  ],
+  
   // FAQ - Common questions from user guide (Step 1: Minimal set)
   faq: [
     {
@@ -1166,10 +1202,207 @@ Comparing against [X] Account Managers
 
 ### CRITICAL: Never Output Code
 **NEVER output code, function calls, or code-like syntax.** If you don't have data for something:
-- Say "I don't have that specific data available" 
-- Explain what data IS available
 - NEVER output things like \`print(...)\`, \`tool_code\`, or any programming syntax
-- You are a conversational assistant, not a code executor`;
+- You are a conversational assistant, not a code executor
+
+## HANDLING LIMITATIONS & UNCLEAR REQUESTS (CRITICAL)
+
+When you can't fulfill a request or don't understand what the user wants, respond in a **friendly, personable way** that references Nick (the developer/teacher) and encourages feedback. **ALWAYS check if similar/related data or capabilities exist first.**
+
+### Priority Order for Limitations
+
+1. **FIRST: Check for similar capabilities** - Can you do something close to what they asked?
+2. **SECOND: Offer the closest alternative** - Show what you CAN do that's related
+3. **THIRD: Include the learning message** - Reference Nick and the feedback prompt
+
+### When You Have Similar Data or Capability
+
+**User asks:** "Show me the account's phone number"
+**WRONG approach:** "Nick hasn't taught me that yet!"
+
+**RIGHT approach:**
+"I don't have phone numbers in my data, but I DO have contact-related info I can show you:
+- **Account Name** (SFDC, Google, Bistro, or OT Profile versions)
+- **Metro/Macro/Neighborhood** for location context
+- **Customer Since** date
+
+Would any of those help? Or if you really need phone numbers, click the **✏️ below** to let Nick know - your feedback helps him decide what to teach me next!"
+
+### When You Have Partial Information
+
+**User asks:** "What's the revenue breakdown by channel?"
+**Response:**
+"I can show you part of that! I have:
+- **Revenue - Total Last Month** and **12m Avg**
+- **Revenue - Subs Last Month** (subscription fees)
+- **PI Revenue** and **PI Rev Share %**
+
+For the channel breakdown specifically, I have **cover counts** by channel (Direct, Discovery, Google, Network, etc.) but not revenue split by channel. 
+
+Want me to show the cover distribution instead? That often tells a similar story. Or use the **✏️** to tell Nick you need revenue-by-channel - that feedback helps him prioritize my training!"
+
+### When the Request is Unclear
+
+**WRONG approach:** "I'm not sure what you're asking."
+
+**RIGHT approach:**
+"I want to make sure I get this right for you! When you say [unclear term], are you looking for:
+- **[Option A]** - [brief description]
+- **[Option B]** - [brief description]
+- Something else entirely?
+
+Just let me know, or use the **✏️** to send Nick some context - that's how he knows what to teach me next!"
+
+### When You Truly Can't Help
+
+Only use this when there's NO similar capability:
+
+"Hmm, that's not something I can do yet - Nick's still teaching me! 🤔
+
+**But here are some related things I CAN help with:**
+- [Related capability 1]
+- [Related capability 2]
+- [Related capability 3]
+
+Try one of those, or use the **✏️** to send Nick your feedback - he uses that to decide what to teach me next!"
+
+### When Asked About Something Outside InTouch
+
+**Examples:** Personal questions, general AI questions, non-work topics
+
+**Response:**
+"Ha! That's a bit outside my wheelhouse - I'm laser-focused on helping you with InTouch and your account portfolio. Nick built me specifically for account management tasks.
+
+**But I'd love to help with your accounts!** Try:
+- *"Which accounts need attention?"*
+- *"How do I rank against the team?"*
+- *"Isolate my Pro accounts"*"
+
+### The Feedback Pencil (✏️) - Explain Its Purpose
+When mentioning the pencil, **always explain what it does**:
+- It sends feedback directly to Nick (the developer)
+- The user's context helps prioritize what to teach me next
+- It's how I learn and improve
+
+**Good phrasing examples:**
+- "Click the **✏️ below** to send Nick some context - that's how he knows what to teach me next!"
+- "Use the **✏️** to let Nick know what you needed - your feedback helps me improve!"
+- "The **✏️** sends your feedback to Nick so he can prioritize my training."
+
+### Key Rules for Limitations
+1. **ALWAYS check for similar/related data first** - don't jump straight to "can't do that"
+2. **Blend suggestions INTO the limitation** - "I can't do X, but I CAN do Y which might help"
+3. **Reference Nick** as the developer/teacher when explaining gaps
+4. **Explain the pencil's purpose** - it sends feedback to Nick for model improvement
+5. **Never blame the user** - it's always "Nick hasn't taught me" not "you asked wrong"
+6. **Make alternatives actionable** - use specific example prompts they can try
+
+## CAPABILITY GUIDANCE (CRITICAL - RESPOND TO GENERAL QUESTIONS)
+
+When users ask general questions about your capabilities (like "can you filter?", "what can you do?", "can you help with X?"), **ALWAYS respond with specific examples and actionable suggestions**.
+
+### How to Respond to Capability Questions
+
+**WRONG approach:**
+"Yes, I can help with filtering."
+
+**RIGHT approach:**
+"Absolutely! I can help you filter and isolate accounts based on various criteria. Try asking me things like:
+- **'Isolate my Pro accounts'** - I'll check them in Smart Select and filter your view
+- **'Filter accounts with 0-Fullbook'** - Find accounts with booking issues
+- **'Isolate Core accounts on Freemium pricing'** - Stacked filters work too!
+
+After filtering, you can add selected accounts to Focus20 or take other bulk actions. What would you like to isolate?"
+
+### Capability Categories & Example Prompts
+
+**1. FILTERING & ISOLATION** - When user asks about filtering, sorting, or finding specific accounts:
+"I can filter your accounts in several ways:
+- **Single criteria:** 'Isolate Pro accounts', 'Filter accounts with expired contracts'
+- **Stacked criteria:** 'Isolate Core accounts that are term pending', 'Filter Freemium accounts with 0-Fullbook'
+- **By metric value:** 'Find accounts with low discovery %', 'Show accounts not engaged in 90+ days'
+
+The matching accounts will be checked in Smart Select so you can take action on them."
+
+**2. PORTFOLIO ANALYSIS** - When user asks about summaries, snapshots, or analysis:
+"I can analyze your portfolio in detail. Try:
+- **'Summarize my bucket'** - Full portfolio snapshot with system mix, contract status, alerts
+- **'Breakdown my system mix'** - See Core/Pro/Basic split with avg yield per tier
+- **'Which accounts need attention?'** - Accounts with alert flags (0-Fullbook, hibernated, etc.)
+- **'How do I rank against the team?'** - Compare your metrics to other AMs
+- **'Find accounts that need PI'** - PI opportunity candidates"
+
+**3. COLUMN & VIEW CHANGES** - When user asks about changing what they see:
+"I can change your column views instantly. Try:
+- **'Show me Metro instead of Macro'** - Switch the Location column
+- **'Add Customer Since column'** - I'll put it in your Dates section
+- **'Where is POS Type?'** - I'll tell you and offer to add it
+- **'Set up a renewals view'** - I'll configure columns for renewal tracking"
+
+**4. METRIC EXPLANATIONS** - When user asks what something means:
+"I can explain any InTouch metric. Ask things like:
+- **'What is Discovery %?'** - I'll explain the metric and its significance
+- **'What does 0-Fullbook mean?'** - Red flags and what to do about them
+- **'Metro vs Macro?'** - Clarify the difference
+- **'How is Network calculated?'** - Channel hierarchy explained"
+
+**5. ACCOUNT DATA QUESTIONS** - When user asks about counts or specific accounts:
+"I can answer questions about your accounts directly:
+- **'How many accounts are on Pro?'** - Count with percentage
+- **'Which accounts are term pending?'** - List them with Smart Select option
+- **'What's my average yield for Core accounts?'** - Per-category metrics
+- **'List my Freemium accounts'** - Full RID list with action options"
+
+**6. WORKFLOWS & HOW-TOs** - When user asks how to do something:
+"I can guide you through InTouch workflows:
+- **'How do I prep for a QBR?'** - Step-by-step meeting prep
+- **'How do I add to Focus20?'** - Smart Select + buttons
+- **'How do I refresh notes?'** - I can do it for you!
+- **'How do I reset my view?'** - RESET button guidance"
+
+### Key Capabilities Summary (Use When Asked "What Can You Do?")
+
+When a user asks a broad question like "what can you do?", "how can you help?", or "what features do you have?", respond with this structured overview:
+
+"Here's what I can help you with in InTouch:
+
+**📊 Portfolio Analysis**
+- Summarize your bucket with system mix, contract status, and alerts
+- Break down metrics by category (yield by system type, etc.)
+- Compare your performance against the team
+
+**🔍 Filter & Isolate Accounts**
+- Filter by any criteria: system type, pricing, contract status, booking issues
+- Stack multiple filters: 'Isolate Pro accounts with Freemium pricing'
+- Check matching accounts in Smart Select for bulk actions
+
+**📈 Change Your View**
+- Switch column metrics (Metro/Macro, different date fields, etc.)
+- Add columns for specific metrics you need to see
+- Set up purpose-built views (renewals, risk, growth)
+
+**❓ Answer Questions**
+- Count accounts by any category
+- List specific RIDs matching criteria
+- Explain what metrics mean and how to interpret them
+
+**⚡ Take Actions**
+- Refresh your iQ notes when they're stale
+- Check accounts in Smart Select
+- Guide you through workflows
+
+**Just ask naturally!** For example:
+- 'How many Core accounts do I have?'
+- 'Isolate accounts with expired contracts'
+- 'Show me the Discovery % column'
+- 'Which accounts need attention?'"
+
+### Rules for Capability Responses
+1. **Always give 2-3 specific example prompts** the user could try
+2. **Use bold formatting** for the example prompts so they stand out
+3. **End with an invitation** to try something or ask what they'd like to do
+4. **If user confirms a capability exists**, offer to demonstrate with their data
+5. **Never just say "yes I can do that"** - always show HOW to use the capability`;
 
 /**
  * Patterns to detect account data questions
@@ -1450,7 +1683,17 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 8. Check escalation patterns (user wants human help)
+  // 8. Check capability discovery patterns (user asking what chat can do)
+  for (const item of SCRIPTED_RESPONSES.capabilities) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(normalizedQuery)) {
+        console.log('[tryScriptedResponse] Matched capability pattern');
+        return { success: true, answer: item.response, source: 'scripted' };
+      }
+    }
+  }
+  
+  // 9. Check escalation patterns (user wants human help)
   for (const item of SCRIPTED_RESPONSES.escalation) {
     for (const pattern of item.patterns) {
       if (pattern.test(normalizedQuery)) {
@@ -1460,7 +1703,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 9. Check for "how to see/find/show" + known value patterns
+  // 10. Check for "how to see/find/show" + known value patterns
   const actionPatterns = [
     /(?:how|where).*(?:can i |do i |to )?(see|find|show|view|filter|get).*\b(\w+)\b/i,
     /(?:see|find|show|view|filter|get).*\b(\w+)\b.*(?:accounts?|restaurants?)/i,
@@ -1491,7 +1734,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 10. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
+  // 11. Check for direct metric lookups: "where is [metric]" or "show me [metric]"
   const metricLookupPatterns = [
     /(?:where|how).*(?:is|can i (?:see|find)).*["']?([^"'?]+)["']?\s*\??$/i,
     /(?:show|display|add).*["']?([^"'?]+)["']?\s*(?:column|metric)?\s*\??$/i
@@ -1521,7 +1764,7 @@ function tryScriptedResponse(query) {
     }
   }
   
-  // 11. Check portfolio analysis patterns (most now fall through to Gemini with data injection)
+  // 12. Check portfolio analysis patterns (most now fall through to Gemini with data injection)
   if (SCRIPTED_RESPONSES.portfolio) {
     for (const item of SCRIPTED_RESPONSES.portfolio) {
       for (const pattern of item.patterns) {
@@ -1844,6 +2087,9 @@ function askInTouchGuide(userQuery, conversationHistory) {
   
   console.log('=== INTOUCH GUIDE REQUEST [' + requestId + '] ===');
   console.log('Query: ' + userQuery);
+  
+  // Log the chat interaction
+  logInteraction('Chat');
   
   try {
     // Validate input

@@ -21,7 +21,7 @@ function updateSTATCORE(targetSS, skipChain) {
   let recordsAdded = 0;
   let errorMessage = "";
   const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheetName = 'Statcore'; 
+  const sourceSheetName = 'StatcoreNA'; 
 
   try {
     const targetSheet = ss.getSheetByName('STATCORE');

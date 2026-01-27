@@ -997,6 +997,49 @@ Check candidates in Smart Select?
 
 [SMART_SELECT_ACTION:rid1,rid2,...]"
 
+### 6. "How do I rank against the team?"
+Show the AM's ranking compared to all other AMs using tables.
+
+**When ranking data is provided, it will include:**
+- Rankings for key metrics (bucket size, avg yield, avg sub fee, PI adoption, term pending)
+- Full leaderboards showing all AMs ranked
+- The current AM is marked with "← YOU" in the data
+
+**Required:**
+- Summary of where the AM ranks across key metrics
+- Highlight best rankings (top 3) and areas for improvement
+- Show relevant leaderboard tables
+- Keep it encouraging but honest
+
+**Format:**
+"## Your Team Rankings: [First Name]
+
+Comparing against [X] Account Managers
+
+**📊 Your Rankings**
+| Metric | Rank | Your Value | Team Avg |
+|--------|------|------------|----------|
+| Bucket Size | #X of Y | Z | W |
+| Avg Yield | #X of Y | $Z | $W |
+| Avg Sub Fee | #X of Y | $Z | $W |
+| PI Adoption | #X of Y | Z% | W% |
+| Term Pending | #X of Y | Z | W |
+
+**🏆 Highlights**
+[Note top rankings - be encouraging]
+
+**📈 Opportunities**
+[Note areas where they could improve - be constructive]
+
+**Leaderboard: [Most Relevant Metric]**
+| Rank | AM | Value |
+|------|-----|-------|
+| 1 | [name] | X |
+| 2 | [name] | X |
+...
+
+[Encouraging closing note]"
+
 ### CRITICAL: Never Output Code
 **NEVER output code, function calls, or code-like syntax.** If you don't have data for something:
 - Say "I don't have that specific data available" 
@@ -1153,7 +1196,22 @@ const ACCOUNT_DATA_PATTERNS = [
   /need\s*pi/i,
   /pi\s*(candidates?|opportunities?|eligible)/i,
   /without\s*(active\s*)?pi/i,
-  /not\s*(on|running|have|with)\s*pi/i
+  /not\s*(on|running|have|with)\s*pi/i,
+  
+  // === RANKING / COMPARISON PATTERNS ===
+  // 6. Rank me against the team
+  /rank\s*(me|myself)/i,
+  /how\s*(do\s*)?i\s*(rank|compare|stack\s*up)/i,
+  /compare\s*(me|myself)\s*(to|against|with)/i,
+  /where\s*(do\s*)?i\s*(stand|rank)/i,
+  /my\s*ranking/i,
+  /leaderboard/i,
+  /team\s*(comparison|rankings?|leaderboard)/i,
+  /against\s*(other|the)\s*(ams?|team)/i,
+  /vs\s*(other|the)\s*ams?/i,
+  /compared?\s*to\s*(other|the|my)\s*(ams?|team|peers?)/i,
+  /how\s*(am\s*)?i\s*doing\s*(compared|vs|against)/i,
+  /stack\s*up/i
 ];
 
 /**
@@ -1377,6 +1435,38 @@ function isAccountDataQuestion(query) {
 }
 
 /**
+ * Check if query is asking for team ranking/comparison
+ * @param {string} query - The user's question
+ * @returns {boolean} True if this is a ranking question
+ */
+function isRankingQuestion(query) {
+  if (!query) return false;
+  
+  const rankingPatterns = [
+    /rank\s*(me|myself)/i,
+    /how\s*(do\s*)?i\s*(rank|compare|stack\s*up)/i,
+    /compare\s*(me|myself)\s*(to|against|with)/i,
+    /where\s*(do\s*)?i\s*(stand|rank)/i,
+    /my\s*ranking/i,
+    /leaderboard/i,
+    /team\s*(comparison|rankings?|leaderboard)/i,
+    /against\s*(other|the)\s*(ams?|team)/i,
+    /vs\s*(other|the)\s*ams?/i,
+    /compared?\s*to\s*(other|the|my)\s*(ams?|team|peers?)/i,
+    /how\s*(am\s*)?i\s*doing\s*(compared|vs|against)/i,
+    /stack\s*up/i
+  ];
+  
+  for (const pattern of rankingPatterns) {
+    if (pattern.test(query)) {
+      console.log(`[isRankingQuestion] ✓ Matched pattern: ${pattern}`);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Extract AM name from query if user is asking about a different AM
  * @param {string} query - The user's question
  * @returns {string|null} The AM name if found, null otherwise
@@ -1533,6 +1623,64 @@ function formatDataForInjection(data) {
 }
 
 /**
+ * Format ranking data for injection into Gemini context
+ * @param {Object} data - The ranking data object from getAMRankings
+ * @returns {string} Formatted ranking string for injection
+ */
+function formatRankingDataForInjection(data) {
+  if (!data) return '';
+  
+  let text = `\n--- TEAM RANKINGS FOR ${data.targetAM.name} ---\n`;
+  text += `Comparing against ${data.totalAMs} Account Managers\n\n`;
+  
+  // Key metric rankings
+  text += `**Your Rankings:**\n`;
+  const r = data.rankings;
+  text += `Bucket Size: #${r.bucket.rank} of ${r.bucket.total} (${r.bucket.value} accounts, team avg: ${r.bucket.teamAvg})\n`;
+  text += `Avg Yield: #${r.avgYield.rank} of ${r.avgYield.total} ($${r.avgYield.value}, team avg: $${r.avgYield.teamAvg})\n`;
+  text += `Avg Sub Fee: #${r.avgSubFee.rank} of ${r.avgSubFee.total} ($${r.avgSubFee.value}, team avg: $${r.avgSubFee.teamAvg})\n`;
+  text += `Active PI: #${r.activePI.rank} of ${r.activePI.total} (${r.activePI.value} accounts, team avg: ${r.activePI.teamAvg})\n`;
+  text += `Term Pending: #${r.termPending.rank} of ${r.termPending.total} (${r.termPending.value}, team avg: ${r.termPending.teamAvg}) - lower is better\n\n`;
+  
+  // Leaderboards
+  text += `**Leaderboards:**\n`;
+  
+  text += `\nBucket Size (accounts):\n`;
+  data.leaderboards.bucketSize.forEach(am => {
+    const marker = am.isTarget ? ' ← YOU' : '';
+    text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
+  });
+  
+  text += `\nAvg Yield:\n`;
+  data.leaderboards.avgYield.forEach(am => {
+    const marker = am.isTarget ? ' ← YOU' : '';
+    text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
+  });
+  
+  text += `\nAvg Sub Fee:\n`;
+  data.leaderboards.avgSubFee.forEach(am => {
+    const marker = am.isTarget ? ' ← YOU' : '';
+    text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
+  });
+  
+  text += `\nPI Adoption %:\n`;
+  data.leaderboards.piAdoption.forEach(am => {
+    const marker = am.isTarget ? ' ← YOU' : '';
+    text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
+  });
+  
+  text += `\nTerm Pending (lower is better):\n`;
+  data.leaderboards.termPendingRisk.forEach(am => {
+    const marker = am.isTarget ? ' ← YOU' : '';
+    text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
+  });
+  
+  text += `\n--- END RANKINGS ---\n`;
+  
+  return text;
+}
+
+/**
  * Main function to ask the InTouch Guide AI
  * Called from the frontend Knowledge Hub chat
  * @param {string} userQuery - The user's question
@@ -1598,6 +1746,18 @@ function askInTouchGuide(userQuery, conversationHistory) {
         amContext = getActiveAMContext();
         if (amContext.isAMTab && amContext.fullName) {
           targetAMName = amContext.fullName;
+        } else if (!amContext.isAMTab && !amContext.isTeamView) {
+          // User is on a non-AM tab (STATCORE, Focus20, etc.) asking account questions
+          console.log('[askInTouchGuide] User not on AM tab, returning navigation prompt');
+          return {
+            success: true,
+            answer: `I'd love to help with that, but I need to see your account data first!\n\n**Please navigate to your AM tab** (look for tabs with AM names like "John Smith" or "Jane Doe") and ask me again.\n\nOnce you're on an AM tab, I'll have access to your bucket data and can give you specific insights about your accounts.\n\n💡 **Tip:** You can also ask about a specific AM by name, like "Show me Sarah's bucket summary"`,
+            isScripted: false,
+            dataInjected: false,
+            requestId: requestId,
+            durationMs: new Date() - startTime,
+            notOnAMTab: true  // Flag for client-side handling if needed
+          };
         }
       }
       
@@ -1612,6 +1772,17 @@ function askInTouchGuide(userQuery, conversationHistory) {
         }
       } else if (amContext && amContext.isTeamView) {
         console.log('[askInTouchGuide] Team view detected - will mention team context');
+      }
+    }
+    
+    // STEP 2b: Check if this is a ranking question - inject ranking data
+    let rankingData = null;
+    if (isRankingQuestion(userQuery) && targetAMName) {
+      console.log('[askInTouchGuide] Detected ranking question, fetching rankings...');
+      rankingData = getAMRankings(targetAMName);
+      if (!rankingData.success) {
+        console.log('[askInTouchGuide] Failed to get rankings: ' + rankingData.error);
+        rankingData = null;
       }
     }
     
@@ -1645,6 +1816,13 @@ function askInTouchGuide(userQuery, conversationHistory) {
       const dataText = formatDataForInjection(injectedData);
       userMessage = userQuery + '\n\n' + dataText;
       console.log('[askInTouchGuide] Data injected into query');
+      
+      // Add ranking data if available
+      if (rankingData && rankingData.success) {
+        const rankingText = formatRankingDataForInjection(rankingData.data);
+        userMessage += '\n\n' + rankingText;
+        console.log('[askInTouchGuide] Ranking data injected into query');
+      }
     } else if (amContext && amContext.isTeamView) {
       userMessage = userQuery + '\n\n[CONTEXT: User is on Manager Lens / Team view - no individual AM data available. Offer team-wide analysis if relevant.]';
     } else if (amContext && amContext.isAMTab && !amContext.fullName) {

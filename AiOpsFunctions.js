@@ -2052,3 +2052,169 @@ function objectToSortedList_(obj, limit) {
     .slice(0, limit)
     .map(([label, count]) => ({ label, count }));
 }
+
+/**
+ * Get AM rankings - compare current AM against all team members
+ * @param {string} targetAMName - The AM to rank (current AM)
+ * @returns {Object} Rankings data with position and comparisons
+ */
+function getAMRankings(targetAMName) {
+  const functionName = 'getAMRankings';
+  const startTime = new Date();
+  
+  console.log(`[${functionName}] Generating rankings for: ${targetAMName}`);
+  
+  try {
+    // Get list of all AMs with tabs
+    const amTabsResult = getAvailableAMTabs();
+    if (!amTabsResult.success || amTabsResult.ams.length === 0) {
+      return { success: false, error: 'No AM tabs found' };
+    }
+    
+    // Collect detailed data for each AM
+    const amDataList = [];
+    
+    for (const am of amTabsResult.ams) {
+      try {
+        const amData = generateAMSummary(am.fullName);
+        
+        if (amData && amData.book > 0) {
+          // Parse numeric values
+          const yieldVal = parseFloat(String(amData.yield || '0').replace(/[^0-9.-]/g, ''));
+          const subFeeVal = parseFloat(String(amData.subfees || '0').replace(/[^0-9.-]/g, ''));
+          
+          amDataList.push({
+            name: am.fullName,
+            firstName: am.fullName.split(' ')[0],
+            bucket: amData.book || 0,
+            groups: amData.groups || 0,
+            avgYield: isNaN(yieldVal) ? 0 : yieldVal,
+            avgSubFee: isNaN(subFeeVal) ? 0 : subFeeVal,
+            termPending: amData.termCanc || 0,
+            termExpired: amData.termExpired || 0,
+            termWarn: amData.termWarn || 0,
+            activePI: amData.pi || 0,
+            activeXP: amData.xp || 0,
+            instantBooking: amData.ib || 0,
+            privateDining: amData.pd || 0,
+            partnerFeedExcluded: amData.pfExc || 0,
+            // Calculate percentages
+            piPercent: amData.book > 0 ? ((amData.pi || 0) / amData.book * 100).toFixed(1) : 0,
+            termPendingPercent: amData.book > 0 ? ((amData.termCanc || 0) / amData.book * 100).toFixed(1) : 0
+          });
+        }
+      } catch (amError) {
+        console.log(`[${functionName}] Error processing ${am.fullName}: ${amError.message}`);
+      }
+    }
+    
+    if (amDataList.length === 0) {
+      return { success: false, error: 'No AM data found' };
+    }
+    
+    // Find the target AM
+    const targetAM = amDataList.find(am => 
+      am.name.toLowerCase() === targetAMName.toLowerCase()
+    );
+    
+    if (!targetAM) {
+      return { success: false, error: `AM "${targetAMName}" not found in team data` };
+    }
+    
+    const totalAMs = amDataList.length;
+    
+    // Calculate rankings for each metric (higher is better for most)
+    const rankings = {};
+    
+    // Metrics where higher is better
+    const higherBetter = ['bucket', 'groups', 'avgYield', 'avgSubFee', 'activePI', 'activeXP', 'instantBooking', 'privateDining'];
+    
+    // Metrics where lower is better
+    const lowerBetter = ['termPending', 'termExpired', 'termWarn', 'partnerFeedExcluded', 'termPendingPercent'];
+    
+    for (const metric of higherBetter) {
+      const sorted = [...amDataList].sort((a, b) => b[metric] - a[metric]);
+      const rank = sorted.findIndex(am => am.name === targetAM.name) + 1;
+      rankings[metric] = {
+        rank: rank,
+        total: totalAMs,
+        value: targetAM[metric],
+        topAM: sorted[0].name !== targetAM.name ? { name: sorted[0].firstName, value: sorted[0][metric] } : null,
+        teamAvg: (amDataList.reduce((sum, am) => sum + am[metric], 0) / totalAMs).toFixed(1)
+      };
+    }
+    
+    for (const metric of lowerBetter) {
+      const sorted = [...amDataList].sort((a, b) => a[metric] - b[metric]); // Lower is better
+      const rank = sorted.findIndex(am => am.name === targetAM.name) + 1;
+      rankings[metric] = {
+        rank: rank,
+        total: totalAMs,
+        value: targetAM[metric],
+        bestAM: sorted[0].name !== targetAM.name ? { name: sorted[0].firstName, value: sorted[0][metric] } : null,
+        teamAvg: (amDataList.reduce((sum, am) => sum + am[metric], 0) / totalAMs).toFixed(1)
+      };
+    }
+    
+    // Build full leaderboard for key metrics
+    const leaderboards = {
+      bucketSize: [...amDataList].sort((a, b) => b.bucket - a.bucket).map((am, i) => ({
+        rank: i + 1,
+        name: am.firstName,
+        value: am.bucket,
+        isTarget: am.name === targetAM.name
+      })),
+      avgYield: [...amDataList].sort((a, b) => b.avgYield - a.avgYield).map((am, i) => ({
+        rank: i + 1,
+        name: am.firstName,
+        value: '$' + am.avgYield.toFixed(0),
+        isTarget: am.name === targetAM.name
+      })),
+      avgSubFee: [...amDataList].sort((a, b) => b.avgSubFee - a.avgSubFee).map((am, i) => ({
+        rank: i + 1,
+        name: am.firstName,
+        value: '$' + am.avgSubFee.toFixed(0),
+        isTarget: am.name === targetAM.name
+      })),
+      piAdoption: [...amDataList].sort((a, b) => parseFloat(b.piPercent) - parseFloat(a.piPercent)).map((am, i) => ({
+        rank: i + 1,
+        name: am.firstName,
+        value: am.piPercent + '%',
+        isTarget: am.name === targetAM.name
+      })),
+      termPendingRisk: [...amDataList].sort((a, b) => a.termPending - b.termPending).map((am, i) => ({
+        rank: i + 1,
+        name: am.firstName,
+        value: am.termPending,
+        isTarget: am.name === targetAM.name
+      }))
+    };
+    
+    const duration = (new Date() - startTime) / 1000;
+    console.log(`[${functionName}] Rankings complete in ${duration}s - ${totalAMs} AMs compared`);
+    
+    return {
+      success: true,
+      data: {
+        targetAM: {
+          name: targetAM.name,
+          firstName: targetAM.firstName,
+          metrics: targetAM
+        },
+        totalAMs: totalAMs,
+        rankings: rankings,
+        leaderboards: leaderboards,
+        generatedAt: new Date().toISOString()
+      },
+      durationMs: duration * 1000
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return {
+      success: false,
+      error: e.message,
+      durationMs: new Date() - startTime
+    };
+  }
+}

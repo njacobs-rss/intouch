@@ -310,6 +310,41 @@
       border-radius: 3px;
       font-size: 11px;
     }
+    
+    /* Markdown tables in chat */
+    .kh-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0;
+      font-size: 11px;
+      table-layout: auto;
+    }
+    .kh-table th,
+    .kh-table td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      text-align: left;
+      word-wrap: break-word;
+    }
+    .kh-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #374151;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .kh-table td {
+      background: #fff;
+      color: #1f2937;
+    }
+    .kh-table tr:nth-child(even) td {
+      background: #f9fafb;
+    }
+    .kh-table tr:hover td {
+      background: #f0f9ff;
+    }
+    
     .kh-message.error {
       background: #fee2e2;
       color: #991b1b;
@@ -2649,6 +2684,38 @@ If you have any other questions about the team data I'd be happy to dive in with
       
       // Inline code: `code`
       html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Markdown tables - MUST process BEFORE line breaks
+      // Match table blocks: lines starting with |
+      html = html.replace(/(?:^|\n)(\|[^\n]+\|\n\|[-:\|\s]+\|\n(?:\|[^\n]+\|\n?)+)/g, function(match) {
+        const lines = match.trim().split('\n').filter(line => line.trim());
+        if (lines.length < 2) return match;
+        
+        // First line is header
+        const headerCells = lines[0].split('|').filter(cell => cell.trim() !== '');
+        
+        // Skip separator line (line with dashes)
+        // Rest are data rows
+        const dataLines = lines.slice(2);
+        
+        let tableHtml = '<table class="kh-table"><thead><tr>';
+        headerCells.forEach(cell => {
+          tableHtml += '<th>' + cell.trim() + '</th>';
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        dataLines.forEach(line => {
+          const cells = line.split('|').filter(cell => cell.trim() !== '');
+          tableHtml += '<tr>';
+          cells.forEach(cell => {
+            tableHtml += '<td>' + cell.trim() + '</td>';
+          });
+          tableHtml += '</tr>';
+        });
+        
+        tableHtml += '</tbody></table>';
+        return '\n' + tableHtml + '\n';
+      });
       
       // Line breaks
       html = html.replace(/\n/g, '<br>');

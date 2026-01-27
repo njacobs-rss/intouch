@@ -938,9 +938,23 @@ Show System Type distribution in table format.
 ### 4. "Show my most important accounts (top revenue drivers, icons, elites, etc.)"
 Identify high-priority accounts using tables.
 
+**CRITICAL EXCLUSION RULE:**
+- ALWAYS exclude entries where the value is ONLY "Top" or "Top [Nom]" (case insensitive)
+- These are generic markers, not meaningful designations
+- Only include accounts with specific tiers like "Icon", "Elite", "Platinum", "Gold", etc.
+
 **Required - Include accounts from:**
-1. **Special Programs** - Any account with value (exclude "Top" or "Top [Nom]" only)
-2. **Rest. Quality** - Any account with tier (exclude "Top" or "Top [Nom]" only)
+1. **Special Programs** - Any account with value EXCEPT "Top" or "Top [Nom]"
+2. **Rest. Quality** - Any account with tier EXCEPT "Top" or "Top [Nom]"
+
+**Exclusion Examples:**
+- "Top" → EXCLUDE
+- "Top [Nom]" → EXCLUDE  
+- "top" → EXCLUDE
+- "TOP [NOM]" → EXCLUDE
+- "Icon" → INCLUDE
+- "Elite" → INCLUDE
+- "Platinum" → INCLUDE
 
 **Format:**
 "## Important Accounts: [First Name]

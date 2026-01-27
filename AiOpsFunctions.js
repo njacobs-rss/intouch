@@ -1471,18 +1471,31 @@ function getDetailedAMData(amName) {
       }
     };
     
+    // Helper to check if value is just "Top" or "Top [Nom]" (should be excluded from important accounts)
+    const isTopOnly = (val) => {
+      if (!val) return false;
+      const normalized = String(val).trim().toLowerCase();
+      return normalized === 'top' || normalized === 'top [nom]';
+    };
+    
     // Simple category tracking (just RIDs)
-    const addToSimpleCategory = (category, value, rid, name) => {
+    // skipTopOnly: if true, excludes "Top" and "Top [Nom]" values
+    const addToSimpleCategory = (category, value, rid, name, skipTopOnly = false) => {
       const cleanVal = String(value || '').trim();
       if (!cleanVal) return;
+      // Skip "Top" or "Top [Nom]" if requested
+      if (skipTopOnly && isTopOnly(cleanVal)) return;
       if (!data[category][cleanVal]) data[category][cleanVal] = [];
       data[category][cleanVal].push({ rid, name });
     };
     
     // Enhanced category tracking with metrics (for System Types and Quality Tiers)
-    const addToMetricCategory = (category, value, rid, name, yieldVal, subVal) => {
+    // skipTopOnly: if true, excludes "Top" and "Top [Nom]" values
+    const addToMetricCategory = (category, value, rid, name, yieldVal, subVal, skipTopOnly = false) => {
       const cleanVal = String(value || '').trim();
       if (!cleanVal) return;
+      // Skip "Top" or "Top [Nom]" if requested
+      if (skipTopOnly && isTopOnly(cleanVal)) return;
       if (!data[category][cleanVal]) {
         data[category][cleanVal] = { rids: [], yldSum: 0, yldCnt: 0, subSum: 0, subCnt: 0 };
       }
@@ -1534,10 +1547,10 @@ function getDetailedAMData(amName) {
       
       // Enhanced categories - track metrics per category value
       addToMetricCategory('systemTypes', row[map.sysType], rid, name, yieldVal, subVal);
-      addToMetricCategory('qualityTiers', row[map.qual], rid, name, yieldVal, subVal);
+      addToMetricCategory('qualityTiers', row[map.qual], rid, name, yieldVal, subVal, true);  // Skip "Top" / "Top [Nom]"
       
       // Simple categories - just RID tracking
-      addToSimpleCategory('specialPrograms', row[map.programs], rid, name);
+      addToSimpleCategory('specialPrograms', row[map.programs], rid, name, true);  // Skip "Top" / "Top [Nom]"
       addToSimpleCategory('exclusivePricing', row[map.pricing], rid, name);
       addToSimpleCategory('metros', row[map.metro], rid, name);
       addToSimpleCategory('systemOfRecord', row[map.sor], rid, name);

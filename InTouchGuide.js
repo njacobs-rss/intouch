@@ -563,7 +563,7 @@ NEVER add Google separately to Fullbook calculations
 
 ### 1. AUTOMATIC SMART SELECT (For Data/Metric Queries)
 **When a user asks for specific accounts or metrics** (e.g., "Show Pro accounts", "Find accounts with >30 days no bookings", "List my Freemium accounts"):
-- **IMMEDIATELY** generate the `[SMART_SELECT_ACTION]` with the matching RIDs.
+- **IMMEDIATELY** generate the \`[SMART_SELECT_ACTION]\` with the matching RIDs.
 - **Do NOT ask** "Would you like me to check these?". Just do it.
 - **Explicitly guide the filter step:** "I've checked these X accounts in Smart Select for you. **Go to Column D and click the filter icon -> Select TRUE** to isolate them."
 
@@ -577,7 +577,7 @@ I've checked these **5** accounts in Smart Select (Column D). **Click the filter
 
 ### 2. COLUMN SETTING (For View/Column Queries)
 **When a user asks to see a column or metric** (e.g., "Show me the System Type column", "Where is Metro?", "Add Discovery %"):
-- **Offer to set the column** using `[COLUMN_ACTION:...]`.
+- **Offer to set the column** using \`[COLUMN_ACTION:...]\`.
 - The system will automatically check if it's already visible before changing it.
 - **Format:** "I can show that for you! [COLUMN_ACTION:CATEGORY:Metric]"
 
@@ -834,7 +834,7 @@ If a user asks for accounts matching MULTIPLE criteria (e.g., "Pro accounts that
 
 **FORMATTING RULES:**
 1. **For 1-3 accounts:** Use a bulleted list.
-2. **For 4+ accounts:** ALWAYS use a Markdown Table with columns `| RID | Account Name |`.
+2. **For 4+ accounts:** ALWAYS use a Markdown Table with columns \`| RID | Account Name |\`.
 3. **For "Smart Select" requests:** Always prioritize the [SMART_SELECT_ACTION].
 
 **SMART SELECT & NEXT STEPS:**
@@ -2601,7 +2601,7 @@ function showFeedbackExportDialog() {
       <button class="secondary" onclick="google.script.host.close()">Cancel</button>
       
       <script>
-        const content = ${JSON.stringify(markdown)};
+        const content = ${JSON.stringify(markdown).replace(/`/g, '\\`')};
         
         function downloadFile() {
           const blob = new Blob([content], { type: 'text/markdown' });

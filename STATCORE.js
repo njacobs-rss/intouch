@@ -28,10 +28,15 @@ function updateSTATCORE(targetSS, skipChain) {
     if (!targetSheet) throw new Error("Sheet 'STATCORE' not found.");
 
     // Connect to Source Data
-    const dataSheetId = '1bh4XfKM8l5MoTHHQzjP22Lln9yWBljHzmGHan_qA9Qk';
+    const dataSheetId = '1Qa3S3USt-TOdVctormnunF4P8L010C3pSCx9zl5aTtM';
     const dataSS = SpreadsheetApp.openById(dataSheetId);
     const dataSheet = dataSS.getSheetByName(sourceSheetName);
-    if (!dataSheet) throw new Error(`Source sheet '${sourceSheetName}' not found.`);
+    if (!dataSheet) {
+      // DEBUG: Log available sheets to help diagnose
+      const availableSheets = dataSS.getSheets().map(s => s.getName());
+      Logger.log(`[${functionName}] DEBUG: Available sheets in source: ${JSON.stringify(availableSheets)}`);
+      throw new Error(`Source sheet '${sourceSheetName}' not found. Available: ${availableSheets.join(', ')}`);
+    }
 
     // OPTIMIZATION: Scan Source A:A to determine actual data depth
     const sourceLastRow = getTrueLastRow_(dataSheet, 'A');

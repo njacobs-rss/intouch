@@ -597,7 +597,7 @@ var QUEUE_CFG = {
   triggerName: 'processFleetQueueBatch',     // Handler for time-based trigger
   // Source spreadsheet IDs (from STATCORE.js)
   sources: {
-    statcore: { ssId: '1bh4XfKM8l5MoTHHQzjP22Lln9yWBljHzmGHan_qA9Qk', sheet: 'Statcore' },
+    statcore: { ssId: '1Qa3S3USt-TOdVctormnunF4P8L010C3pSCx9zl5aTtM', sheet: 'Statcore' },
     syscore:  { ssId: '1V4C9mIL4ISP4rx2tJcpPhflM-RIi4eft_xDZWAgWmGU', sheet: 'SEND' },
     dagcore:  { ssId: '1Rp42PivUzqnm3VzV15g_R9KcairXX9dWGOfIjeotzTQ', sheet: 'SEND' }
   }

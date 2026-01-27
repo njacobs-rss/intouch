@@ -1015,9 +1015,17 @@ Check candidates in Smart Select?
 Show the AM's ranking compared to all other AMs using tables.
 
 **When ranking data is provided, it will include:**
-- Rankings for key metrics (bucket size, avg yield, avg sub fee, PI adoption, term pending)
+- Rankings for key metrics (bucket size, PRO share, engaged last 90 days, avg sub fee, PI adoption, term pending)
 - Full leaderboards showing all AMs ranked
 - The current AM is marked with "← YOU" in the data
+
+**Key Metrics Explained:**
+- **Bucket Size**: Total number of accounts
+- **PRO Share**: Percentage of accounts on PRO system type (higher = better)
+- **Engaged Last 90 Days**: Percentage of accounts with last engagement date within 90 days (higher = better coverage)
+- **Avg Sub Fee**: Average subscription fees
+- **PI Adoption**: Accounts running Promoted Inventory
+- **Term Pending**: Accounts at risk (lower is better)
 
 **Required:**
 - Summary of where the AM ranks across key metrics
@@ -1034,7 +1042,8 @@ Comparing against [X] Account Managers
 | Metric | Rank | Your Value | Team Avg |
 |--------|------|------------|----------|
 | Bucket Size | #X of Y | Z | W |
-| Avg Yield | #X of Y | $Z | $W |
+| PRO Share | #X of Y | Z% | W% |
+| Engaged (90d) | #X of Y | Z% | W% |
 | Avg Sub Fee | #X of Y | $Z | $W |
 | PI Adoption | #X of Y | Z% | W% |
 | Term Pending | #X of Y | Z | W |
@@ -1651,7 +1660,8 @@ function formatRankingDataForInjection(data) {
   text += `**Your Rankings:**\n`;
   const r = data.rankings;
   text += `Bucket Size: #${r.bucket.rank} of ${r.bucket.total} (${r.bucket.value} accounts, team avg: ${r.bucket.teamAvg})\n`;
-  text += `Avg Yield: #${r.avgYield.rank} of ${r.avgYield.total} ($${r.avgYield.value}, team avg: $${r.avgYield.teamAvg})\n`;
+  text += `PRO Share: #${r.proPercent.rank} of ${r.proPercent.total} (${r.proPercent.value}%, team avg: ${r.proPercent.teamAvg}%)\n`;
+  text += `Engaged Last 90 Days: #${r.engagedPercent.rank} of ${r.engagedPercent.total} (${r.engagedPercent.value}%, team avg: ${r.engagedPercent.teamAvg}%)\n`;
   text += `Avg Sub Fee: #${r.avgSubFee.rank} of ${r.avgSubFee.total} ($${r.avgSubFee.value}, team avg: $${r.avgSubFee.teamAvg})\n`;
   text += `Active PI: #${r.activePI.rank} of ${r.activePI.total} (${r.activePI.value} accounts, team avg: ${r.activePI.teamAvg})\n`;
   text += `Term Pending: #${r.termPending.rank} of ${r.termPending.total} (${r.termPending.value}, team avg: ${r.termPending.teamAvg}) - lower is better\n\n`;
@@ -1665,8 +1675,14 @@ function formatRankingDataForInjection(data) {
     text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
   });
   
-  text += `\nAvg Yield:\n`;
-  data.leaderboards.avgYield.forEach(am => {
+  text += `\nPRO Share %:\n`;
+  data.leaderboards.proShare.forEach(am => {
+    const marker = am.isTarget ? ' ← YOU' : '';
+    text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
+  });
+  
+  text += `\nEngaged Last 90 Days %:\n`;
+  data.leaderboards.engagedLast90.forEach(am => {
     const marker = am.isTarget ? ' ← YOU' : '';
     text += `  ${am.rank}. ${am.name}: ${am.value}${marker}\n`;
   });

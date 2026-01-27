@@ -372,6 +372,7 @@ function generateAMSummary(amName) {
     // Features (Statcore)
     ib: findCol(sHead, "instantbooking"),
     pd: findCol(sHead, "privatedining"),
+    lastEngaged: findCol(sHead, "lastengageddate"),
 
     // Distro
     d_rid: findCol(dHead, "rid"),
@@ -406,6 +407,7 @@ function generateAMSummary(amName) {
     xp: 0, pi: 0, ib: 0, pd: 0, pfExcl: 0,
     piShareSum: 0, piShareCnt: 0, posSum: 0, posCnt: 0,
     l90: 0,
+    engagedLast90: 0,  // Count of accounts with last engagement within 90 days
     metros: {}, sysTypes: {}, sors: {}, quals: {}, progs: {}, prices: {}, noBooks: {}
   };
 
@@ -448,6 +450,15 @@ function generateAMSummary(amName) {
     if (map.l90 > -1) agg.l90 += (parseFloat(row[map.l90]) || 0);
     if (map.ib > -1 && isTrue(row[map.ib])) agg.ib++;
     if (map.pd > -1 && isTrue(row[map.pd])) agg.pd++;
+    
+    // Check last engagement date - count if within last 90 days
+    if (map.lastEngaged > -1 && row[map.lastEngaged]) {
+      const engagedDate = new Date(row[map.lastEngaged]);
+      if (!isNaN(engagedDate.getTime())) {
+        const daysDiff = Math.floor((today - engagedDate) / (1000 * 60 * 60 * 24));
+        if (daysDiff <= 90) agg.engagedLast90++;
+      }
+    }
 
     // Distro Metrics
     if (dRow) {
@@ -477,6 +488,7 @@ function generateAMSummary(amName) {
     subfees: calcAvg(agg.subSum, agg.subCnt, 0),
     yield: calcAvg(agg.yldSum, agg.yldCnt, 0),
     l90: agg.l90,
+    engagedLast90: agg.engagedLast90,  // Accounts with last engagement within 90 days
     xp: agg.xp, pi: agg.pi, ib: agg.ib, pd: agg.pd, pfExc: agg.pfExcl,
     piRevShare: calcAvg(agg.piShareSum, agg.piShareCnt, 1) + "%",
     posMatch: calcAvg(agg.posSum, agg.posCnt, 0) + "%",
@@ -2096,6 +2108,15 @@ function getAMRankings(targetAMName) {
           const yieldVal = parseFloat(String(amData.yield || '0').replace(/[^0-9.-]/g, ''));
           const subFeeVal = parseFloat(String(amData.subfees || '0').replace(/[^0-9.-]/g, ''));
           
+          // Calculate PRO share from sysTypeList
+          let proCount = 0;
+          if (amData.sysTypeList && Array.isArray(amData.sysTypeList)) {
+            const proItem = amData.sysTypeList.find(item => 
+              item.label && item.label.toLowerCase().includes('pro')
+            );
+            if (proItem) proCount = proItem.count || 0;
+          }
+          
           amDataList.push({
             name: am.fullName,
             firstName: am.fullName.split(' ')[0],
@@ -2111,9 +2132,13 @@ function getAMRankings(targetAMName) {
             instantBooking: amData.ib || 0,
             privateDining: amData.pd || 0,
             partnerFeedExcluded: amData.pfExc || 0,
+            engagedLast90: amData.engagedLast90 || 0,
+            proCount: proCount,
             // Calculate percentages
             piPercent: amData.book > 0 ? ((amData.pi || 0) / amData.book * 100).toFixed(1) : 0,
-            termPendingPercent: amData.book > 0 ? ((amData.termCanc || 0) / amData.book * 100).toFixed(1) : 0
+            termPendingPercent: amData.book > 0 ? ((amData.termCanc || 0) / amData.book * 100).toFixed(1) : 0,
+            proPercent: amData.book > 0 ? (proCount / amData.book * 100).toFixed(1) : 0,
+            engagedPercent: amData.book > 0 ? ((amData.engagedLast90 || 0) / amData.book * 100).toFixed(1) : 0
           });
         }
       } catch (amError) {
@@ -2140,7 +2165,7 @@ function getAMRankings(targetAMName) {
     const rankings = {};
     
     // Metrics where higher is better
-    const higherBetter = ['bucket', 'groups', 'avgYield', 'avgSubFee', 'activePI', 'activeXP', 'instantBooking', 'privateDining'];
+    const higherBetter = ['bucket', 'groups', 'avgSubFee', 'activePI', 'activeXP', 'instantBooking', 'privateDining', 'proPercent', 'engagedPercent'];
     
     // Metrics where lower is better
     const lowerBetter = ['termPending', 'termExpired', 'termWarn', 'partnerFeedExcluded', 'termPendingPercent'];
@@ -2177,10 +2202,16 @@ function getAMRankings(targetAMName) {
         value: am.bucket,
         isTarget: am.name === targetAM.name
       })),
-      avgYield: [...amDataList].sort((a, b) => b.avgYield - a.avgYield).map((am, i) => ({
+      proShare: [...amDataList].sort((a, b) => parseFloat(b.proPercent) - parseFloat(a.proPercent)).map((am, i) => ({
         rank: i + 1,
         name: am.firstName,
-        value: '$' + am.avgYield.toFixed(0),
+        value: am.proPercent + '%',
+        isTarget: am.name === targetAM.name
+      })),
+      engagedLast90: [...amDataList].sort((a, b) => parseFloat(b.engagedPercent) - parseFloat(a.engagedPercent)).map((am, i) => ({
+        rank: i + 1,
+        name: am.firstName,
+        value: am.engagedPercent + '%',
         isTarget: am.name === targetAM.name
       })),
       avgSubFee: [...amDataList].sort((a, b) => b.avgSubFee - a.avgSubFee).map((am, i) => ({

@@ -1764,11 +1764,13 @@ function checkRIDsInSmartSelect(rids, amName) {
     
     console.log(`[${functionName}] Looking for ${ridsToCheck.length} normalized RIDs`);
     
-    // Find which rows to check
+    // Find which rows to check and track the RIDs
     const rowsToCheck = [];
+    const checkedRIDs = [];
     allRids.forEach((sheetRid, idx) => {
       if (sheetRid && ridsToCheck.includes(sheetRid)) {
         rowsToCheck.push(idx + 3);  // +3 because data starts at row 3
+        checkedRIDs.push(sheetRid);
       }
     });
     
@@ -1799,6 +1801,7 @@ function checkRIDsInSmartSelect(rids, amName) {
     return {
       success: true,
       checkedCount: rowsToCheck.length,
+      checkedRIDs: checkedRIDs,  // Return the RIDs that were checked for layered filtering
       notFoundCount: notFound,
       message: message
     };

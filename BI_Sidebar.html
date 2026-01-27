@@ -1409,7 +1409,8 @@
       lastModifiedMetric: null,     // Tracks last modified metric for filtering advice context
       lastListedRIDs: null,         // Stores RIDs from the last list response for "add them" follow-ups
       autoIsolateMode: false,       // True when query started with "isolate" or "filter" - triggers auto check+filter
-      showResetButton: false        // True after auto-isolate to show Reset button alongside Focus20
+      showResetButton: false,       // True after auto-isolate to show Reset button alongside Focus20
+      isolatedRIDs: null            // Stores currently isolated RIDs for layered filtering
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1501,6 +1502,7 @@
       khState.lastListedRIDs = null;
       khState.autoIsolateMode = false;
       khState.showResetButton = false;
+      khState.isolatedRIDs = null;
       
       // Clear messages and show welcome screen
       if (khEls.messages) {
@@ -2323,6 +2325,7 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
     /**
      * Execute auto-isolate flow: check RIDs in Smart Select AND apply filter
      * Triggered when: >10 RIDs in response OR query started with "isolate"/"filter"
+     * Supports LAYERED filtering: if already isolated, finds intersection with new RIDs
      * @param {Array} rids - Array of RID strings
      * @param {string} dataIndicator - Optional data indicator HTML
      */
@@ -2333,58 +2336,92 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
       }
       
       const amName = khState.currentAMContext ? khState.currentAMContext.fullName : '';
+      const isLayering = khState.isolatedRIDs && khState.isolatedRIDs.length > 0;
       
       // Show loading
       khState.isLoading = true;
       if (khEls.sendBtn) khEls.sendBtn.disabled = true;
       const loadingEl = addKHMessage('loading', '');
       
-      console.log(`[executeAutoIsolate] Auto-isolating ${rids.length} RIDs for AM: "${amName}"`);
+      if (isLayering) {
+        console.log(`[executeAutoIsolate] LAYERING: ${rids.length} new RIDs onto ${khState.isolatedRIDs.length} existing`);
+      } else {
+        console.log(`[executeAutoIsolate] FRESH isolate: ${rids.length} RIDs for AM: "${amName}"`);
+      }
       
-      google.script.run
-        .withSuccessHandler((result) => {
-          if (loadingEl) loadingEl.remove();
-          khState.isLoading = false;
-          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+      // Choose the appropriate server function
+      const serverFunction = isLayering ? 'layerSmartSelectFilter' : 'checkAndFilterSmartSelect';
+      const serverArgs = isLayering ? [rids, khState.isolatedRIDs, amName] : [rids, amName];
+      
+      const handleSuccess = (result) => {
+        if (loadingEl) loadingEl.remove();
+        khState.isLoading = false;
+        if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+        
+        if (result.success) {
+          // Store the isolated RIDs for potential layering
+          khState.isolatedRIDs = result.isolatedRIDs || rids.filter(r => !result.notFoundRIDs || !result.notFoundRIDs.includes(r));
           
-          if (result.success) {
-            let message = `✅ **Isolated ${result.checkedCount} account${result.checkedCount !== 1 ? 's' : ''}** - your sheet is now filtered to show only these RIDs.\n\n`;
-            
-            if (result.notFoundCount > 0) {
-              message += `*Note: ${result.notFoundCount} RIDs were not found on this sheet.*\n\n`;
-            }
-            
-            message += `**What would you like to do next?**`;
-            
-            // Set up Focus20 action for the button
-            khState.pendingFunctionAction = {
-              functionName: 'moveTrueAccountsToFocus20',
-              label: 'Add to Focus20'
-            };
-            
-            // Mark that we need to show Reset button too
-            khState.showResetButton = true;
-            
-            addKHMessage('assistant', message, true, dataIndicator);
-          } else if (result.wrongTab) {
-            addKHMessage('assistant', `**Heads up:** You are not currently on **${result.expectedTab}**'s tab. You're on **${result.currentTab || 'a different sheet'}**.
-
-Please navigate to ${result.expectedTab}'s tab and try again, or ask about the accounts on your current tab.`);
+          let message;
+          if (isLayering) {
+            message = `✅ **Layered filter applied** - now showing **${result.checkedCount}** account${result.checkedCount !== 1 ? 's' : ''} that match both criteria.\n\n`;
           } else {
-            let errorMsg = result.error || 'Unknown error';
-            addKHMessage('assistant', `Could not isolate RIDs: ${errorMsg}\n\nMake sure you're on the correct AM's tab and try again.`);
+            message = `✅ **Isolated ${result.checkedCount}** account${result.checkedCount !== 1 ? 's' : ''} - your sheet is now filtered to show only these RIDs.\n\n`;
           }
           
-          khState.pendingSmartSelectAction = null;
-        })
-        .withFailureHandler((error) => {
-          if (loadingEl) loadingEl.remove();
-          khState.isLoading = false;
-          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
-          addKHMessage('error', 'Error: ' + error.message);
-          khState.pendingSmartSelectAction = null;
-        })
-        .checkAndFilterSmartSelect(rids, amName);
+          if (result.notFoundCount > 0) {
+            message += `*Note: ${result.notFoundCount} RIDs were not found on this sheet.*\n\n`;
+          }
+          
+          message += `**You can layer in another metric or:**`;
+          
+          // Set up Focus20 action for the button
+          khState.pendingFunctionAction = {
+            functionName: 'moveTrueAccountsToFocus20',
+            label: 'Add to Focus20'
+          };
+          
+          // Mark that we need to show Reset button too
+          khState.showResetButton = true;
+          
+          addKHMessage('assistant', message, true, dataIndicator);
+        } else if (result.wrongTab) {
+          addKHMessage('assistant', `**Heads up:** You are not currently on **${result.expectedTab}**'s tab. You're on **${result.currentTab || 'a different sheet'}**.
+
+Please navigate to ${result.expectedTab}'s tab and try again, or ask about the accounts on your current tab.`);
+        } else if (result.noIntersection) {
+          addKHMessage('assistant', `**No matching accounts found.** None of the requested RIDs overlap with your current filter.\n\nTry a different criteria, or click **Reset** to start fresh.`);
+          khState.showResetButton = true;
+          khState.pendingFunctionAction = null;
+          addKHMessage('assistant', '', true); // Show reset button
+        } else {
+          let errorMsg = result.error || 'Unknown error';
+          addKHMessage('assistant', `Could not isolate RIDs: ${errorMsg}\n\nMake sure you're on the correct AM's tab and try again.`);
+        }
+        
+        khState.pendingSmartSelectAction = null;
+      };
+      
+      const handleFailure = (error) => {
+        if (loadingEl) loadingEl.remove();
+        khState.isLoading = false;
+        if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+        addKHMessage('error', 'Error: ' + error.message);
+        khState.pendingSmartSelectAction = null;
+      };
+      
+      // Call the appropriate server function
+      if (isLayering) {
+        google.script.run
+          .withSuccessHandler(handleSuccess)
+          .withFailureHandler(handleFailure)
+          .layerSmartSelectFilter(rids, khState.isolatedRIDs, amName);
+      } else {
+        google.script.run
+          .withSuccessHandler(handleSuccess)
+          .withFailureHandler(handleFailure)
+          .checkAndFilterSmartSelect(rids, amName);
+      }
     }
     
     /**
@@ -2417,9 +2454,10 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
             addKHMessage('assistant', `Could not reset: ${result.error || 'Unknown error'}\n\nYou can manually reset by clicking the RESET button above Column E.`);
           }
           
-          // Clear pending actions
+          // Clear pending actions and isolated state
           khState.pendingFunctionAction = null;
           khState.showResetButton = false;
+          khState.isolatedRIDs = null;  // Clear layered filter state
         })
         .withFailureHandler((error) => {
           if (loadingEl) loadingEl.remove();

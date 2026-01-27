@@ -637,9 +637,7 @@ You have access to real account data for the AM whose tab is active. When data i
 1. User asks a question about their accounts/portfolio
 2. System automatically detects the AM and injects their data into your context
 3. You answer the question DIRECTLY using the data - no confirmation needed for simple questions
-4. After answering, include this follow-up prompt:
-
-**"If you have any other questions about your account data I'd be happy to dive in with you. I can also generate a quick snapshot analysis of your bucket if you would like. Let me know!"**
+4. **Follow-up prompt rule:** ONLY include the generic follow-up prompt when you are NOT offering a specific action (like Smart Select, column change, etc.). If your response includes [SMART_SELECT_ACTION:...] or any other action tag, do NOT add the follow-up prompt - the action itself is the next step.
 
 ### CRITICAL: Personalized Naming (ALWAYS FOLLOW)
 - **FIRST message** about an AM's data: Use their **full name** (e.g., "Ellen Miller has 47 accounts...")
@@ -776,11 +774,10 @@ When user explicitly requests a full analysis ("analyze my portfolio", "give me 
 - [list noBookingReasons with counts]
 
 **Key Takeaways:**
-[Generate 2-3 actionable insights based on the actual data]
-
-If you have any other questions about [firstName]'s account data I'd be happy to dive in with you!"
+[Generate 2-3 actionable insights based on the actual data]"
 
 Remember: Calculate all percentages as (count/totalAccounts*100) rounded to nearest whole number.
+Note: Do NOT add a generic follow-up prompt after portfolio snapshots - the Key Takeaways are the conclusion.
 
 ### Category Breakdowns
 The injected data includes RID lists for each category. When user asks about counts, give the count with percentage. When they ask "which" or "list", then show the RIDs.
@@ -817,7 +814,7 @@ When you see data, proactively flag these issues:
 - **Always show percentage** - Format: "Count (X%) of Name's Total accounts..."
 - **Answer directly** - don't ask for confirmation on simple data questions
 - **Use actual numbers** from the injected data - NEVER make up numbers
-- **Always include the follow-up prompt** after answering a data question
+- **Skip follow-up prompt when offering actions** - If response has [SMART_SELECT_ACTION:...] or other action tags, don't add generic follow-up text
 - **List RIDs only when asked** - "which ones?", "list them", "which rids?"
 - **Offer Smart Select only after listing** - Not after count questions
 - If no data is injected, explain you need to fetch data for the AM first
@@ -2419,12 +2416,123 @@ function checkAndFilterSmartSelect(rids, expectedAM) {
       checkedCount: checkResult.checkedCount,
       filteredCount: filterResult.filteredCount,
       notFoundCount: checkResult.notFoundCount || 0,
+      isolatedRIDs: checkResult.checkedRIDs || rids,  // Return the RIDs that were actually checked
       sheetName: filterResult.sheetName,
       durationMs: new Date() - startTime
     };
     
   } catch (error) {
     console.error('[checkAndFilterSmartSelect] Error: ' + error.message);
+    return {
+      success: false,
+      error: error.message,
+      durationMs: new Date() - startTime
+    };
+  }
+}
+
+/**
+ * Layer a new filter on top of existing isolated RIDs
+ * Computes intersection: accounts that match BOTH the previous filter AND new criteria
+ * @param {Array} newRids - New RIDs to filter by
+ * @param {Array} previousRids - Previously isolated RIDs
+ * @param {string} expectedAM - The expected AM name for tab verification
+ * @returns {Object} Result object with success status and counts
+ */
+function layerSmartSelectFilter(newRids, previousRids, expectedAM) {
+  const startTime = new Date();
+  const functionName = 'layerSmartSelectFilter';
+  
+  try {
+    if (!newRids || newRids.length === 0) {
+      return { success: false, error: 'No new RIDs provided' };
+    }
+    if (!previousRids || previousRids.length === 0) {
+      return { success: false, error: 'No previous RIDs to layer on' };
+    }
+    
+    console.log(`[${functionName}] Layering ${newRids.length} new RIDs onto ${previousRids.length} existing`);
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const activeSheet = ss.getActiveSheet();
+    const currentAM = String(activeSheet.getRange('B2').getValue() || '').trim();
+    
+    // Verify we're on the correct tab
+    if (expectedAM && expectedAM.trim() !== '') {
+      if (currentAM.toLowerCase() !== expectedAM.toLowerCase()) {
+        return {
+          success: false,
+          wrongTab: true,
+          currentTab: currentAM,
+          expectedTab: expectedAM,
+          error: `You are on ${currentAM || 'an unknown tab'}'s sheet, not ${expectedAM}'s.`
+        };
+      }
+    }
+    
+    // Normalize RIDs for comparison
+    const normalizeRID = (rid) => String(rid).replace(/[^0-9]/g, '');
+    const normalizedNew = newRids.map(normalizeRID).filter(r => r !== '');
+    const normalizedPrevious = previousRids.map(normalizeRID).filter(r => r !== '');
+    
+    // Compute intersection
+    const intersection = normalizedNew.filter(rid => normalizedPrevious.includes(rid));
+    
+    console.log(`[${functionName}] Intersection: ${intersection.length} RIDs match both criteria`);
+    
+    if (intersection.length === 0) {
+      return {
+        success: false,
+        noIntersection: true,
+        error: 'No accounts match both criteria'
+      };
+    }
+    
+    // Clear ALL Smart Select values first
+    const lastRow = activeSheet.getLastRow();
+    if (lastRow >= 3) {
+      activeSheet.getRange(3, 4, lastRow - 2, 1).setValue(false);
+      SpreadsheetApp.flush();
+    }
+    
+    // Now check only the intersection RIDs
+    const ridCol = 3;  // Column C
+    const smartSelectCol = 4;  // Column D
+    const rawRids = activeSheet.getRange(3, ridCol, lastRow - 2, 1).getValues();
+    const allSheetRids = rawRids.map(r => normalizeRID(r[0]));
+    
+    // Find rows to check
+    const rowsToCheck = [];
+    const checkedRIDs = [];
+    allSheetRids.forEach((sheetRid, idx) => {
+      if (sheetRid && intersection.includes(sheetRid)) {
+        rowsToCheck.push(idx + 3);
+        checkedRIDs.push(sheetRid);
+      }
+    });
+    
+    // Check the intersection rows
+    rowsToCheck.forEach(row => {
+      activeSheet.getRange(row, smartSelectCol).setValue(true);
+    });
+    
+    SpreadsheetApp.flush();
+    
+    // Filter is already active (Column D = TRUE), so the view now shows intersection
+    
+    console.log(`[${functionName}] Layered filter complete: ${rowsToCheck.length} accounts match both criteria`);
+    
+    return {
+      success: true,
+      checkedCount: rowsToCheck.length,
+      isolatedRIDs: checkedRIDs,
+      previousCount: previousRids.length,
+      newCount: newRids.length,
+      durationMs: new Date() - startTime
+    };
+    
+  } catch (error) {
+    console.error(`[${functionName}] Error: ${error.message}`);
     return {
       success: false,
       error: error.message,

@@ -1851,41 +1851,6 @@ Review complete. Apply suggested changes after careful review.
 }
 
 /**
- * WEB APP ENDPOINT: Serve feedback data as JSON
- * Deploy as web app: Execute as "Me", Access "Anyone with link"
- * Requires ?key=intouch-feedback-export query parameter for basic security
- * 
- * After deploying, set the URL in fetch-feedback.js
- * @param {Object} e - Event object from web request
- * @returns {TextOutput} JSON response
- */
-function doGet(e) {
-  const EXPECTED_KEY = 'intouch-feedback-export'; // Basic auth token
-  
-  try {
-    // Validate request has correct key
-    const providedKey = e?.parameter?.key;
-    if (providedKey !== EXPECTED_KEY) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ error: 'Unauthorized', code: 401 }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    // Reuse existing export logic
-    const jsonOutput = exportFeedbackForAI();
-    
-    return ContentService
-      .createTextOutput(jsonOutput)
-      .setMimeType(ContentService.MimeType.JSON);
-      
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: error.message, code: 500 }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-/**
  * PING TEST: Verify Gemini API connectivity
  * Call this from the Apps Script editor to test your API key
  * @returns {Object} Status object with success/error info

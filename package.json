@@ -7,8 +7,7 @@
     "login": "clasp login",
     "pull": "clasp pull",
     "push:master": "clasp push && git add . && git commit -m \"Master Deploy\" && git push",
-    "push:all": "node multi-deploy.js && git add . && git commit -m \"Fleet Deploy\" && git push",
-    "export-feedback": "node fetch-feedback.js"
+    "push:all": "node multi-deploy.js && git add . && git commit -m \"Fleet Deploy\" && git push"
   },
   "keywords": [],
   "author": "",

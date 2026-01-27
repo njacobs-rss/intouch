@@ -213,7 +213,7 @@
       right: 0;
       width: 100%;
       max-width: 100%;
-      height: 624px; /* 20% taller than original 520px */
+      height: 811px; /* 30% taller than 624px */
       max-height: calc(100vh - 60px);
       background: #fff;
       border-radius: 16px 16px 0 0;
@@ -541,7 +541,7 @@
       right: 0;
       bottom: 0;
       background: rgba(0,0,0,0.5);
-      z-index: 1000;
+      z-index: 2200; /* Above chat panel (2100) */
       display: none;
       align-items: center;
       justify-content: center;
@@ -1417,6 +1417,9 @@
       }
 
       if (khEls.sendBtn) khEls.sendBtn.addEventListener('click', sendKHMessage);
+      
+      // Auto-open chat panel on sidebar launch
+      toggleKHPanel();
     }
 
     function toggleKHPanel() {

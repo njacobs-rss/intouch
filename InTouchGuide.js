@@ -2284,6 +2284,16 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
     const data = JSON.parse(response.getContentText());
     const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
+    // Log token usage to central sheet
+    if (data.usageMetadata) {
+      try {
+        const queryType = injectedData && injectedData.success ? 'portfolio_analysis' : 'chat';
+        logApiUsage(data.usageMetadata, queryType);
+      } catch (logErr) {
+        console.log('[askInTouchGuide] Token logging failed: ' + logErr.message);
+      }
+    }
+    
     if (!answer) {
       console.log('No answer in response: ' + JSON.stringify(data));
       throw new Error('No response generated');
@@ -2328,9 +2338,9 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
  * All feedback from all sheets goes to this central master spreadsheet
  */
 const KH_FEEDBACK_CONFIG = {
-  MASTER_SPREADSHEET_ID: '1xDOgLdl5cT3T9okuL0WryH_vCyoV-f38kBbkEpkS1PI',
+  MASTER_SPREADSHEET_ID: '1yiqY-5XJY2k86RXDib2zCveR9BNbG7FRdasLUFYYeWY',
   SHEET_NAME: 'KH_Feedback',
-  HEADERS: ['Timestamp', 'User', 'Sheet', 'Query', 'Response', 'Rating', 'Correction', 'Status']
+  HEADERS: ['Timestamp', 'User', 'Worksheet Name', 'Query', 'Response', 'Rating', 'Correction', 'Status']
 };
 
 /**

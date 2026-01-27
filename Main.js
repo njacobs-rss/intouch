@@ -4,10 +4,31 @@
  * =============================================================
  */
 
-const SESSION_LOG_CONFIG_ = {
-  LOG_SHEET_NAME: 'Log',
-  HEADER: ['USER', 'Timestamp', 'Operation', 'Worksheet name'],
-  MAX_ROWS: 20000
+// =============================================================
+// CENTRAL LOGGING CONFIGURATION
+// All logs go to this master spreadsheet for fleet-wide tracking
+// =============================================================
+const CENTRAL_LOG_CONFIG = {
+  MASTER_SPREADSHEET_ID: '1yiqY-5XJY2k86RXDib2zCveR9BNbG7FRdasLUFYYeWY',
+  SHEETS: {
+    LOG: {
+      name: 'Log',
+      headers: ['User', 'Timestamp', 'Operation', 'Worksheet Name']
+    },
+    REFRESH: {
+      name: 'Refresh',
+      headers: ['Function', 'Timestamp', 'Worksheet Name', 'Records', 'Duration', 'Result', 'Error']
+    },
+    API_USAGE: {
+      name: 'API_Usage',
+      headers: ['User', 'Timestamp', 'Worksheet Name', 'Prompt Tokens', 'Response Tokens', 'Total Tokens', 'Query Type']
+    },
+    FLEET_OPS: {
+      name: 'Fleet_Ops',
+      headers: ['User', 'Timestamp', 'Operation', 'Target', 'Success', 'Errors', 'Warnings', 'Details']
+    }
+  },
+  MAX_ROWS: 50000
 };
 
 // --- TRIGGERS ---
@@ -113,11 +134,36 @@ function openAdminPanel() {
   }
 }
 
-// --- LOGGING ENGINE ---
+// --- CENTRAL LOGGING ENGINE ---
+
+/**
+ * Get or create a sheet in the central logging spreadsheet
+ * @param {string} sheetKey - Key from CENTRAL_LOG_CONFIG.SHEETS (e.g., 'LOG', 'REFRESH')
+ * @returns {Sheet} The logging sheet
+ * @private
+ */
+function getCentralLogSheet_(sheetKey) {
+  const config = CENTRAL_LOG_CONFIG.SHEETS[sheetKey];
+  if (!config) throw new Error('Invalid sheet key: ' + sheetKey);
+  
+  const masterSs = SpreadsheetApp.openById(CENTRAL_LOG_CONFIG.MASTER_SPREADSHEET_ID);
+  let sheet = masterSs.getSheetByName(config.name);
+  
+  if (!sheet) {
+    sheet = masterSs.insertSheet(config.name);
+    sheet.getRange(1, 1, 1, config.headers.length)
+      .setValues([config.headers])
+      .setFontWeight('bold')
+      .setBackground('#f3f4f6');
+    sheet.setFrozenRows(1);
+  }
+  
+  return sheet;
+}
 
 /**
  * GLOBAL LOGGING FUNCTION
- * Logs user interactions to the 'Log' tab
+ * Logs user interactions to the central 'Log' sheet
  * @param {string} operation - The action being performed (e.g., "Session Launched", "Chat")
  * @param {Object} meta - Optional metadata
  */
@@ -127,35 +173,101 @@ function logInteraction(operation, meta = {}) {
     const userEmail = meta.userEmail || Session.getActiveUser().getEmail();
     const fileName = ss.getName(); 
     
-    // Lock to prevent race conditions during concurrent writes
-    const lock = LockService.getDocumentLock();
-    if (!lock.tryLock(5000)) return; 
-
-    try {
-      const logSheet = getOrCreateLogSheet_(ss, SESSION_LOG_CONFIG_);
-      if (!logSheet) return;
-      
-      // ['USER', 'Timestamp', 'Operation', 'Worksheet name']
-      logSheet.appendRow([userEmail, new Date(), operation, fileName]);
-      
-      if (logSheet.getLastRow() > SESSION_LOG_CONFIG_.MAX_ROWS) logSheet.deleteRow(2); 
-    } finally {
-      lock.releaseLock();
-    }
+    const sheet = getCentralLogSheet_('LOG');
+    // ['User', 'Timestamp', 'Operation', 'Worksheet Name']
+    sheet.appendRow([userEmail, new Date(), operation, fileName]);
+    
   } catch (err) {
     console.error(`[logInteraction] failed: ${err.message}`);
   }
 }
 
-function getOrCreateLogSheet_(ss, cfg) {
-  let sh = ss.getSheetByName(cfg.LOG_SHEET_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(cfg.LOG_SHEET_NAME);
-    sh.hideSheet(); 
+/**
+ * REFRESH LOGGING FUNCTION
+ * Logs pipeline/refresh operations to the central 'Refresh' sheet
+ * @param {string} functionName - Name of the function that ran
+ * @param {number} recordsAdded - Number of records processed
+ * @param {number} duration - Duration in seconds
+ * @param {string} result - 'Success' or 'Fail'
+ * @param {string} errorMessage - Error message if failed
+ */
+function logRefreshToCentral(functionName, recordsAdded, duration, result, errorMessage = '') {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const fileName = ss.getName();
+    
+    const sheet = getCentralLogSheet_('REFRESH');
+    // ['Function', 'Timestamp', 'Worksheet Name', 'Records', 'Duration', 'Result', 'Error']
+    sheet.appendRow([functionName, new Date(), fileName, recordsAdded, duration, result, errorMessage]);
+    
+  } catch (err) {
+    console.error(`[logRefreshToCentral] failed: ${err.message}`);
   }
-  if (sh.getLastRow() === 0) {
-    sh.getRange(1, 1, 1, cfg.HEADER.length).setValues([cfg.HEADER]);
-    sh.setFrozenRows(1);
+}
+
+/**
+ * API USAGE LOGGING FUNCTION
+ * Logs Gemini API token usage to the central 'API_Usage' sheet
+ * @param {Object} usageData - Token usage data from Gemini response
+ * @param {string} queryType - Type of query (e.g., 'chat', 'portfolio_analysis')
+ */
+function logApiUsage(usageData, queryType) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userEmail = Session.getActiveUser().getEmail();
+    const fileName = ss.getName();
+    
+    const sheet = getCentralLogSheet_('API_USAGE');
+    // ['User', 'Timestamp', 'Worksheet Name', 'Prompt Tokens', 'Response Tokens', 'Total Tokens', 'Query Type']
+    sheet.appendRow([
+      userEmail,
+      new Date(),
+      fileName,
+      usageData.promptTokenCount || 0,
+      usageData.candidatesTokenCount || 0,
+      usageData.totalTokenCount || 0,
+      queryType || 'chat'
+    ]);
+    
+  } catch (err) {
+    console.error(`[logApiUsage] failed: ${err.message}`);
   }
-  return sh;
+}
+
+/**
+ * FLEET OPERATIONS LOGGING FUNCTION
+ * Logs global fleet command executions to the central 'Fleet_Ops' sheet
+ * @param {string} operation - Operation name (e.g., 'Deploy Update', 'Copy Sheet')
+ * @param {string} target - Target of the operation (e.g., sheet name)
+ * @param {Array} logs - Array of log objects with status, file, msg
+ */
+function logFleetOperation(operation, target, logs) {
+  try {
+    const userEmail = Session.getActiveUser().getEmail();
+    
+    // Count results
+    const success = logs.filter(l => l.status === 'Success').length;
+    const errors = logs.filter(l => l.status === 'Error').length;
+    const warnings = logs.filter(l => l.status === 'Warning' || l.status === 'Skipped').length;
+    
+    // Build details summary (first few errors/warnings)
+    const issues = logs.filter(l => l.status !== 'Success').slice(0, 5);
+    const details = issues.map(l => `${l.file}: ${l.msg}`).join(' | ') || 'All successful';
+    
+    const sheet = getCentralLogSheet_('FLEET_OPS');
+    // ['User', 'Timestamp', 'Operation', 'Target', 'Success', 'Errors', 'Warnings', 'Details']
+    sheet.appendRow([
+      userEmail,
+      new Date(),
+      operation,
+      target || '',
+      success,
+      errors,
+      warnings,
+      details.substring(0, 500) // Truncate long details
+    ]);
+    
+  } catch (err) {
+    console.error(`[logFleetOperation] failed: ${err.message}`);
+  }
 }

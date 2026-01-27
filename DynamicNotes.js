@@ -96,12 +96,9 @@ function updateAccountNotes(targetSS) {
   console.log("--- 🏁 EXECUTION COMPLETE ---");
   console.timeEnd('Total Execution Time');
 
-  // LOGGING PATTERN (Matches Admin.js expectations)
-  const logSheet = ss.getSheetByName('Refresh');
-  if (logSheet) {
-    const noteDetails = `Tabs: ${tabsProcessed} | Scanned: ${totalRowsScanned} | Updated: ${totalNotesUpdated}`;
-    logSheet.appendRow(['DYNAMIC_NOTES', new Date(), noteDetails, 'N/A', 'Success', 'Rule Engine Completed']);
-  }
+  // LOGGING PATTERN - Central logging
+  const noteDetails = `Tabs: ${tabsProcessed} | Scanned: ${totalRowsScanned} | Updated: ${totalNotesUpdated}`;
+  logRefreshToCentral('DYNAMIC_NOTES', noteDetails, 'N/A', 'Success', 'Rule Engine Completed');
   
   ss.toast(`Success! Updated ${totalNotesUpdated} sticky notes across fleet.`, "Complete", 5);
 }

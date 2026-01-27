@@ -87,12 +87,9 @@ function updateSTATCORE(targetSS, skipChain) {
 
   const duration = (new Date() - startTime) / 1000;
   
-  // Log Results
+  // Log Results to central sheet
   try {
-    const refreshSheet = ss.getSheetByName('Refresh');
-    if (refreshSheet) {
-      refreshSheet.appendRow(['STATCORE', new Date(), recordsAdded, duration, result, errorMessage]);
-    }
+    logRefreshToCentral('STATCORE', recordsAdded, duration, result, errorMessage);
 
     if (result === "Success" && skipChain !== true) {
       Utilities.sleep(1000); // Breathe
@@ -212,10 +209,8 @@ function runSYSCOREUpdates(skipDagcore, targetSS) {
   const duration = (new Date() - startTime) / 1000;
   Logger.log(`[${functionName}] Duration: ${duration}s`);
 
-  const refreshSheet = ss.getSheetByName('Refresh');
-  if (refreshSheet) {
-    refreshSheet.appendRow(['SYSCORE', new Date(), recordsAdded, duration, result, errorMessage]);
-  }
+  // Log to central sheet
+  logRefreshToCentral('SYSCORE', recordsAdded, duration, result, errorMessage);
 
   // Continue pipeline (unless skipDagcore is true)
   if (skipDagcore !== true) {
@@ -298,10 +293,8 @@ function runDAGCOREUpdates(targetSS) {
   const duration = (new Date() - startTime) / 1000;
   Logger.log(`[${functionName}] Duration: ${duration}s`);
 
-  const refreshSheet = ss.getSheetByName('Refresh');
-  if (refreshSheet) {
-    refreshSheet.appendRow(['DAGCORE', new Date(), recordsAdded, duration, result, errorMessage]);
-  }
+  // Log to central sheet
+  logRefreshToCentral('DAGCORE', recordsAdded, duration, result, errorMessage);
   
   // REMOVED: Duplicate trigger for updateAccountNotes();
   
@@ -388,13 +381,10 @@ function ensureSTATCORE_Formulas(targetSS) {
     recordsAdded = 0;
   }
 
-  // Log Results
+  // Log Results to central sheet
   const duration = (new Date() - startTime) / 1000;
   try {
-    const refreshSheet = ss.getSheetByName('Refresh');
-    if (refreshSheet) {
-      refreshSheet.appendRow(['STATCORE_FORMULAS', new Date(), recordsAdded, duration, result, errorMessage]);
-    }
+    logRefreshToCentral('STATCORE_FORMULAS', recordsAdded, duration, result, errorMessage);
   } catch (logError) {
     Logger.log("Logging error in ensureSTATCORE_Formulas: " + logError.message);
   }

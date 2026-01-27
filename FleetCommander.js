@@ -154,6 +154,7 @@ function runUpdateSheetSafe(sheetName, hideSheet) {
   }
   
   ss.toast("Update Complete. check logs.", "✅ Done", 5);
+  logFleetOperation('Deploy Update', sheetName, logs);
   return logs;
 }
 
@@ -200,6 +201,7 @@ function runCopySheet(sourceSheetName, newSheetName, hideSheet) {
       }
     }
   }
+  logFleetOperation('Copy Sheet', sourceSheetName + ' → ' + newSheetName, logs);
   return logs;
 }
 
@@ -233,6 +235,7 @@ function runDeleteSheet(sheetToDelete) {
       }
     }
   }
+  logFleetOperation('Delete Sheet', sheetToDelete, logs);
   return logs;
 }
 
@@ -278,6 +281,7 @@ function runUpdateSheet() {
   } catch (e) {
     logs.push({ status: 'Error', file: 'Config Process', msg: e.message });
   }
+  logFleetOperation('Update Config IDs', 'Setup Sheet', logs);
   return logs;
 }
 
@@ -336,6 +340,7 @@ function runUpdateSTATCORE(updateNotes) {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
   }
   
+  logFleetOperation('Data Refresh (Full)', 'STATCORE→SYSCORE→DAGCORE' + (updateNotes ? '+Notes' : ''), logs);
   return logs;
 }
 
@@ -392,6 +397,7 @@ function runUpdateSYSCOREWithDAGCORE(updateNotes) {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
   }
   
+  logFleetOperation('Data Refresh (SYSCORE+DAGCORE)', 'SYSCORE→DAGCORE' + (updateNotes ? '+Notes' : ''), logs);
   return logs;
 }
 
@@ -448,6 +454,7 @@ function runUpdateSYSCOREOnly(updateNotes) {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
   }
   
+  logFleetOperation('Data Refresh (SYSCORE Only)', 'SYSCORE' + (updateNotes ? '+Notes' : ''), logs);
   return logs;
 }
 
@@ -504,6 +511,7 @@ function runUpdateDAGCOREOnly(updateNotes) {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
   }
   
+  logFleetOperation('Data Refresh (DAGCORE Only)', 'DAGCORE' + (updateNotes ? '+Notes' : ''), logs);
   return logs;
 }
 
@@ -573,6 +581,7 @@ function runCreateEmployeeTabs() {
       }
     }
   }
+  logFleetOperation('Create AM Tabs', 'Employee Tabs', logs);
   return logs;
 }
 
@@ -1200,6 +1209,7 @@ function testGeminiFleet() {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
   }
   
+  logFleetOperation('Test Gemini API', 'Fleet Ping', logs);
   return logs;
 }
 
@@ -1494,6 +1504,7 @@ function pushRangeToFleet(config, forceOverwrite) {
     logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
   }
   
+  logFleetOperation('Push Range to Fleet', config.sheetName + '!' + config.rangeA1, logs);
   return logs;
 }
 

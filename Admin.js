@@ -34,11 +34,7 @@ function runMasterPipeline() {
 
 function logRefreshStatus(processName, duration, result, errorMessage = "") {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Refresh');
-    if (sheet) {
-      sheet.appendRow([processName, new Date(), "ALL", duration, result, errorMessage]);
-    }
+    logRefreshToCentral(processName, 'ALL', duration, result, errorMessage);
   } catch (e) {
     console.error("Failed to write to Refresh log", e);
   }

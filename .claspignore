@@ -9,5 +9,6 @@ package-lock.json
 .gitignore
 
 # Ignore system folders
-node_modules
-.git
+node_modules/**
+.git/**
+.cursor/**

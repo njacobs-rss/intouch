@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Local feedback export (user data - don't commit)
+feedback.json
+
 # Clasp credentials (NEVER push these)
 .clasp.json
 .clasprc.json

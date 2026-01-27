@@ -1,6 +1,10 @@
 # Ignore Node.js scripts
 multi-deploy.js
+fetch-feedback.js
 targets.json
+
+# Ignore local exports
+feedback.json
 
 # Ignore config files
 package.json

@@ -1637,6 +1637,84 @@ function getKHFeedbackForReview() {
 }
 
 /**
+ * Export feedback data as JSON for local AI optimization
+ * Run this function, view the logs, and copy the JSON output to a local file
+ * Use this file in Cursor to prompt: "Based on this feedback, improve the system instructions"
+ * @returns {string} JSON string of feedback items
+ */
+function exportFeedbackForAI() {
+  try {
+    const feedbackResult = getKHFeedbackForReview();
+    
+    if (!feedbackResult.success) {
+      console.log('Error fetching feedback: ' + feedbackResult.error);
+      return JSON.stringify({ error: feedbackResult.error });
+    }
+    
+    if (!feedbackResult.data || feedbackResult.data.length === 0) {
+      console.log('No feedback found requiring review.');
+      return JSON.stringify([]);
+    }
+    
+    // Format for LLM consumption (remove noise, focus on Q&A pairs)
+    const optimizationContext = feedbackResult.data.map(item => ({
+      query: item.query,
+      ai_response: item.response,
+      user_rating: item.rating,
+      user_correction: item.correction,
+      timestamp: item.timestamp
+    }));
+    
+    const jsonOutput = JSON.stringify(optimizationContext, null, 2);
+    
+    console.log('=== COPY BELOW THIS LINE ===');
+    console.log(jsonOutput);
+    console.log('=== COPY ABOVE THIS LINE ===');
+    
+    return jsonOutput;
+    
+  } catch (e) {
+    console.error('Export failed: ' + e.message);
+    return JSON.stringify({ error: e.message });
+  }
+}
+
+/**
+ * WEB APP ENDPOINT: Serve feedback data as JSON
+ * Deploy as web app: Execute as "Me", Access "Anyone with link"
+ * Requires ?key=intouch-feedback-export query parameter for basic security
+ * 
+ * After deploying, set the URL in fetch-feedback.js
+ * @param {Object} e - Event object from web request
+ * @returns {TextOutput} JSON response
+ */
+function doGet(e) {
+  const EXPECTED_KEY = 'intouch-feedback-export'; // Basic auth token
+  
+  try {
+    // Validate request has correct key
+    const providedKey = e?.parameter?.key;
+    if (providedKey !== EXPECTED_KEY) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ error: 'Unauthorized', code: 401 }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Reuse existing export logic
+    const jsonOutput = exportFeedbackForAI();
+    
+    return ContentService
+      .createTextOutput(jsonOutput)
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: error.message, code: 500 }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
  * PING TEST: Verify Gemini API connectivity
  * Call this from the Apps Script editor to test your API key
  * @returns {Object} Status object with success/error info

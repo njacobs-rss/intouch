@@ -829,6 +829,161 @@ When user asks about a DIFFERENT AM (e.g., "what about Erin", "show me Kevin's d
 - Answer using that AM's data just like you would for the active AM
 - If the requested AM isn't found, say: "I couldn't find an AM named [name]. Available AMs are: [list first names]"
 
+## STARTER PROMPT RESPONSES (CRITICAL - FOLLOW EXACTLY)
+
+The chat has 5 starter prompts for account analysis. When users click these, respond with the EXACT format specified below.
+
+### 1. "Summarize my bucket"
+Provide a comprehensive bucket summary including:
+
+**Required sections:**
+- **Overview**: Total accounts, groups, avg yield, avg sub fee
+- **Contract Status**: Term Pending (count + %), Expired, Warning (45d) - with note that these need attention
+- **System Type Mix (SYS MIX)**: Count and % share for BASIC, CORE, PRO (calculate % as count/totalAccounts*100)
+- **No Bookings >30 Days**: List each unique reason with count and % share
+- **Accounts with Alerts**: Count of accounts with any alert flag (if >0)
+
+**Format:**
+"## Bucket Summary: [Full Name]
+
+**📊 Overview**
+- **Total Accounts:** [totalAccounts] | **Groups:** [totalGroups]
+- **Avg Yield:** $[avgYield] | **Avg Sub Fee:** $[avgSubFee]
+
+**⚠️ Contract Status** (Needs Attention)
+- **Term Pending:** [count] ([%]%)
+- **Expired:** [count] | **Warning (45d):** [count]
+
+**📈 System Type Mix (SYS MIX)**
+[For each type: name - count (calculated %)%]
+- BASIC: X (Y%)
+- CORE: X (Y%)
+- PRO: X (Y%)
+
+**🚫 No Bookings >30 Days**
+[For each reason with count and %]
+
+**🔔 Alert Flags**
+[Count] accounts have active alerts
+
+[Follow-up prompt]"
+
+### 2. "Which accounts need attention?"
+Show ALL accounts with alert flags. The "Alert List" column contains flags like:
+- ⚠️ 0-Fullbook
+- ❗Hibernated
+- ❗Closed Temporarily
+- (and others)
+
+**Required:**
+- List EVERY account that has ANY alert flag
+- Show each account's RID, name, and ALL their alert flags
+- Group by urgency if possible (⚠️ warnings vs ❗ critical)
+- Offer Smart Select at the end
+
+**Format:**
+"## Accounts Needing Attention: [First Name]
+
+**[count] accounts have active alerts:**
+
+[For each account:]
+- **[RID]** - [Account Name]
+  Alerts: [list all alerts separated by |]
+
+**Alert Summary by Type:**
+[List each unique alert type with count]
+
+Would you like me to check these in Smart Select so you can take action?
+
+[SMART_SELECT_ACTION:rid1,rid2,rid3...]"
+
+### 3. "Breakdown my system mix"
+Show System Type distribution with counts and percentages.
+
+**Required:**
+- List BASIC, CORE, PRO (and any other system types present)
+- Show count AND percentage for each
+- Include avg yield and avg sub fee per system type (available in data)
+- Calculate percentages: count/totalAccounts*100
+
+**Format:**
+"## System Mix: [First Name]
+
+[First Name] has [totalAccounts] accounts distributed across:
+
+| System Type | Count | % of Bucket | Avg Yield | Avg Sub Fee |
+|-------------|-------|-------------|-----------|-------------|
+| PRO | X | Y% | $Z | $W |
+| CORE | X | Y% | $Z | $W |
+| BASIC | X | Y% | $Z | $W |
+
+[Brief insight about the mix, e.g., "Heavily weighted toward Core accounts"]
+
+[Follow-up prompt]"
+
+### 4. "Show my most important accounts (top revenue drivers, icons, elites, etc.)"
+Identify high-priority accounts based on multiple criteria.
+
+**Required - Include accounts from:**
+1. **Special Programs** - Any account with a Special Programs value (but exclude entries that are ONLY "Top" or "Top [Nom]")
+2. **Rest. Quality** - Any account with a Rest. Quality tier (but exclude entries that are ONLY "Top" or "Top [Nom]")
+3. Note: If an account has multiple qualifiers, list it once with all qualifiers noted
+
+**Format:**
+"## Most Important Accounts: [First Name]
+
+**🏆 Special Programs** ([count] accounts)
+[List each Special Programs category with accounts]
+- [Program Name]: [count]
+  - **[RID]** - [Account Name]
+
+**⭐ Quality Tier Accounts** ([count] accounts)
+[List each tier with accounts, excluding "Top" or "Top [Nom]"]
+- [Tier]: [count]
+  - **[RID]** - [Account Name]
+
+**Key Insight:** [Brief note about high-value accounts]
+
+Would you like me to check any of these in Smart Select?
+
+[SMART_SELECT_ACTION:rid1,rid2,...]"
+
+### 5. "Find accounts that need PI"
+Identify accounts that would benefit from Performance Improvement (PI) campaigns.
+
+**PI eligibility indicators:**
+- Accounts NOT currently on Active PI (no BP, PR, or CP)
+- Accounts with declining Discovery % or low network performance
+- Accounts with booking issues (0-Fullbook, 0-Network)
+- Term Pending or at-risk accounts that could use a boost
+
+**Required:**
+- Show count of accounts WITHOUT active PI
+- Highlight accounts with performance issues that would benefit from PI
+- Calculate: (totalAccounts - activePI.count) = accounts without PI
+
+**Format:**
+"## PI Opportunities: [First Name]
+
+**Current PI Status:**
+- **Active PI campaigns:** [activePI.count] accounts
+- **Not on PI:** [totalAccounts - activePI.count] accounts ([calculated %]%)
+
+**🎯 Top PI Candidates** (accounts without PI that could benefit):
+
+**Booking Issues (high priority):**
+[List accounts with 0-Fullbook or 0-Network that don't have active PI]
+
+**Declining Performance:**
+[List accounts with alerts indicating performance issues]
+
+**At-Risk Accounts:**
+[List Term Pending accounts without active PI]
+
+Would you like me to check these candidates in Smart Select?
+
+[SMART_SELECT_ACTION:rid1,rid2,...]"
+
 ### CRITICAL: Never Output Code
 **NEVER output code, function calls, or code-like syntax.** If you don't have data for something:
 - Say "I don't have that specific data available" 
@@ -955,7 +1110,37 @@ const ACCOUNT_DATA_PATTERNS = [
   // Smart Select / Action requests
   /add\s*(them|those|these)?\s*to\s*(my\s*)?(smart\s*)?select/i,
   /check\s*(them|those|these)\s*(in|on)\s*(smart\s*)?select/i,
-  /smart\s*select/i
+  /smart\s*select/i,
+  
+  // === STARTER PROMPT PATTERNS ===
+  // 1. Summarize my bucket
+  /summarize\s*(my)?\s*bucket/i,
+  /bucket\s*summary/i,
+  
+  // 2. Which accounts need attention
+  /accounts?\s*(need|needing)\s*attention/i,
+  /need\s*attention/i,
+  /alert\s*(flags?|list)/i,
+  /accounts?\s*with\s*alerts?/i,
+  
+  // 3. Breakdown my system mix
+  /breakdown\s*(my)?\s*system\s*mix/i,
+  /system\s*mix\s*breakdown/i,
+  /sys\s*mix/i,
+  
+  // 4. Show most important accounts
+  /most\s*important\s*accounts?/i,
+  /top\s*revenue\s*(drivers?|accounts?)/i,
+  /icons?\s*(accounts?|,|elites?)/i,
+  /elites?\s*(accounts?|,|icons?)/i,
+  /important\s*accounts?/i,
+  
+  // 5. Find accounts that need PI
+  /accounts?\s*(that\s*)?(need|needing)\s*pi/i,
+  /need\s*pi/i,
+  /pi\s*(candidates?|opportunities?|eligible)/i,
+  /without\s*(active\s*)?pi/i,
+  /not\s*(on|running|have|with)\s*pi/i
 ];
 
 /**
@@ -1318,6 +1503,16 @@ function formatDataForInjection(data) {
   text += formatSimpleCategory('No Booking Reasons', data.noBookingReasons);
   text += formatSimpleCategory('Special Programs', data.specialPrograms);
   text += formatSimpleCategory('Top Metros', data.topMetros);
+  
+  // Alert flags (accounts needing attention)
+  if (data.accountsWithAlerts && data.accountsWithAlerts.count > 0) {
+    text += `\nAccounts With Alert Flags: ${data.accountsWithAlerts.count}\n`;
+    // List each account with their specific alerts
+    data.accountsWithAlerts.rids.forEach(acct => {
+      text += `  - RID ${acct.rid} (${acct.name}): ${acct.alerts.join(' | ')}\n`;
+    });
+  }
+  text += formatSimpleCategory('Alert Flag Breakdown', data.alertFlags);
   
   text += `--- END ACCOUNT DATA ---\n`;
   

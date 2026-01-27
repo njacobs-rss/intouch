@@ -1403,6 +1403,7 @@ function getDetailedAMData(amName) {
       pricing: findCol(sHead, "exclusivepricing"),
       ib: findCol(sHead, "instantbooking"),
       pd: findCol(sHead, "privatedining"),
+      alertList: findCol(sHead, "alertlist"),
       d_rid: findCol(dHead, "rid"),
       subfees: findCol(dHead, "subslastmonth"),
       yield: findCol(dHead, "revyield"),
@@ -1444,6 +1445,9 @@ function getDetailedAMData(amName) {
       instantBooking: [],
       privateDining: [],
       partnerFeedExcluded: [],
+      // Alert flags (from STATCORE "Alert List" column)
+      alertFlags: {},           // { "⚠️ 0-Fullbook": [{rid, name}], "❗Hibernated": [{rid, name}] }
+      accountsWithAlerts: [],   // All accounts that have any alert flag [{rid, name, alerts: [...]}]
       // Numeric aggregations (overall)
       subSum: 0, subCnt: 0,
       yldSum: 0, yldCnt: 0,
@@ -1559,6 +1563,24 @@ function getDetailedAMData(amName) {
         
         addToSimpleCategory('noBookingReasons', dRow[map.noBook], rid, name);
       }
+      
+      // Process Alert List (STATCORE column) - flags are separated by line breaks
+      if (map.alertList > -1) {
+        const alertValue = String(row[map.alertList] || '').trim();
+        if (alertValue) {
+          // Split by newlines to get individual alert flags
+          const alerts = alertValue.split(/[\r\n]+/).map(a => a.trim()).filter(a => a);
+          if (alerts.length > 0) {
+            // Track this account has alerts
+            data.accountsWithAlerts.push({ rid, name, alerts: alerts });
+            // Track each alert type separately
+            alerts.forEach(alert => {
+              if (!data.alertFlags[alert]) data.alertFlags[alert] = [];
+              data.alertFlags[alert].push({ rid, name });
+            });
+          }
+        }
+      }
     });
     
     // Calculate averages
@@ -1623,6 +1645,13 @@ function getDetailedAMData(amName) {
       noBookingReasons: formatSimpleCategory(data.noBookingReasons),
       topMetros: formatSimpleCategory(data.metros),
       systemOfRecord: formatSimpleCategory(data.systemOfRecord),
+      
+      // Alert flags (accounts needing attention)
+      alertFlags: formatSimpleCategory(data.alertFlags),
+      accountsWithAlerts: { 
+        count: data.accountsWithAlerts.length, 
+        rids: data.accountsWithAlerts 
+      },
       
       durationMs: new Date() - startTime
     };

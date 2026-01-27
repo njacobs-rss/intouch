@@ -390,6 +390,18 @@
       border-color: #2563eb;
       color: #2563eb;
     }
+    
+    .kh-section-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin: 16px 0 8px 0;
+    }
+    .kh-section-label:first-of-type {
+      margin-top: 12px;
+    }
 
     .kh-input-area {
       padding: 10px 12px 30px 12px; /* Added bottom padding to clear Sheets UI */
@@ -1418,8 +1430,14 @@
 
       if (khEls.sendBtn) khEls.sendBtn.addEventListener('click', sendKHMessage);
       
-      // Auto-open chat panel on sidebar launch
-      toggleKHPanel();
+      // Auto-open chat panel on sidebar launch (only if not already open)
+      if (!khState.isOpen) {
+        khState.isOpen = true;
+        if (khEls.panel) khEls.panel.classList.add('open');
+        if (khEls.fab) khEls.fab.classList.add('hidden');
+        if (khEls.input) khEls.input.focus();
+        initAMContext();
+      }
     }
 
     function toggleKHPanel() {
@@ -1452,11 +1470,20 @@
             <div class="kh-welcome-icon">✦</div>
             <h5>Ask me about InTouch</h5>
             <p>Features, metrics, workflows, troubleshooting</p>
+            <div class="kh-section-label">InTouch Help</div>
             <div class="kh-suggestions">
               <button class="kh-suggestion">What is iQ?</button>
               <button class="kh-suggestion">How do I use Focus20?</button>
               <button class="kh-suggestion">Sheet looks broken</button>
               <button class="kh-suggestion">Explain Discovery%</button>
+            </div>
+            <div class="kh-section-label">Account Analysis</div>
+            <div class="kh-suggestions">
+              <button class="kh-suggestion">Summarize my bucket</button>
+              <button class="kh-suggestion">Which accounts need attention?</button>
+              <button class="kh-suggestion">Breakdown my system mix</button>
+              <button class="kh-suggestion">Show my most important accounts (top revenue drivers, icons, elites, etc.)</button>
+              <button class="kh-suggestion">Find accounts that need PI</button>
             </div>
           </div>
         `;
@@ -2679,11 +2706,20 @@ If you have any other questions about the team data I'd be happy to dive in with
         <div class="kh-welcome-icon">✦</div>
         <h5>Ask me about InTouch</h5>
         <p>Features, metrics, workflows, troubleshooting</p>
+        <div class="kh-section-label">InTouch Help</div>
         <div class="kh-suggestions">
           <button class="kh-suggestion">What is iQ?</button>
           <button class="kh-suggestion">How do I use Focus20?</button>
           <button class="kh-suggestion">Sheet looks broken</button>
           <button class="kh-suggestion">Explain Discovery%</button>
+        </div>
+        <div class="kh-section-label">Account Analysis</div>
+        <div class="kh-suggestions">
+          <button class="kh-suggestion">Summarize my bucket</button>
+          <button class="kh-suggestion">Which accounts need attention?</button>
+          <button class="kh-suggestion">Breakdown my system mix</button>
+          <button class="kh-suggestion">Show my most important accounts (top revenue drivers, icons, elites, etc.)</button>
+          <button class="kh-suggestion">Find accounts that need PI</button>
         </div>
       </div>
     </div>

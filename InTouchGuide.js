@@ -1257,35 +1257,38 @@ function formatDataForInjection(data) {
   text += `Partner Feed Excluded: ${data.partnerFeedExcluded.count}\n\n`;
   
   // Enhanced category with per-category metrics (System Mix, Quality Tiers)
+  // IMPORTANT: Include ALL RIDs so AI can list them without hallucinating
   const formatMetricCategory = (name, items) => {
     if (!items || items.length === 0) return '';
     let result = `${name} (with per-category avg yield & sub fee):\n`;
     items.forEach(item => {
-      const ridList = item.rids.slice(0, 5).map(r => r.rid).join(', ');
-      const more = item.rids.length > 5 ? ` (+${item.rids.length - 5} more)` : '';
-      result += `  - ${item.name}: ${item.count} accounts | Avg Yield: $${item.avgYield} | Avg Sub: $${item.avgSubFee} [RIDs: ${ridList}${more}]\n`;
+      // Include ALL RIDs - critical for "list them" follow-ups
+      const ridList = item.rids.map(r => r.rid).join(', ');
+      result += `  - ${item.name}: ${item.count} accounts | Avg Yield: $${item.avgYield} | Avg Sub: $${item.avgSubFee} [RIDs: ${ridList}]\n`;
     });
     return result;
   };
   
   // Simple category breakdowns with RID details
+  // IMPORTANT: Include ALL RIDs so AI can list them without hallucinating
   const formatSimpleCategory = (name, items) => {
     if (!items || items.length === 0) return '';
     let result = `${name}:\n`;
     items.forEach(item => {
-      const ridList = item.rids.slice(0, 5).map(r => r.rid).join(', ');
-      const more = item.rids.length > 5 ? ` (+${item.rids.length - 5} more)` : '';
-      result += `  - ${item.name}: ${item.count} [RIDs: ${ridList}${more}]\n`;
+      // Include ALL RIDs - critical for "list them" follow-ups
+      const ridList = item.rids.map(r => r.rid).join(', ');
+      result += `  - ${item.name}: ${item.count} [RIDs: ${ridList}]\n`;
     });
     return result;
   };
   
   // Single-category items with RID details
+  // IMPORTANT: Include ALL RIDs so AI can list them without hallucinating
   const formatSingleItem = (name, obj) => {
     if (!obj || obj.count === 0) return '';
-    const ridList = obj.rids.slice(0, 5).map(r => `${r.rid} (${r.name})`).join(', ');
-    const more = obj.rids.length > 5 ? ` (+${obj.rids.length - 5} more)` : '';
-    return `${name}: ${obj.count} [${ridList}${more}]\n`;
+    // Include ALL RIDs with names - critical for Smart Select actions
+    const ridList = obj.rids.map(r => `${r.rid} (${r.name})`).join(', ');
+    return `${name}: ${obj.count} [${ridList}]\n`;
   };
   
   text += formatSingleItem('Term Pending RIDs', data.termPending);

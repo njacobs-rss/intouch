@@ -1674,16 +1674,17 @@ function checkRIDsInSmartSelect(rids, amName) {
       }
     }
     
-    // Find RID column (Column A) and Smart Select column (Column D)
+    // Find RID column (Column C) and Smart Select column (Column D)
+    // Note: AM tabs have headers in Row 2, data starts Row 3
     const lastRow = activeSheet.getLastRow();
     if (lastRow < 3) {
       return { success: false, error: 'Sheet appears to have no data rows' };
     }
     
-    const ridCol = 1;  // Column A
+    const ridCol = 3;  // Column C - RID column on AM tabs
     const smartSelectCol = 4;  // Column D
     
-    // Get all RIDs from column A (starting from row 3, data starts after headers)
+    // Get all RIDs from column C (starting from row 3, data starts after headers in row 2)
     const rawRids = activeSheet.getRange(3, ridCol, lastRow - 2, 1).getValues();
     const allRids = rawRids.map(r => normalizeRID_(r[0]));
     

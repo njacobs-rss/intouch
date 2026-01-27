@@ -538,6 +538,32 @@ When a user asks "how do I see X" or "where is Y" or "how do I change Z":
 
 This applies to ALL column/metric requests - always offer the action button first.
 
+## ENGAGEMENT DATE QUERIES (COVERAGE ANALYSIS)
+
+When users ask about engagement, coverage, or "when did I last talk to" accounts:
+
+**Last Engaged Date Thresholds:**
+- **<30 days** = Active/healthy coverage
+- **30-60 days** = Monitor/needs attention soon
+- **60-90 days** = At risk
+- **>90 days** = Critical/urgent outreach needed
+
+**How to Respond:**
+1. Calculate counts for each threshold bucket from the injected data
+2. Provide the breakdown with percentages
+3. Offer to isolate accounts in a specific bucket (e.g., ">90 days")
+
+**Example Response:**
+"Here's Ellen's engagement coverage:
+- **Active (<30 days):** 45 accounts (28%)
+- **Monitor (30-60 days):** 32 accounts (20%)
+- **At Risk (60-90 days):** 28 accounts (17%)
+- **Critical (>90 days):** 56 accounts (35%)
+
+Would you like me to isolate the 56 critical accounts that haven't been engaged in over 90 days?
+
+[SMART_SELECT_ACTION:rid1,rid2,...]"
+
 ## COLUMN VISUALIZATION ACTION (IMPORTANT CAPABILITY)
 
 You can OFFER to change dynamic column headers for users. This works for:
@@ -545,15 +571,37 @@ You can OFFER to change dynamic column headers for users. This works for:
 2. Value-based requests ("How do I see Core accounts?") - recognize the value maps to a metric
 3. Intent-based requests ("Help me find at-risk accounts") - recommend relevant metrics
 
+### CRITICAL: Check Column Visibility First
+
+**Before offering [COLUMN_ACTION:...]**, consider if the metric might already be visible:
+
+**Default visible columns by section:**
+- Dates & Activity (J-K-L): Customer Since, Last Engaged Date, Contract Alerts
+- Account + Status Info (M-N-O): No Bookings >30 Days, Status, System Type
+- System Stats (P-Q-R): Exclusive Pricing, Active XP, Rest. Quality
+- Percentage Metrics (S-T-U): Disco % Current, CVR - Network YoY%, CVRs LM - Direct %
+- Revenue (V-W-X): Rev Yield - Total Last Month, Revenue - PI Last Month, Check Avg. Last 30
+- Seated Covers (Y-Z-AA): CVR Last Month - Network, CVR Last Month - Google, CVR Last Month - Network
+
+**If the metric IS likely already visible** (it's a default), offer:
+- "Select & Filter" → [SMART_SELECT_ACTION:...] to check matching RIDs and filter
+- "Add to Smart Select" → just check the RIDs without filtering
+
+**If the metric is NOT a default** (needs to be added), offer:
+- "Add Column" → [COLUMN_ACTION:...] to add the metric to view
+- Then optionally "Select & Filter" if they want to filter by specific values
+
 ### When to Offer Column Actions
 - "Where is [metric]?" / "How do I see [metric]?"
 - "How can I see [value] accounts?" (e.g., "Core" → System Type)
 - "Show me [metric]" / "I need to see [metric]"
 - Complex requests that would benefit from specific columns
+- ONLY if the metric is not already a default visible column
 
 ### How to Offer
 1. Explain where the metric is located using the **section name** (NOT column letters)
-2. Offer to add it using this EXACT format with CATEGORY KEY:
+2. Check if it's a default column - if so, mention it may already be visible
+3. Offer to add it using this EXACT format with CATEGORY KEY:
 
 [COLUMN_ACTION:CATEGORY_KEY:Exact Metric Name]
 
@@ -845,6 +893,35 @@ You MUST find the INTERSECTION - accounts that match ALL criteria:
 4. Return: "Found 2 accounts that are both Pro and Freemium:\n• 456 - Restaurant A\n• 1011 - Restaurant B\n\n[SMART_SELECT_ACTION:456,1011]"
 
 **CRITICAL:** Never say "0 accounts match" without actually cross-referencing the RID lists. The data includes full RID lists for each category - USE THEM to find intersections.
+
+### CTA Options Based on Context
+
+When responding to data queries, choose the appropriate Call-to-Action:
+
+**1. "Add Column" [COLUMN_ACTION:...]** - Use when:
+- The metric is NOT a default column (user needs to see it first)
+- User asks "where is X" or "show me X"
+
+**2. "Select & Filter" [SMART_SELECT_ACTION:...]** - Use when:
+- You have a list of RIDs to isolate
+- The metric IS already visible OR the user said "isolate"/"filter"
+- This checks the RIDs AND applies the filter automatically
+
+**3. Both options** - Use when:
+- The metric might or might not be visible
+- Offer: "Would you like me to add the column to your view, or select & filter the matching accounts?"
+
+**Decision Flow:**
+1. User asks about a metric (e.g., "show me accounts not engaged in 90 days")
+2. Check: Is "Last Engaged Date" a default column? YES (Column K default)
+3. Since already visible: Provide count, list RIDs, offer [SMART_SELECT_ACTION:...]
+4. Say: "Last Engaged Date is already visible in Column K. Here are the 56 accounts with no engagement in 90+ days: ... Would you like me to select and filter these accounts?"
+
+**If metric NOT visible:**
+1. User asks "show me POS Type"
+2. Check: Is "POS Type" a default column? NO
+3. Offer: [COLUMN_ACTION:SYSTEM_STATS:POS Type]
+4. Say: "POS Type isn't in your current view. Would you like me to add it?"
 
 ### Switching Between AMs
 When user asks about a DIFFERENT AM (e.g., "what about Erin", "show me Kevin's data"):
@@ -1209,6 +1286,14 @@ const ACCOUNT_DATA_PATTERNS = [
   // Health / iQ
   /health\s*(flags?|issues?)/i,
   /iq\s*(score|flags?)/i,
+  
+  // Engagement / Coverage
+  /engag(ed?|ement)/i,
+  /last\s*(engaged?|contacted?|talked?|met)/i,
+  /coverage/i,
+  /haven'?t\s*(engaged?|contacted?|talked?|met)/i,
+  /not\s*(engaged?|contacted?|talked?|met)/i,
+  /(30|60|90)\s*days?/i,
   
   // Smart Select / Action requests
   /add\s*(them|those|these)?\s*to\s*(my\s*)?(smart\s*)?select/i,

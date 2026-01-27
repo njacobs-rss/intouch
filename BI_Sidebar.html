@@ -437,8 +437,24 @@
     }
     .kh-section-label:first-of-type {
       margin-top: 12px;
+    }
+    
+    .kh-top-prompt {
+      display: block;
+      width: 100%;
       text-align: center;
-      font-size: 11px;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .kh-top-prompt:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
     }
 
     .kh-input-area {
@@ -1521,7 +1537,8 @@
             <div class="kh-welcome-icon">✦</div>
             <h5>Let's Get Down To Buckets</h5>
             <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
-            <div class="kh-section-label">What can you do?</div>
+            <button class="kh-suggestion kh-top-prompt">What can you do?</button>
+            <div class="kh-section-label">InTouch Help</div>
             <div class="kh-suggestions">
               <button class="kh-suggestion">What is iQ?</button>
               <button class="kh-suggestion">How do I use Focus20?</button>
@@ -3011,7 +3028,8 @@ If you have any other questions about the team data I'd be happy to dive in with
         <div class="kh-welcome-icon">✦</div>
         <h5>Let's Get Down To Buckets</h5>
         <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
-        <div class="kh-section-label">What can you do?</div>
+        <button class="kh-suggestion kh-top-prompt">What can you do?</button>
+        <div class="kh-section-label">InTouch Help</div>
         <div class="kh-suggestions">
           <button class="kh-suggestion">What is iQ?</button>
           <button class="kh-suggestion">How do I use Focus20?</button>

@@ -604,6 +604,10 @@
         <button class="btn-warn btn-horizontal" onclick="requestAction('deleteTabs')">
           <span class="icon">❌</span> Delete AM Tabs
         </button>
+        
+        <button class="btn-config btn-horizontal" onclick="exportAIFeedback()">
+          <span class="icon">📥</span> Export AI Feedback
+        </button>
       </div>
     </div>
 
@@ -1520,6 +1524,17 @@
 
       function closeTestSuccessModal() {
         document.getElementById('test-success-modal').style.display = 'none';
+      }
+      
+      // =============================================================
+      // AI FEEDBACK EXPORT
+      // =============================================================
+      function exportAIFeedback() {
+        google.script.run
+          .withFailureHandler(function(e) {
+            showToast('error', 'Export Failed', e.message);
+          })
+          .showFeedbackExportDialog();
       }
     </script>
   </body>

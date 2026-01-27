@@ -20,7 +20,8 @@ function onOpen(e) {
   const mainMenu = ui.createMenu('InTouch✔ai')
     .addItem('🧠 Open Intouch AI Panel', 'BI_openSidebar')
     .addSeparator() // Visual separation
-    .addItem('Export AM Summaries', 'exportAllAMSummariesToSheet'); // 🟢 NEW ITEM
+    .addItem('Export AM Summaries', 'exportAllAMSummariesToSheet')
+    .addItem('📥 Export AI Feedback for Review', 'showFeedbackExportDialog');
   
   // 2. Admin Menu (Backend/Ops)
   const adminMenu = ui.createMenu('Admin Functions')

@@ -1513,7 +1513,7 @@ function askInTouchGuide(userQuery, conversationHistory) {
 const KH_FEEDBACK_CONFIG = {
   MASTER_SPREADSHEET_ID: '1xDOgLdl5cT3T9okuL0WryH_vCyoV-f38kBbkEpkS1PI',
   SHEET_NAME: 'KH_Feedback',
-  HEADERS: ['Timestamp', 'User', 'Source', 'Query', 'Response', 'Rating', 'Correction', 'Status']
+  HEADERS: ['Timestamp', 'User', 'Sheet', 'Query', 'Response', 'Rating', 'Correction', 'Status']
 };
 
 /**
@@ -1680,6 +1680,174 @@ function exportFeedbackForAI() {
     console.error('Export failed: ' + e.message);
     return JSON.stringify({ error: e.message });
   }
+}
+
+/**
+ * Show dialog to download feedback review file for Cursor AI
+ * Called from InTouch menu - generates markdown file with embedded instructions
+ */
+function showFeedbackExportDialog() {
+  const feedbackResult = getKHFeedbackForReview();
+  
+  if (!feedbackResult.success) {
+    SpreadsheetApp.getUi().alert('Error: ' + feedbackResult.error);
+    return;
+  }
+  
+  if (!feedbackResult.data || feedbackResult.data.length === 0) {
+    SpreadsheetApp.getUi().alert('No feedback requiring review. All good!');
+    return;
+  }
+  
+  const markdown = generateFeedbackMarkdown_(feedbackResult.data, feedbackResult.total);
+  
+  // Create download dialog
+  const html = HtmlService.createHtmlOutput(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+        .count { font-size: 24px; color: #1a73e8; margin: 20px 0; }
+        .instructions { text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .instructions ol { margin: 10px 0; padding-left: 20px; }
+        button { background: #1a73e8; color: white; border: none; padding: 12px 24px; 
+                 font-size: 16px; border-radius: 6px; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #1557b0; }
+        .secondary { background: #5f6368; }
+        .secondary:hover { background: #4a4d51; }
+      </style>
+    </head>
+    <body>
+      <h2>AI Feedback Export</h2>
+      <div class="count">${feedbackResult.data.length} items need review</div>
+      
+      <div class="instructions">
+        <strong>How to use:</strong>
+        <ol>
+          <li>Click "Download" below</li>
+          <li>Open the downloaded file in Cursor</li>
+          <li>The file contains instructions for Cursor AI</li>
+          <li>Review and apply suggested changes</li>
+        </ol>
+      </div>
+      
+      <button onclick="downloadFile()">Download feedback-review.md</button>
+      <button class="secondary" onclick="google.script.host.close()">Cancel</button>
+      
+      <script>
+        const content = ${JSON.stringify(markdown)};
+        
+        function downloadFile() {
+          const blob = new Blob([content], { type: 'text/markdown' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'feedback-review.md';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          // Close dialog after short delay
+          setTimeout(() => google.script.host.close(), 500);
+        }
+      </script>
+    </body>
+    </html>
+  `)
+  .setWidth(450)
+  .setHeight(380);
+  
+  SpreadsheetApp.getUi().showModalDialog(html, 'Export Feedback for AI Review');
+}
+
+/**
+ * Generate markdown content with embedded Cursor instructions
+ * @private
+ */
+function generateFeedbackMarkdown_(feedbackItems, totalCount) {
+  const timestamp = new Date().toISOString().split('T')[0];
+  
+  let md = `# InTouch AI Chat - Feedback Review
+Generated: ${timestamp}
+Items requiring review: ${feedbackItems.length} of ${totalCount} total
+
+---
+
+## Instructions for Cursor Agent
+
+Analyze the user feedback below and suggest specific improvements to the InTouch Guide AI chat system.
+
+### Files to Review
+- \`InTouchGuide.js\` - Contains INTOUCH_SYSTEM_INSTRUCTION, SCRIPTED_RESPONSES, and chat logic
+- \`AiOpsFunctions.js\` - Contains action functions (Smart Select, column actions, data queries)
+- \`BI_Sidebar.html\` - Contains frontend chat UI and action handlers
+
+### CRITICAL: Check Existing Functionality First
+Before suggesting new features, SEARCH THE CODEBASE to determine if the functionality already exists:
+- If functionality EXISTS but AI didn't use it → Update INTOUCH_SYSTEM_INSTRUCTION to teach AI when/how to use it
+- If functionality EXISTS but AI gave wrong info → Fix factual errors in system instruction
+- If functionality is MISSING → Note it, but prioritize instruction fixes over new code
+
+**Common existing capabilities to check:**
+- Smart Select actions (checking RIDs in column D)
+- Dynamic column headers (column I for locale, columns M-O for metrics)
+- Focus20 add/remove functions
+- Account data injection (AM context, bucket totals)
+- Action buttons (the AI can trigger actions via response formatting)
+
+### What to Look For
+1. **System Instruction Gaps** - Is the AI unaware of features it should recommend?
+2. **Factual Errors** - Did the AI give incorrect information about how something works?
+3. **Missed Actions** - Should the AI have offered to DO something instead of just explaining?
+4. **Scripted Response Opportunities** - Are there common queries that could be fast-pathed?
+5. **Context Injection Issues** - Is the AI failing to use injected account data properly?
+6. **Tone/Format Problems** - Are responses too long, too technical, or unhelpful?
+
+### Output Format
+Show your suggestions as code diffs that can be reviewed and applied.
+For each suggestion, indicate whether it's:
+- **INSTRUCTION FIX** - Update to INTOUCH_SYSTEM_INSTRUCTION
+- **SCRIPTED RESPONSE** - Add to SCRIPTED_RESPONSES
+- **NEW FEATURE** - Requires new code (use sparingly)
+
+---
+
+## Feedback Items Requiring Review
+
+`;
+
+  feedbackItems.forEach((item, idx) => {
+    const rating = item.rating === 'helpful' ? '👍' : item.rating === 'not_helpful' ? '👎' : '⚪';
+    const timestamp = item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Unknown';
+    const sheetContext = item.sheet || item.source || 'Unknown sheet';
+    
+    md += `### Item ${idx + 1} ${rating}
+**Date:** ${timestamp}
+**User:** ${item.user || 'Anonymous'}
+**Sheet Context:** ${sheetContext}
+
+**Query:**
+> ${(item.query || 'No query recorded').replace(/\n/g, '\n> ')}
+
+**AI Response:**
+> ${(item.response || 'No response recorded').substring(0, 500).replace(/\n/g, '\n> ')}${(item.response || '').length > 500 ? '...' : ''}
+
+**User Correction:**
+> ${item.correction || '_No correction provided_'}
+
+---
+
+`;
+  });
+
+  md += `## Summary
+
+Review complete. Apply suggested changes after careful review.
+`;
+
+  return md;
 }
 
 /**

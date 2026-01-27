@@ -383,6 +383,10 @@ function resetAndReapplyFilters() {
   if (dataRange.getFilter()) { dataRange.getFilter().remove(); }
   var filterRange = sheet.getRange(2, 1, lastRow - 1, dataRange.getLastColumn());
   filterRange.createFilter();
+  // Clear Smart Select column (Column D) - data starts at row 3
+  if (lastRow >= 3) {
+    sheet.getRange(3, 4, lastRow - 2, 1).setValue(false);
+  }
 }
 
 function getUniqueSheetName(ss, baseName) {

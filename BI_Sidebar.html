@@ -2163,14 +2163,31 @@
           if (khEls.sendBtn) khEls.sendBtn.disabled = false;
           
           if (result.success) {
-            let message = `Done! I've checked **${result.checkedCount}** account${result.checkedCount > 1 ? 's' : ''} in Smart Select (Column D). You can now use the + or X buttons to add or remove them from Focus20, or take other bulk actions.`;
+            let message = `Done! I've checked **${result.checkedCount}** account${result.checkedCount > 1 ? 's' : ''} in Smart Select (Column D).\n\n`;
+            
+            message += `**Next Steps:**\n`;
+            message += `- Click **+** above Column E to add these to Focus20\n`;
+            message += `- Click **X** to remove from Focus20\n\n`;
+            
+            message += `**To filter to just these accounts:**\n`;
+            message += `1. Click the Smart Select column header (Column D)\n`;
+            message += `2. Filter by condition → "Is equal to" → TRUE\n\n`;
+            
+            message += `**To clear Smart Select:** Click the **RESET** button above Column E.`;
             
             if (result.notFoundCount > 0) {
               message += `\n\n*Note: ${result.notFoundCount} RIDs were not found on this sheet (they may be filtered out or on a different tab).*`;
             }
             
             message += `\n\nIf you have any other questions about your account data I'd be happy to dive in with you!`;
-            addKHMessage('assistant', message);
+            
+            // Set up Focus20 action for the button
+            khState.pendingFunctionAction = {
+              functionName: 'moveTrueAccountsToFocus20',
+              label: 'Add to Focus20'
+            };
+            
+            addKHMessage('assistant', message, true);  // true = show action buttons
           } else if (result.wrongTab) {
             // User is on wrong tab - show warning
             addKHMessage('assistant', `**Heads up:** You are not currently on **${result.expectedTab}**'s tab. You're on **${result.currentTab || 'a different sheet'}**.

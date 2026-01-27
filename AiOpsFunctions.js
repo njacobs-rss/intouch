@@ -459,7 +459,7 @@ function generateAMSummary(amName) {
       addNum(agg, 'pos', dRow[map.pos]);
 
       if (map.xp > -1 && isTrue(dRow[map.xp])) agg.xp++;
-      if (map.pi > -1 && isTrue(dRow[map.pi])) agg.pi++;
+      if (map.pi > -1 && hasActivePI(dRow[map.pi])) agg.pi++;
       
       const pf = String(dRow[map.pf]||"").toUpperCase();
       if (pf.includes("EXCLUDED") || pf === "FALSE") agg.pfExcl++;
@@ -795,6 +795,21 @@ function calcAvg(sum, count, dec) { return count === 0 ? "0" : (sum / count).toF
 function isTrue(val) {
   const s = String(val).toUpperCase();
   return s === "TRUE" || s === "YES" || s === "1" || s === "LIVE";
+}
+
+/**
+ * Check if Active PI field has an active campaign
+ * Active PI values are: "BP", "BP & PR/CP", "PR/CP" (or variations)
+ * NOT active: empty, null, "None", etc.
+ * @param {*} val - The Active PI field value
+ * @returns {boolean} True if there's an active PI campaign
+ */
+function hasActivePI(val) {
+  if (!val) return false;
+  const s = String(val).toUpperCase().trim();
+  if (!s || s === "NONE" || s === "N/A" || s === "FALSE" || s === "NO") return false;
+  // Check for known active values: BP, PR, CP (or combinations)
+  return s.includes("BP") || s.includes("PR") || s.includes("CP");
 }
 
 function sortObj(obj, limit) {
@@ -1537,7 +1552,7 @@ function getDetailedAMData(amName) {
         addNum('pos', dRow[map.pos]);
         
         if (map.xp > -1 && isTrue(dRow[map.xp])) data.activeXP.push({ rid, name });
-        if (map.pi > -1 && isTrue(dRow[map.pi])) data.activePI.push({ rid, name });
+        if (map.pi > -1 && hasActivePI(dRow[map.pi])) data.activePI.push({ rid, name });
         
         const pf = String(dRow[map.pf]||"").toUpperCase();
         if (pf.includes("EXCLUDED") || pf === "FALSE") data.partnerFeedExcluded.push({ rid, name });

@@ -208,6 +208,10 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/what.*(is|are|does).*no.?book/i, /explain.*no.?book/i, /no.?book.*mean/i],
       response: `**No Bookings >30 Days** is the primary early warning for churn risk:\n\n- **0-Fullbook** = Complete booking stoppage (urgent!)\n- **0-Network** = May be RestRef/phone-dependent\n- Any value here needs investigation\n\nFound in the **Account + Status Info** section. Would you like me to show this column?\n\n[COLUMN_ACTION:ACCOUNT_STATUS:No Bookings >30 Days]`
+    },
+    {
+      patterns: [/pos\s*type/i, /what.*pos.*type/i, /show.*pos.*type/i, /what.*about.*pos\s*type/i],
+      response: `**POS Type** shows the Point of Sale system each restaurant uses (e.g., Toast, Square, Aloha, etc.).\n\nThis is found in the **System Stats** section. Would you like me to add this column to your view?\n\n[COLUMN_ACTION:SYSTEM_STATS:POS Type]`
     }
   ],
   
@@ -259,7 +263,7 @@ const SCRIPTED_RESPONSES = {
     },
     {
       patterns: [/what.*is.*network/i, /what.*does.*network.*mean/i, /define.*network/i],
-      response: `**Network = Direct + Discovery**\n\nNetwork represents all OpenTable platform bookings:\n- **Direct** = OT app, OT website, saved restaurants\n- **Discovery** = Marketplace search/browse\n\nNote: Google is an attribution overlay within Direct/Discovery - never add it separately to Fullbook calculations.`
+      response: `**Network = Direct + Discovery**\n\nNetwork represents all OpenTable platform bookings:\n- **Direct** = OT app, OT website (covers where diner went directly to the restaurant's OT profile)\n- **Discovery** = Marketplace search/browse (covers where diner found restaurant via OT search)\n\nNote: Google is an attribution overlay within Direct/Discovery - never add it separately to Fullbook calculations.`
     },
     {
       patterns: [/what.*is.*restref/i, /what.*does.*restref.*mean/i, /define.*restref/i],
@@ -379,6 +383,7 @@ InTouch uses a fixed column structure with DYNAMIC columns that can be changed v
 **System Stats section** (P-Q-R)
 - Defaults: Exclusive Pricing, Active XP, Rest. Quality
 - Options: Active PI, Active XP, AutoTags Active - Last 30, CHRM-CC Req Min, CHRM-Days in Advance, CHRM-Max Party, Email Integration, Exclusive Pricing, HEALTH FLAGS - LM, Instant Booking, Integrations Total, PartnerFeed EXCLUDED, Payment Method, POS Type, Previous AM, Private Dining, PRO-Last Sent, Rest. Quality, Shift w/MAX CAP, Special Programs, Stripe Status*, Target Zipcode
+- NOTE: **POS Type** (what POS system the restaurant uses) is in System Stats section. **POS Match %** (percentage metric) is in Percentage Metrics section. Don't confuse them!
 
 **Percentage Metrics section** (S-T-U)
 - Defaults: Disco % Current, CVR - Network YoY%, CVRs LM - Direct %
@@ -684,6 +689,14 @@ For **System Mix** (Core, Pro, Basic) and **Quality Tiers** (Platinum, Gold, Sil
 - **Average Yield** for accounts in that category
 - **Average Sub Fee** for accounts in that category
 - List of RIDs
+
+### Active PI (Promoted Inventory) Values
+When users ask about "active PI campaigns", an account has active PI if Active PI contains:
+- **BP** = Bonus Points campaign
+- **PR/CP** = Promoted/Co-Promoted campaign
+- **BP & PR/CP** = Both campaigns active
+
+Empty, "None", or blank = no active PI campaign. Use the activePI count from injected data.
 
 This allows you to answer questions like:
 - "What is the average yield for Pro accounts?" → Read from System Mix → Pro → Avg Yield
@@ -1779,6 +1792,18 @@ Items requiring review: ${feedbackItems.length} of ${totalCount} total
 
 Analyze the user feedback below and suggest specific improvements to the InTouch Guide AI chat system.
 
+### ⛔ CRITICAL: DO NOT APPLY CHANGES DIRECTLY
+
+**You MUST NOT edit any files until the user explicitly approves each change.**
+
+1. Analyze each feedback item
+2. Search the codebase to understand existing functionality
+3. Present your recommended changes as **proposed diffs** (code blocks showing before/after)
+4. Wait for user approval before making ANY edits
+5. Only apply changes the user explicitly confirms
+
+This is a review workflow - the user needs to evaluate each suggestion before it goes into production.
+
 ### Files to Review
 - \`InTouchGuide.js\` - Contains INTOUCH_SYSTEM_INSTRUCTION, SCRIPTED_RESPONSES, and chat logic
 - \`AiOpsFunctions.js\` - Contains action functions (Smart Select, column actions, data queries)
@@ -1806,11 +1831,11 @@ Before suggesting new features, SEARCH THE CODEBASE to determine if the function
 6. **Tone/Format Problems** - Are responses too long, too technical, or unhelpful?
 
 ### Output Format
-Show your suggestions as code diffs that can be reviewed and applied.
-For each suggestion, indicate whether it's:
-- **INSTRUCTION FIX** - Update to INTOUCH_SYSTEM_INSTRUCTION
-- **SCRIPTED RESPONSE** - Add to SCRIPTED_RESPONSES
-- **NEW FEATURE** - Requires new code (use sparingly)
+For each feedback item, provide:
+1. **Analysis** - What went wrong and why
+2. **Fix Type** - INSTRUCTION FIX, SCRIPTED RESPONSE, or NEW FEATURE
+3. **Proposed Change** - Show the exact code diff (before/after) as a code block
+4. **DO NOT APPLY** - Wait for user approval
 
 ---
 
@@ -1844,7 +1869,9 @@ For each suggestion, indicate whether it's:
 
   md += `## Summary
 
-Review complete. Apply suggested changes after careful review.
+Review complete. **DO NOT apply any changes until the user explicitly approves each one.**
+
+Present your analysis and proposed diffs, then wait for user confirmation before editing files.
 `;
 
   return md;

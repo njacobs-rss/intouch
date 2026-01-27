@@ -17,10 +17,7 @@ function onOpen(e) {
   
   // 1. InTouch AI Menu (User Facing)
   const mainMenu = ui.createMenu('InTouch✔ai')
-    .addItem('🧠 Open Intouch AI Panel', 'BI_openSidebar')
-    .addSeparator() // Visual separation
-    .addItem('Export AM Summaries', 'exportAllAMSummariesToSheet')
-    .addItem('📥 Export AI Feedback for Review', 'showFeedbackExportDialog');
+    .addItem('🧠 Open Intouch AI Panel', 'BI_openSidebar');
   
   // 2. Admin Menu (Backend/Ops)
   const adminMenu = ui.createMenu('Admin Functions')

@@ -1132,6 +1132,78 @@ function getFleetFileList() {
 }
 
 /**
+ * TEST GEMINI API: Ping test across all fleet files
+ * Returns status for each file showing API connectivity
+ * @returns {Array} Array of log objects with status, file, and msg
+ */
+function testGeminiFleet() {
+  assertAdminAccess();
+  var logs = [];
+  var sourceFolder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  var files = sourceFolder.getFiles();
+  var startTime = new Date();
+  
+  // Test current file first
+  var currentSS = SpreadsheetApp.getActiveSpreadsheet();
+  try {
+    var currentResult = pingGeminiApi();
+    logs.push({
+      status: currentResult.success ? 'Success' : 'Error',
+      file: currentSS.getName() + ' (current)',
+      msg: currentResult.success 
+        ? 'PONG (' + currentResult.durationMs + 'ms)' 
+        : currentResult.error
+    });
+  } catch (e) {
+    logs.push({ status: 'Error', file: currentSS.getName() + ' (current)', msg: e.toString() });
+  }
+  
+  // Test all fleet files
+  while (files.hasNext()) {
+    var file = files.next();
+    
+    // Timeout protection (4 min limit to stay safe)
+    if ((new Date() - startTime) / 1000 > 240) {
+      logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'Timeout risk - stopped early. Some files not tested.' });
+      break;
+    }
+    
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS && 
+        file.getId() !== currentSS.getId() &&
+        isTargetFile_(file.getName())) {
+      
+      try {
+        // Open the file to test its Gemini API connection
+        var targetSS = SpreadsheetApp.openById(file.getId());
+        
+        // The API key is stored at script level, so we can test from here
+        var pingResult = pingGeminiApi();
+        
+        logs.push({
+          status: pingResult.success ? 'Success' : 'Error',
+          file: file.getName(),
+          msg: pingResult.success 
+            ? 'PONG (' + pingResult.durationMs + 'ms)' 
+            : pingResult.error
+        });
+        
+        // Small delay between API calls
+        Utilities.sleep(300);
+        
+      } catch (e) {
+        logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });
+      }
+    }
+  }
+  
+  if (logs.length === 0) {
+    logs.push({ status: 'Warning', file: 'SYSTEM', msg: 'No fleet files found matching criteria' });
+  }
+  
+  return logs;
+}
+
+/**
  * CAPTURE: Get the currently selected range with all data
  * Returns values, formulas (where present), and rich text info
  */

@@ -33,9 +33,12 @@ function onOpen(e) {
     .addItem('Add RIDs from Smart Select', 'moveTrueAccountsToFocus20')
     .addItem('Remove RIDs from Smart Select', 'removeTrueAccountsFromFocus20Optimized');
 
+  const globalFunctionsSubMenu = ui.createMenu('Global Functions')
+    .addItem('🔌 Test Gemini API (Fleet)', 'testGeminiFleet');
 
   adminMenu.addSubMenu(amTabsSubMenu)
            .addSubMenu(focus20SubMenu)
+           .addSubMenu(globalFunctionsSubMenu)
            .addSeparator()
            .addItem('Update Notes Only', 'manualUpdateNotesOnly')
            .addItem('Force Master Pipeline', 'runMasterPipeline')

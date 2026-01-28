@@ -521,7 +521,8 @@ const SCRIPTED_RESPONSES = {
       response: `**AI Brief** provides quick account summaries with AI-generated talking points.\n\n**To use:**\n1. Select an account row\n2. Click "AI Brief" button in sidebar\n\n**Includes:**\n- Account health snapshot\n- Key metrics and trends\n- Risk indicators\n- Suggested talking points\n\nGreat for pre-call prep when you need context fast.`
     },
     {
-      patterns: [/what.*(is|are).*bucket.*summary/i, /bucket.*summary.*do/i, /portfolio.*summary/i, /my.*bucket/i],
+      // Pattern fix: removed /my.*bucket/i and /portfolio.*summary/i - too broad, intercepted action commands like "summarize my bucket"
+      patterns: [/what.*(is|are).*bucket.*summary/i, /bucket.*summary.*do/i, /what.*(is|are).*portfolio.*summary/i],
       response: `**Bucket Summary** shows your complete portfolio at a glance.\n\n**Includes:**\n- Total account count\n- System type breakdown (Core/Pro/Basic)\n- Status mix (Active/Term Pending/etc.)\n- Aggregate revenue metrics\n- Coverage indicators\n\nAsk me "summarize my bucket" to see your current portfolio snapshot.`
     },
     {
@@ -570,11 +571,13 @@ const SCRIPTED_RESPONSES = {
       response: `**Contract Alerts** flags accounts based on term end date proximity:\n\n- Shows days/months until contract expires\n- Accounts within 90 days need proactive outreach\n- Use this to prioritize renewal conversations\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Contract Alerts]`
     },
     {
-      patterns: [/what.*(is|are).*active.*pi/i, /active.*pi.*mean/i, /premium.*inventory.*active/i, /running.*pi/i],
+      // Pattern fix: changed /running.*pi/i to require "what is" prefix - was intercepting data queries like "which accounts are running PI"
+      patterns: [/what.*(is|are).*active.*pi/i, /active.*pi.*mean/i, /premium.*inventory.*active/i, /what.*(is|are|does).*running.*pi/i],
       response: `**Active PI** shows Premium Inventory campaigns currently running:\n\n- Shows campaign name if active (e.g., "Boost", "Featured")\n- Blank = no current PI campaign\n- PI generates incremental revenue through promoted slots\n\nFound in the **System Stats** section. Would you like me to show this column?\n\n[COLUMN_ACTION:SYSTEM_STATS:Active PI]`
     },
     {
-      patterns: [/what.*(is|are).*active.*xp/i, /what.*experiences.*running/i, /active.*xp.*mean/i, /running.*xp/i, /running.*experiences/i],
+      // Pattern fix: removed /running.*xp/i and /running.*experiences/i - too broad, intercepted data queries like "which accounts are running XP"
+      patterns: [/what.*(is|are).*active.*xp/i, /what.*experiences.*running/i, /active.*xp.*mean/i],
       response: `**Active XP** shows Experiences currently published:\n\n- Shows experience name if active\n- Blank = no published experiences\n- XP drives incremental covers through special events (wine dinners, tasting menus, etc.)\n\nFound in the **System Stats** section. Would you like me to show this column?\n\n[COLUMN_ACTION:SYSTEM_STATS:Active XP]`
     },
     {
@@ -598,7 +601,8 @@ const SCRIPTED_RESPONSES = {
       response: `**Current Term End Date** = When the current contract expires.\n\n- Key for renewal lifecycle planning\n- 90+ days out: Discovery phase\n- 60-90 days: Build value story\n- 30-60 days: Run & close\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Current Term End Date]`
     },
     {
-      patterns: [/what.*(is|are).*fullbook/i, /fullbook.*mean/i, /total.*covers/i, /all.*covers/i],
+      // Pattern fix: removed /total.*covers/i and /all.*covers/i - too broad, intercepted data queries like "total covers by system type"
+      patterns: [/what.*(is|are).*fullbook/i, /fullbook.*mean/i, /what.*(is|are).*total.*covers/i],
       response: `**Fullbook** = Total seated covers from ALL sources:\n\n**Formula:** Network + RestRef + Phone/Walk-in + Third Party\n\n- **Network** = Direct + Discovery (OT platform)\n- **RestRef** = Restaurant website widget\n- **Phone/Walk-in** = Manual entries\n- **Third Party** = Other booking platforms\n\n⚠️ Never add Google separately - it's already included in Direct/Discovery.`
     }
   ],
@@ -618,7 +622,8 @@ const SCRIPTED_RESPONSES = {
       response: `I can show that for you! The **Location** column (Column I) can show Metro, Macro, or Neighborhood.\n\nWould you like me to change it to **Neighborhood**?\n\n[COLUMN_ACTION:LOCATION:Neighborhood]`
     },
     {
-      patterns: [/(?:see|show|change|switch|display).*metro/i, /(?:want|need).*(?:to see|see).*metro/i, /how.*(?:see|show|view|get).*metro/i],
+      // Pattern fix: made patterns more specific to column-change requests - was intercepting data queries like "show me accounts in LA metro"
+      patterns: [/(?:change|switch).*(?:to|the).*metro/i, /(?:want|need).*metro.*column/i, /how.*(?:see|show|view|get).*metro.*column/i, /metro.*instead.*macro/i],
       response: `The **Metro** field is in the **Location** section (Column I). It can show Metro, Macro, or Neighborhood.\n\nWould you like me to set it to **Metro**?\n\n[COLUMN_ACTION:LOCATION:Metro]`
     }
   ],
@@ -647,7 +652,7 @@ const SCRIPTED_RESPONSES = {
   capabilities: [
     {
       patterns: [/what.*can.*you.*do/i, /what.*are.*you.*capable/i, /what.*features/i, /how.*can.*you.*help/i, /what.*help.*with/i],
-      response: `Here's what I can help you with in InTouch:\n\n**📊 Portfolio Analysis**\n- Summarize your bucket with system mix, contract status, and alerts\n- Break down metrics by category (yield by system type, etc.)\n- Compare your performance against the team\n\n**🔍 Filter & Isolate Accounts**\n- Filter by any criteria: system type, pricing, contract status, booking issues\n- Stack multiple filters: *"Isolate Pro accounts with Freemium pricing"*\n- Check matching accounts in Smart Select for bulk actions\n\n**📈 Change Your View**\n- Switch column metrics (Metro/Macro, different date fields, etc.)\n- Add columns for specific metrics you need to see\n\n**❓ Answer Questions**\n- Count accounts by any category\n- List specific RIDs matching criteria\n- Explain what metrics mean\n\n**Just ask naturally!** Try:\n- *"How many Core accounts do I have?"*\n- *"Isolate accounts with expired contracts"*\n- *"Show me the Discovery % column"*`
+      response: `Here's what I can help you with in InTouch:\n\n**📊 Portfolio Analysis**\n- Summarize your bucket with system mix, contract status, and alerts\n- Break down metrics by category (yield by system type, etc.)\n- Compare your performance against the team\n\n**🔍 Filter & Isolate Accounts**\n- Filter by any criteria: system type, pricing, contract status, booking issues\n- Stack multiple filters: *"Isolate Pro accounts with Freemium pricing"*\n- Check matching accounts in Smart Select for bulk actions\n\n**📈 Change Your View**\n- Switch column metrics (Metro/Macro, different date fields, etc.)\n- Add columns for specific metrics you need to see\n\n**🎯 Strategic Guidance**\n- Renewal strategies using the Three-Layer Framework (Time → System → Economics)\n- Pricing plays: Fairness, Stability, and Operational Relief\n- System type archetypes and migration paths\n- Objection handling scripts and talking points\n\n**❓ Answer Questions**\n- Count accounts by any category\n- Explain metrics, channels, and booking calculations\n- Define terms (Freemium, AYCE, Discovery %, etc.)\n\n**🛠️ Tools & Features**\n- Generate BizInsights decks for QBRs\n- AI Brief for quick account summaries\n- Refresh iQ notes from Salesforce\n\n**Just ask naturally!** Try:\n- *"How many Core accounts do I have?"*\n- *"Explain the three-layer framework"*\n- *"What pricing play should I use for budget objections?"*\n- *"Show me the Discovery % column"*`
     },
     {
       patterns: [/can.*you.*(filter|isolate|sort)/i, /do.*you.*(filter|isolate)/i, /filter.*based.*condition/i, /filtering.*capab/i, /able.*to.*filter/i],

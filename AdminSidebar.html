@@ -509,9 +509,12 @@
           </button>
         </div>
         
-        <div class="grid-1" style="margin-top:8px;">
+        <div class="grid-2" style="margin-top:8px;">
           <button class="btn-config btn-horizontal" onclick="exportAIFeedback()">
             <span class="icon">📥</span> Export AI Feedback
+          </button>
+          <button class="btn-safe btn-horizontal" onclick="testApiConnection()">
+            <span class="icon">🔌</span> Test API
           </button>
         </div>
         
@@ -1537,6 +1540,39 @@
             showToast('error', 'Export Failed', e.message);
           })
           .showFeedbackExportDialog();
+      }
+
+      // =============================================================
+      // API CONNECTION TEST
+      // =============================================================
+      function testApiConnection() {
+        var toastId = showToast('working', 'Testing API...', 'Pinging Gemini API', { persistent: true });
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            removeToast(toastId);
+            
+            if (result.success) {
+              showToast('success', 'API Connected', 'Response: ' + result.durationMs + 'ms latency', { duration: 6000 });
+            } else {
+              var errorMsg = result.error || 'Unknown error';
+              if (errorMsg.includes('not found')) {
+                showToast('error', 'API Key Missing', 'Add GEMINI_API_KEY to Script Properties', { duration: 8000 });
+              } else {
+                showToast('error', 'API Error', errorMsg, { duration: 8000 });
+              }
+            }
+          })
+          .withFailureHandler(function(e) {
+            removeToast(toastId);
+            var errorMsg = e.message || 'Unknown error';
+            if (errorMsg.includes('not found')) {
+              showToast('error', 'API Key Missing', 'Add GEMINI_API_KEY to Script Properties', { duration: 8000 });
+            } else {
+              showToast('error', 'API Test Failed', errorMsg, { duration: 8000 });
+            }
+          })
+          .pingGeminiApi();
       }
     </script>
   </body>

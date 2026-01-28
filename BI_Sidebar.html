@@ -56,6 +56,256 @@
     .tab-content.active { display: block; }
 
     /* =========================================
+       BUCKET IQ TAB - GOLD THEME
+       ========================================= */
+    #tab-bucket-iq {
+      display: none;
+      flex-direction: column;
+      height: calc(100vh - 45px);
+      padding: 0;
+      background: #fffbeb;
+    }
+    #tab-bucket-iq.active { display: flex; }
+
+    .bucket-iq-header {
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-bottom: 1px solid #fcd34d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .bucket-iq-header h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: #78350f;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bucket-iq-controls {
+      display: flex;
+      gap: 6px;
+    }
+    .bucket-iq-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid #d97706;
+      background: #fff;
+      color: #d97706;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .bucket-iq-btn:hover {
+      background: #fef3c7;
+    }
+
+    /* Messages area - gold tinted */
+    #tab-bucket-iq .kh-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      background: #fffbeb;
+    }
+
+    /* Input area */
+    .bucket-iq-input-area {
+      padding: 12px;
+      border-top: 1px solid #fde68a;
+      background: #fefce8;
+      flex-shrink: 0;
+    }
+    .bucket-iq-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+      min-height: 48px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+    .bucket-iq-input:focus {
+      outline: none;
+      border-color: #d97706;
+      box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.1);
+    }
+
+    .bucket-iq-input-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .bucket-iq-send {
+      padding: 8px 20px;
+      background: #d97706;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .bucket-iq-send:hover { background: #b45309; }
+    .bucket-iq-send:disabled { background: #fbbf24; opacity: 0.6; cursor: not-allowed; }
+
+    .bucket-iq-stop {
+      padding: 8px 16px;
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #d97706;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .bucket-iq-stop:hover { background: #fde68a; }
+
+    /* Assistant messages - gold accent */
+    #tab-bucket-iq .kh-message.assistant {
+      background: #fff;
+      border: 1px solid #fde68a;
+    }
+    #tab-bucket-iq .kh-message.assistant strong { color: #b45309; }
+
+    /* User messages - gold theme */
+    #tab-bucket-iq .kh-message.user {
+      background: #d97706;
+    }
+
+    /* Suggestion buttons - gold theme */
+    #tab-bucket-iq .kh-suggestion {
+      background: #fff;
+      border: 1px solid #fcd34d;
+      color: #78350f;
+    }
+    #tab-bucket-iq .kh-suggestion:hover {
+      border-color: #d97706;
+      color: #b45309;
+      background: #fef3c7;
+    }
+
+    /* Action buttons - gold theme */
+    #tab-bucket-iq .kh-action-btn.primary {
+      background: #d97706;
+    }
+    #tab-bucket-iq .kh-action-btn.primary:hover {
+      background: #b45309;
+    }
+
+    /* Jump start trigger - gold theme */
+    #tab-bucket-iq .kh-jumpstart-trigger {
+      background: #d97706;
+      border-color: #b45309;
+    }
+    #tab-bucket-iq .kh-jumpstart-trigger:hover {
+      background: #b45309;
+    }
+
+    /* Welcome section - gold theme */
+    #tab-bucket-iq .kh-welcome {
+      color: #78350f;
+    }
+    #tab-bucket-iq .kh-welcome h5 {
+      color: #78350f;
+    }
+    #tab-bucket-iq .kh-section-label {
+      color: #92400e;
+    }
+
+    /* Help modal styles */
+    .help-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .help-modal-overlay.open { display: flex; }
+    .help-modal {
+      background: #fffbeb;
+      border-radius: 12px;
+      width: calc(100% - 32px);
+      max-width: 360px;
+      max-height: calc(100vh - 100px);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      border: 1px solid #fde68a;
+    }
+    .help-modal-header {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-bottom: 1px solid #fcd34d;
+      font-weight: 600;
+      font-size: 13px;
+      color: #78350f;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .help-modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #92400e;
+      padding: 0;
+      line-height: 1;
+    }
+    .help-modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+    .help-section {
+      margin-bottom: 16px;
+    }
+    .help-section:last-child {
+      margin-bottom: 0;
+    }
+    .help-section h5 {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: #78350f;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #fde68a;
+      padding-bottom: 4px;
+    }
+    .help-section ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .help-section li {
+      font-size: 11px;
+      color: #78350f;
+      padding: 6px 0;
+      border-bottom: 1px dashed #fde68a;
+    }
+    .help-section li:last-child {
+      border-bottom: none;
+    }
+    .help-section li strong {
+      color: #b45309;
+    }
+
+    /* =========================================
        LAYOUT & CARDS
        ========================================= */
     .card { 
@@ -179,101 +429,8 @@
     #sim-results { border-left: 4px solid #ccc; }
 
     /* =========================================
-       KNOWLEDGE HUB - FLOATING CHAT
+       KNOWLEDGE HUB - CHAT STYLES
        ========================================= */
-    .kh-fab {
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      padding: 12px 20px;
-      border-radius: 30px;
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      color: white;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      z-index: 2100; /* Above overlays so FAB stays accessible */
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .kh-fab:hover {
-      transform: scale(1.08);
-      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
-    }
-    .kh-fab.hidden { display: none; }
-
-    .kh-panel {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      width: 100%;
-      max-width: 100%;
-      height: 811px; /* 30% taller than 624px */
-      max-height: calc(100vh - 60px);
-      background: #fff;
-      border-radius: 16px 16px 0 0;
-      box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.15);
-      display: flex;
-      flex-direction: column;
-      z-index: 2100; /* Above loading/results overlays (2000) so chat stays visible */
-      overflow: hidden;
-      opacity: 0;
-      transform: translateY(100%);
-      pointer-events: none;
-      transition: opacity 0.2s, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .kh-panel.open {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-    }
-
-    .kh-panel-header {
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      color: white;
-      padding: 12px 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .kh-panel-header h4 {
-      margin: 0;
-      font-size: 13px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .kh-header-buttons {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .kh-header-btn {
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-    .kh-header-btn:hover { background: rgba(255,255,255,0.3); }
-    .kh-header-btn.kh-clear { font-size: 18px; font-weight: bold; }
-    .kh-header-btn.kh-minimize { font-size: 16px; font-weight: bold; }
-
     .kh-messages {
       flex: 1;
       overflow-y: auto;
@@ -442,45 +599,6 @@
     .kh-top-prompt {
       font-weight: 700;
     }
-
-    .kh-input-area {
-      padding: 8px 10px 30px 10px; /* Added bottom padding to clear Sheets UI */
-      border-top: 1px solid #e2e8f0;
-      background: #fff;
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-    .kh-input {
-      flex: 1;
-      padding: 6px 10px;
-      border: 1px solid #e2e8f0;
-      border-radius: 18px;
-      font-size: 12px;
-      outline: none;
-      transition: border-color 0.2s;
-      margin-bottom: 0;
-    }
-    .kh-input:focus {
-      border-color: #2563eb;
-    }
-    .kh-send {
-      background: #2563eb;
-      color: white;
-      border: none;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      transition: background 0.2s;
-      flex-shrink: 0;
-    }
-    .kh-send:hover { background: #1d4ed8; }
-    .kh-send:disabled { background: #94a3b8; cursor: not-allowed; }
 
     /* Action Buttons (for column actions) */
     .kh-action-buttons {
@@ -1050,12 +1168,78 @@
 <body>
 
   <div class="tab-nav">
-    <button class="tab-btn active" data-tab="tab-prep">MEETING PREP</button>
+    <button class="tab-btn active" data-tab="tab-bucket-iq">BUCKET IQ</button>
+    <button class="tab-btn" data-tab="tab-prep">MEETING PREP</button>
     <button class="tab-btn" data-tab="tab-calc">SIMULATOR</button>
-    <button class="tab-btn" data-tab="tab-summary">SUMMARY</button>
   </div>
 
-  <div id="tab-prep" class="tab-content active">
+  <!-- Bucket iQ Tab - AI Chat Interface -->
+  <div id="tab-bucket-iq" class="tab-content active">
+    <!-- Gold header bar with controls -->
+    <div class="bucket-iq-header">
+      <h4>Bucket iQ</h4>
+      <div class="bucket-iq-controls">
+        <button class="bucket-iq-btn" id="khClear" title="New Chat">+</button>
+        <button class="bucket-iq-btn help-btn" id="helpBtn" title="Help">?</button>
+      </div>
+    </div>
+    
+    <!-- Messages area -->
+    <div class="kh-messages" id="khMessages">
+      <!-- Daily Jump Start Accordion -->
+      <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
+        <div class="kh-jumpstart-header">
+          <div class="kh-jumpstart-title">
+            <span>🌅</span> DAILY JUMP START
+          </div>
+          <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
+            🔄
+          </button>
+        </div>
+        <div id="khJumpStartContent">
+          <!-- Sections will be injected here -->
+        </div>
+      </div>
+
+      <div class="kh-welcome" id="khWelcome">
+        <div class="kh-welcome-icon">✦</div>
+        <h5>Let's Get Down To Buckets</h5>
+        <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
+        
+        <button class="kh-jumpstart-trigger" onclick="startMyDay()">
+          <span>🌅</span> Start My Day
+        </button>
+        <div class="kh-section-label">InTouch Help</div>
+        <div class="kh-suggestions">
+          <button class="kh-suggestion kh-top-prompt">What can you do?</button>
+          <button class="kh-suggestion">How does iQ scoring work?</button>
+          <button class="kh-suggestion">Help me build my Focus20 list</button>
+          <button class="kh-suggestion">Sheet looks broken</button>
+          <button class="kh-suggestion">What should I look at first?</button>
+        </div>
+        <div class="kh-section-label">Account Analysis</div>
+        <div class="kh-suggestions">
+          <button class="kh-suggestion">Summarize my bucket</button>
+          <button class="kh-suggestion">Flag accounts I haven't touched in 60+ days</button>
+          <button class="kh-suggestion">Who is up for renewal soon?</button>
+          <button class="kh-suggestion">Show my Icons and Elites</button>
+          <button class="kh-suggestion">Which accounts should I pitch PI to?</button>
+          <button class="kh-suggestion">How do I rank against the team?</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Input area with stop button -->
+    <div class="bucket-iq-input-area">
+      <textarea class="bucket-iq-input" id="khInput" placeholder="Ask about your bucket..." rows="2"></textarea>
+      <div class="bucket-iq-input-buttons">
+        <button class="bucket-iq-stop" id="khStop" title="Stop" style="display:none;">Stop</button>
+        <button class="bucket-iq-send" id="khSend" title="Send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-prep" class="tab-content">
      <div class="card">
         <h3>Partner Triage</h3>
         <label class="lbl">Select Account</label>
@@ -1121,25 +1305,6 @@
       <h3>Results Breakdown</h3>
       <div id="sim-table-container"></div>
     </div>
-  </div>
-
-  <div id="tab-summary" class="tab-content">
-    <div style="background:#fee2e2; color:#991b1b; padding:8px 10px; border-radius:4px; margin-bottom:8px; font-weight:600; font-size:11px; text-align:center; border:1px solid #fca5a5;">
-      ⚠️ WIP - DATA ON THIS VIEW MAY NOT BE ACCURATE
-    </div>
-    <div class="card">
-      <label class="lbl">Account Manager</label>
-      <select id="am-picker" onchange="runAMSummary()">
-         <option value="" disabled selected>Loading...</option>
-      </select>
-    </div>
-
-    <div id="loading" style="display:none; text-align:center; padding:20px;">
-      <div class="spinner"></div>
-      <div class="sub" style="margin-top:8px;">Crunching numbers...</div>
-    </div>
-
-    <div id="summary-content"></div>
   </div>
 
   <div id="overlay-loading" class="overlay-view" style="align-items:center; text-align:center;">
@@ -1272,102 +1437,6 @@
          btnAI.disabled = true;
          detailBox.style.display = 'none';
       }
-    }
-
-    // --- TAB LOGIC: BUCKET SUMMARY ---
-    function runAMSummary() {
-       const amName = document.getElementById('am-picker').value;
-       if(!amName) return;
-       
-       document.getElementById('summary-content').style.display = 'none';
-       document.getElementById('loading').style.display = 'block';
-       
-       google.script.run.withSuccessHandler(res => {
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('summary-content').style.display = 'block';
-          if(typeof res === 'object') { renderSummary(res); } 
-          else { document.getElementById('summary-content').innerHTML = res; }
-       }).generateAMSummary(amName);
-    }
-
-    function renderSummary(d) {
-       const renderList = (title, items) => {
-         if (!items || items.length === 0) return '';
-         let h = `<div class="card"><h3>${title}</h3><table class="mini-table">`;
-         items.forEach(i => h += `<tr><td>${i.label}</td><td>${i.count}</td></tr>`);
-         h += `</table></div>`;
-         return h;
-       };
-
-       // UPDATED DASHBOARD LAYOUT (COMPACT + NEW SECTION)
-       let html = `
-        <div class="grid-2">
-            <div class="card"><div class="lbl">Bucket</div><div class="val">${d.book || 0}</div><div class="sub">Accounts</div></div>
-            <div class="card"><div class="lbl">Groups</div><div class="val">${d.groups || "0"}</div><div class="sub">Count | Share %</div></div>
-        </div>
-        <div class="grid-2">
-            <div class="card"><div class="lbl">Avg Yield</div><div class="val">$${d.yield || 0}</div></div>
-            <div class="card"><div class="lbl">Avg Sub</div><div class="val">$${d.subfees || 0}</div></div>
-        </div>
-        
-        <div class="card">
-             <div class="lbl">TERM PENDING</div>
-             <div class="val txt-red">${d.termPending || 0}</div>
-             <div class="sub">Immediate Action</div>
-        </div>
-
-        <div class="card">
-             <div class="lbl">Contract Renewal</div>
-             <table class="mini-table">
-               <tr><td>Expired</td><td class="txt-red">${d.termExpired || 0}</td></tr>
-               <tr><td>Canceling</td><td class="txt-red">${d.canceling || 0}</td></tr>
-               <tr><td>Warning (45d)</td><td class="txt-blue">${d.termWarn || 0}</td></tr>
-             </table>
-        </div>
-
-        <div class="card">
-             <div class="lbl">Bucket Penetration (Engagement)</div>
-             <div class="grid-2">
-                 <div style="text-align:center; padding:4px;">
-                    <div class="val">${d.mtgPenetration}</div><div class="sub">Mtg Pen %</div>
-                 </div>
-                 <div style="text-align:center; padding:4px;">
-                    <div class="val">${d.runRate}</div><div class="sub">Mtgs / WkDay</div>
-                 </div>
-                 <div style="text-align:center; padding:4px;">
-                    <div class="val">${d.taskPenetration}</div><div class="sub">Task Pen %</div>
-                 </div>
-                 <div style="text-align:center; padding:4px;">
-                    <div class="val">${d.totalMtgs}</div><div class="sub">Total Vol</div>
-                 </div>
-             </div>
-        </div>
-
-        <div class="grid-3">
-           <div class="card"><div class="lbl">Active PI</div><div class="val">${d.activePi || 0}</div></div>
-           <div class="card"><div class="lbl">PD Live</div><div class="val">${d.pd || 0}</div></div>
-           <div class="card"><div class="lbl">XP Active</div><div class="val">${d.xp || 0}</div></div>
-        </div>
-        
-        <div class="card">
-           <div class="lbl">Performance (Avg)</div>
-           <table class="mini-table">
-             <tr><td>Disco Share</td><td>${d.disco}</td></tr>
-             <tr><td>PI Rev Share</td><td>${d.piRevShare}</td></tr>
-           </table>
-        </div>
-       `;
-
-       // Dynamic Lists
-       html += renderList('Top Metros', d.metroList);
-       html += renderList('System Mix', d.sysTypeList);
-       html += renderList('Alternate SOR', d.sorList);
-       html += renderList('Quality Tiers', d.qualityList);
-       html += renderList('Special Programs', d.progList);
-       html += renderList('Excl. Pricing Mix', d.priceList);
-       html += renderList('No Bookings (Reason)', d.noBookList);
-
-       document.getElementById('summary-content').innerHTML = html;
     }
 
     // --- OVERLAY & ACTIONS ---
@@ -1746,6 +1815,7 @@
     const khState = {
       isOpen: false,
       isLoading: false,
+      currentRequestId: null,    // Tracks current request ID for abort handling
       conversationHistory: [],
       pendingColumnAction: null,    // Stores {category: 'DATES_ACTIVITY', metric: 'Customer Since'}
       pendingFunctionAction: null,  // Stores {functionName: 'manualUpdateNotesOnly', label: 'Refresh Notes'}
@@ -1776,10 +1846,10 @@
     ];
 
     const khEls = {
-      fab: null,
       panel: null,
-      minimizeBtn: null,
       clearBtn: null,
+      stopBtn: null,
+      helpBtn: null,
       messages: null,
       input: null,
       sendBtn: null,
@@ -1787,18 +1857,21 @@
     };
 
     function initKnowledgeHub() {
-      khEls.fab = document.getElementById('khFab');
-      khEls.panel = document.getElementById('khPanel');
-      khEls.minimizeBtn = document.getElementById('khMinimize');
+      // Tab-based layout - no FAB or minimize needed
+      khEls.panel = document.getElementById('tab-bucket-iq');
       khEls.clearBtn = document.getElementById('khClear');
+      khEls.stopBtn = document.getElementById('khStop');
+      khEls.helpBtn = document.getElementById('helpBtn');
       khEls.messages = document.getElementById('khMessages');
       khEls.input = document.getElementById('khInput');
       khEls.sendBtn = document.getElementById('khSend');
       khEls.welcome = document.getElementById('khWelcome');
 
-      if (khEls.fab) khEls.fab.addEventListener('click', toggleKHPanel);
-      if (khEls.minimizeBtn) khEls.minimizeBtn.addEventListener('click', toggleKHPanel);
+      // Wire up button click handlers
       if (khEls.clearBtn) khEls.clearBtn.addEventListener('click', clearKHChat);
+      if (khEls.stopBtn) khEls.stopBtn.addEventListener('click', stopKHRequest);
+      if (khEls.helpBtn) khEls.helpBtn.addEventListener('click', showHelpGuide);
+      if (khEls.sendBtn) khEls.sendBtn.addEventListener('click', sendKHMessage);
 
       // Suggestion clicks
       document.querySelectorAll('.kh-suggestion').forEach(btn => {
@@ -1810,9 +1883,10 @@
         });
       });
 
-      // Enter key to send
+      // Enter key to send (Ctrl+Enter or Cmd+Enter for textarea)
       if (khEls.input) {
         khEls.input.addEventListener('keydown', (e) => {
+          // Send on Enter (without Shift for new line)
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendKHMessage();
@@ -1820,29 +1894,8 @@
         });
       }
 
-      if (khEls.sendBtn) khEls.sendBtn.addEventListener('click', sendKHMessage);
-      
-      // Auto-open chat panel on sidebar launch (only if not already open)
-      if (!khState.isOpen) {
-        khState.isOpen = true;
-        if (khEls.panel) khEls.panel.classList.add('open');
-        if (khEls.fab) khEls.fab.classList.add('hidden');
-        if (khEls.input) khEls.input.focus();
-        initAMContext();
-      }
-    }
-
-    function toggleKHPanel() {
-      khState.isOpen = !khState.isOpen;
-      if (khEls.panel) khEls.panel.classList.toggle('open', khState.isOpen);
-      if (khEls.fab) khEls.fab.classList.toggle('hidden', khState.isOpen);
-      if (khState.isOpen) {
-        if (khEls.input) khEls.input.focus();
-        // Initialize AM context when opening chat
-        initAMContext();
-        // Log first chat after panel expand
-        khState.shouldLogNextChat = true;
-      }
+      // Initialize AM context on load (chat is now always visible in tab)
+      initAMContext();
     }
     
     function clearKHChat() {
@@ -1851,6 +1904,8 @@
       
       // Log first chat after new chat clicked
       khState.shouldLogNextChat = true;
+      khState.isLoading = false;
+      khState.currentRequestId = null;
       khState.pendingColumnAction = null;
       khState.pendingFunctionAction = null;
       khState.pendingSlackAction = null;
@@ -1927,10 +1982,17 @@
       // Update welcome reference
       khEls.welcome = document.getElementById('khWelcome');
       
-      // Clear input
+      // Clear input and reset buttons
       if (khEls.input) {
         khEls.input.value = '';
         khEls.input.focus();
+      }
+      
+      // Reset send/stop buttons
+      if (khEls.stopBtn) khEls.stopBtn.style.display = 'none';
+      if (khEls.sendBtn) {
+        khEls.sendBtn.style.display = 'inline-flex';
+        khEls.sendBtn.disabled = false;
       }
     }
 
@@ -2756,9 +2818,11 @@
       addKHMessage('user', query);
       khEls.input.value = '';
 
-      // Show loading
+      // Show loading - swap send/stop buttons
       khState.isLoading = true;
-      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      khState.currentRequestId = Date.now(); // Track request for abort
+      if (khEls.sendBtn) khEls.sendBtn.style.display = 'none';
+      if (khEls.stopBtn) khEls.stopBtn.style.display = 'inline-flex';
       const loadingEl = addKHMessage('loading', '');
 
       // Build conversation history for context
@@ -2769,9 +2833,21 @@
       // Call backend
       google.script.run
         .withSuccessHandler((result) => {
+          // Check if request was stopped
+          if (!khState.isLoading && !khState.currentRequestId) {
+            if (loadingEl) loadingEl.remove();
+            return; // Request was stopped, ignore response
+          }
+          
           if (loadingEl) loadingEl.remove();
           khState.isLoading = false;
-          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          khState.currentRequestId = null;
+          // Reset buttons
+          if (khEls.stopBtn) khEls.stopBtn.style.display = 'none';
+          if (khEls.sendBtn) {
+            khEls.sendBtn.style.display = 'inline-flex';
+            khEls.sendBtn.disabled = false;
+          }
 
           if (result.success) {
             // Reset log flag after successful chat (first message was logged)
@@ -2856,10 +2932,45 @@
         .withFailureHandler((error) => {
           if (loadingEl) loadingEl.remove();
           khState.isLoading = false;
-          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          khState.currentRequestId = null;
+          // Reset buttons
+          if (khEls.stopBtn) khEls.stopBtn.style.display = 'none';
+          if (khEls.sendBtn) {
+            khEls.sendBtn.style.display = 'inline-flex';
+            khEls.sendBtn.disabled = false;
+          }
           addKHMessage('error', 'Error: ' + error.message);
         })
         .askInTouchGuide(query, historyJson, khState.shouldLogNextChat);
+    }
+    
+    /**
+     * Stop the current AI request
+     * Sets flags to ignore the response and resets UI
+     */
+    function stopKHRequest() {
+      console.log('[stopKHRequest] Stopping current request');
+      
+      // Set flags to ignore any pending response
+      khState.isLoading = false;
+      khState.currentRequestId = null;
+      
+      // Remove any loading indicators
+      const loadingEls = document.querySelectorAll('.kh-message.loading');
+      loadingEls.forEach(el => el.remove());
+      
+      // Swap buttons back
+      if (khEls.stopBtn) khEls.stopBtn.style.display = 'none';
+      if (khEls.sendBtn) {
+        khEls.sendBtn.style.display = 'inline-flex';
+        khEls.sendBtn.disabled = false;
+      }
+      
+      // Add system message
+      addKHMessage('assistant', '_Request stopped. Ask me something else!_');
+      
+      // Focus input
+      if (khEls.input) khEls.input.focus();
     }
     
     /**
@@ -3999,6 +4110,22 @@ If you have any other questions about the team data I'd be happy to dive in with
       if (modal) modal.classList.remove('open');
     }
 
+    /**
+     * Show the help guide modal
+     */
+    function showHelpGuide() {
+      const modal = document.getElementById('helpModal');
+      if (modal) modal.classList.add('open');
+    }
+    
+    /**
+     * Close the help guide modal
+     */
+    function closeHelpModal() {
+      const modal = document.getElementById('helpModal');
+      if (modal) modal.classList.remove('open');
+    }
+
     function submitKHCorrection() {
       const modal = document.getElementById('khCorrectionModal');
       const textarea = document.getElementById('khCorrectionText');
@@ -4101,11 +4228,6 @@ If you have any other questions about the team data I'd be happy to dive in with
     window.addEventListener('load', initKnowledgeHub);
   </script>
 
-  <!-- =========================================
-       KNOWLEDGE HUB - FAB & CHAT PANEL
-       ========================================= -->
-  <button class="kh-fab" id="khFab" title="InTouch Guide">Chat with InTouch✔ ai</button>
-
   <!-- Correction Modal -->
   <div class="kh-modal-overlay" id="khCorrectionModal">
     <div class="kh-modal">
@@ -4126,60 +4248,44 @@ If you have any other questions about the team data I'd be happy to dive in with
     </div>
   </div>
 
-  <div class="kh-panel" id="khPanel">
-    <div class="kh-panel-header">
-      <h4>✦ InTouch✔ Assist</h4>
-      <div class="kh-header-buttons">
-        <button class="kh-header-btn kh-clear" id="khClear" title="New chat">+</button>
-        <button class="kh-header-btn kh-minimize" id="khMinimize" title="Minimize">─</button>
+  <!-- Help Modal -->
+  <div class="help-modal-overlay" id="helpModal">
+    <div class="help-modal">
+      <div class="help-modal-header">
+        <span>Bucket iQ Guide</span>
+        <button class="help-modal-close" onclick="closeHelpModal()">✕</button>
       </div>
-    </div>
-    <div class="kh-messages" id="khMessages">
-      <!-- Daily Jump Start Accordion -->
-      <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
-        <div class="kh-jumpstart-header">
-          <div class="kh-jumpstart-title">
-            <span>🌅</span> DAILY JUMP START
-          </div>
-          <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
-            🔄
-          </button>
+      <div class="help-modal-body">
+        <div class="help-section">
+          <h5>Action Buttons</h5>
+          <ul>
+            <li><strong>Start My Day</strong> - Load your daily priorities and action items</li>
+            <li><strong>Dig In</strong> - Filter your sheet to specific accounts</li>
+            <li><strong>Focus20</strong> - Build your top 20 focus list</li>
+            <li><strong>Reset</strong> - Clear all active filters</li>
+            <li><strong>+ (New Chat)</strong> - Start a fresh conversation</li>
+          </ul>
         </div>
-        <div id="khJumpStartContent">
-          <!-- Sections will be injected here -->
+        <div class="help-section">
+          <h5>Account Tags</h5>
+          <ul>
+            <li><strong>🔴</strong> Term Pending - Contract ending soon, action required</li>
+            <li><strong>🟡</strong> Warning - Account needs attention within 45 days</li>
+            <li><strong>⚠️</strong> No Bookings - Zero covers in the last 30 days</li>
+            <li><strong>📞</strong> No Contact 60d+ - Hasn't been contacted in 60+ days</li>
+            <li><strong>💰</strong> High PI Revenue - Top performing PI account</li>
+            <li><strong>⭐</strong> Icon/Elite - Premium tier account</li>
+          </ul>
         </div>
-      </div>
-
-      <div class="kh-welcome" id="khWelcome">
-        <div class="kh-welcome-icon">✦</div>
-        <h5>Let's Get Down To Buckets</h5>
-        <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
-        
-        <button class="kh-jumpstart-trigger" onclick="startMyDay()">
-          <span>🌅</span> Start My Day
-        </button>
-        <div class="kh-section-label">InTouch Help</div>
-        <div class="kh-suggestions">
-          <button class="kh-suggestion kh-top-prompt">What can you do?</button>
-          <button class="kh-suggestion">How does iQ scoring work?</button>
-          <button class="kh-suggestion">Help me build my Focus20 list</button>
-          <button class="kh-suggestion">Sheet looks broken</button>
-          <button class="kh-suggestion">What should I look at first?</button>
-        </div>
-        <div class="kh-section-label">Account Analysis</div>
-        <div class="kh-suggestions">
-          <button class="kh-suggestion">Summarize my bucket</button>
-          <button class="kh-suggestion">Flag accounts I haven't touched in 60+ days</button>
-          <button class="kh-suggestion">Who is up for renewal soon?</button>
-          <button class="kh-suggestion">Show my Icons and Elites</button>
-          <button class="kh-suggestion">Which accounts should I pitch PI to?</button>
-          <button class="kh-suggestion">How do I rank against the team?</button>
+        <div class="help-section">
+          <h5>Quick Tips</h5>
+          <ul>
+            <li>Type "isolate" or "filter" to auto-filter your sheet</li>
+            <li>Ask for specific metrics like "show disco share"</li>
+            <li>Say "add them" after a list to bulk select accounts</li>
+          </ul>
         </div>
       </div>
-    </div>
-    <div class="kh-input-area">
-      <input type="text" class="kh-input" id="khInput" placeholder="Ask a question..." autocomplete="off">
-      <button class="kh-send" id="khSend" title="Send">➤</button>
     </div>
   </div>
 

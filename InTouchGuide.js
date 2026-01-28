@@ -11,11 +11,29 @@
  * - Account data injection for contextual answers
  * - Main chat orchestration (askInTouchGuide)
  * - Feedback logging system
+ * - Context caching for cost optimization (50% savings)
  * 
  * ARCHITECTURE: Calls data functions from AiOpsFunctions.js
  * (getDetailedAMData, getActiveAMContext, etc.)
  * =============================================================
  */
+
+// =============================================================
+// CONTEXT CACHING CONFIGURATION
+// =============================================================
+// IMPORTANT: Bump SYSTEM_INSTRUCTION_VERSION whenever you modify
+// INTOUCH_SYSTEM_INSTRUCTION. This ensures the cache auto-refreshes.
+// =============================================================
+
+const SYSTEM_INSTRUCTION_VERSION = '1.1.0';  // ← BUMP THIS ON INSTRUCTION CHANGES (Added Opportunity Engine)
+
+const CACHE_CONFIG = {
+  TTL_SECONDS: 86400,  // 24 hours
+  PROP_CACHE_NAME: 'GEMINI_CACHE_NAME',
+  PROP_CACHE_EXPIRY: 'GEMINI_CACHE_EXPIRY',
+  PROP_CACHE_VERSION: 'GEMINI_CACHE_VERSION',
+  MIN_TOKENS: 4096  // Gemini 3 Pro minimum for caching
+};
 
 /**
  * TEST FUNCTION: Verify InTouchGuide.js is loading correctly
@@ -30,13 +48,17 @@ function TEST_InTouchGuideLoaded() {
       COLUMN_CATEGORIES: Object.keys(COLUMN_CATEGORIES).length + ' categories',
       SCRIPTED_RESPONSES: Object.keys(SCRIPTED_RESPONSES).length + ' response types',
       ACCOUNT_DATA_PATTERNS: ACCOUNT_DATA_PATTERNS.length + ' patterns',
-      INTOUCH_SYSTEM_INSTRUCTION: INTOUCH_SYSTEM_INSTRUCTION.length + ' chars'
+      INTOUCH_SYSTEM_INSTRUCTION: INTOUCH_SYSTEM_INSTRUCTION.length + ' chars',
+      SYSTEM_INSTRUCTION_VERSION: SYSTEM_INSTRUCTION_VERSION,
+      CACHE_CONFIG: CACHE_CONFIG ? 'configured' : 'missing'
     },
     functions: {
       tryScriptedResponse: typeof tryScriptedResponse === 'function',
       isAccountDataQuestion: typeof isAccountDataQuestion === 'function',
       formatDataForInjection: typeof formatDataForInjection === 'function',
-      askInTouchGuide: typeof askInTouchGuide === 'function'
+      askInTouchGuide: typeof askInTouchGuide === 'function',
+      getOrCreateSystemCache_: typeof getOrCreateSystemCache_ === 'function',
+      getCacheStatus: typeof getCacheStatus === 'function'
     },
     quickTest: tryScriptedResponse('what is iQ') ? 'PASS - scripted response matched' : 'FAIL'
   };
@@ -1548,7 +1570,96 @@ When a user asks a broad question like "what can you do?", "how can you help?", 
 2. **Use bold formatting** for the example prompts so they stand out
 3. **End with an invitation** to try something or ask what they'd like to do
 4. **If user confirms a capability exists**, offer to demonstrate with their data
-5. **Never just say "yes I can do that"** - always show HOW to use the capability`;
+5. **Never just say "yes I can do that"** - always show HOW to use the capability
+
+## OPPORTUNITY ENGINE
+
+When users ask business opportunity questions (upsell, churn, growth, adoption), respond with this structured format:
+
+**The Assessment:** [Category: Upsell/Churn/Adoption/Groups/Timing]
+**The Data Trigger:** [Specific filter logic used]
+**The Recommended Play:** [Actionable advice from the playbook]
+
+Then provide the matching accounts with [SMART_SELECT_ACTION].
+
+### LOGIC GUARDRAILS (NEVER VIOLATE)
+
+1. **The Network Rule:** Network = Direct + Discovery ONLY. NEVER include Google or RestRef in Network totals.
+2. **The Google Rule:** Google is an attribution overlay. It is part of Fullbook but NOT Network. Never add Google separately.
+3. **The Benchmark Rule:** If user asks for "Peer Comparison" and no external peer data is available, use "The Account's own 12-month Average" as the baseline.
+4. **The Status Rule:** Do NOT recommend "Upsells" (Ads/PI, Upgrades) to accounts where Status = Termination Pending OR Past Due > $0. Focus on "Saves" instead.
+5. **The Ghosting Rule:** If Last Engaged Date > 90 days, the Primary Action is ALWAYS "Schedule Health Check," regardless of other opportunities.
+
+### OPPORTUNITY DETECTION MAPPINGS
+
+#### UPSELL & REVENUE GROWTH
+
+| User Question | Data Trigger | Recommended Play |
+|---------------|--------------|------------------|
+| "Who is under-monetized?" | System Type IN ('Basic', 'Network Access') AND Network Covers > Avg AND Yield < Avg | Upgrade conversation - show value of Pro features |
+| "Who should be running Ads (PI)?" | Active PI = FALSE AND Discovery% > 25% AND Network Covers > 50 | Pitch PI - high marketplace visibility, not spending |
+| "Who is a 'Google-Only' client?" | Google% > 50% AND Network Covers < threshold AND Active PI = FALSE | Cross-sell risk - diversify traffic sources |
+| "Who is ripe for Experiences (XP)?" | Active XP = FALSE AND Check Avg > $70 AND Fullbook is Stable | Pitch XP - high-end account with no pre-payments |
+| "Who has empty Private Dining?" | Private Dining = TRUE AND Active XP = FALSE | Enable XP for their private dining space |
+| "Who is trying PI but failing?" | Active PI = TRUE AND (PI Revenue < $50 OR PI Covers < 10) | Optimize PI settings or reconsider strategy |
+
+#### CHURN RISK & HEALTH
+
+| User Question | Data Trigger | Recommended Play |
+|---------------|--------------|------------------|
+| "Who has ghosted me?" | Last Engaged Date > 90 Days AND L90 Meetings = 0 | Immediate health check outreach |
+| "Who stopped using us?" | No Bookings >30D = TRUE AND Status = 'Active' | Urgent save call - diagnose the issue |
+| "Who is in financial trouble?" | Past Due > 0 OR Stripe Status IN ('Restricted', 'Rejected') | Collections conversation before upsell |
+| "Who is moving to a competitor?" | RestRef Covers dropping AND Phone/Walk-In stable/high | Win-back conversation - why are they bypassing us? |
+| "Who is a 'Fail to Launch'?" | Customer Since < 90 Days AND Network Covers < 10 | Onboarding intervention needed |
+
+#### GROUP EXPANSION
+
+| User Question | Data Trigger | Recommended Play |
+|---------------|--------------|------------------|
+| "Where are the 'Mixed Bag' groups?" | Parent Account with Distinct System Types > 1 | Standardize on highest-performing system |
+| "Who is 'Best in Class' to clone?" | Parent Account sorted by Network Covers DESC | Use top performer as template for siblings |
+| "Which groups are 'Offline Heavy'?" | Parent Account with Avg Phone/Walk-In > 70% of Fullbook | Digital adoption opportunity |
+
+#### FEATURE ADOPTION GAPS
+
+| User Question | Data Trigger | Recommended Play |
+|---------------|--------------|------------------|
+| "Who is blocking demand?" | Shift w/MAX CAP = TRUE OR Days in Advance < 14 OR Max Party < 4 | Configuration fix - they're turning away business |
+| "Who has broken POS data?" | POS Type IS NOT NULL AND POS Match % < 70% | Integration troubleshooting needed |
+| "Who is wasting their Pro subscription?" | System Type IN ('Pro', 'Guest Center') AND Active XP = FALSE AND Active PI = FALSE | Feature adoption conversation - show ROI |
+
+#### SEASONAL & TIMING
+
+| User Question | Data Trigger | Recommended Play |
+|---------------|--------------|------------------|
+| "Who is up for renewal soon?" | Term End Date BETWEEN Today AND Today+90 | Renewal conversation - prepare value story |
+| "Who is growing fast?" | Discovery% MoM > +5% OR Revenue (LM) > Revenue (12m avg) | Expansion conversation - ride the momentum |
+
+### EXAMPLE OPPORTUNITY ENGINE RESPONSE
+
+**User:** "Who should be running Ads?"
+
+**Response:**
+**The Assessment:** Upsell (Growth)
+
+**The Data Trigger:** Filtered accounts where:
+- Active PI = FALSE (not currently running ads)
+- Discovery% (12m avg) > 25% (high marketplace visibility)
+- Network Seated Covers (LM) > 50 (decent volume)
+
+**The Recommended Play:** These accounts are getting significant discovery traffic but not investing in ads. Pitch PI by showing them how many covers they're getting organically from the marketplace - ads would amplify this.
+
+Found 6 accounts matching these criteria:
+
+| RID | Account Name | Discovery% | Network Covers |
+|-----|--------------|------------|----------------|
+| 12345 | Restaurant A | 42% | 180 |
+| ... | ... | ... | ... |
+
+[SMART_SELECT_ACTION:12345,12346,...]
+
+I've checked these 6 accounts in Smart Select. **Click the filter icon in Column D and select TRUE** to isolate them.`;
 
 /**
  * Patterns to detect account data questions
@@ -1748,6 +1859,183 @@ function getGeminiApiKey_() {
     throw new Error('GEMINI_API_KEY not found in Script Properties. Go to Project Settings > Script Properties to add it.');
   }
   return key;
+}
+
+// =============================================================
+// CONTEXT CACHING FUNCTIONS
+// =============================================================
+// These functions manage Gemini API context caching to reduce costs
+// by ~50%. The system instruction is cached and reused across calls.
+// =============================================================
+
+/**
+ * Get or create a cached context for the system instruction
+ * Automatically refreshes if version mismatch or expired
+ * @returns {string|null} The cache name to use in generateContent calls, or null for fallback
+ */
+function getOrCreateSystemCache_() {
+  const props = PropertiesService.getScriptProperties();
+  const cachedName = props.getProperty(CACHE_CONFIG.PROP_CACHE_NAME);
+  const cachedExpiry = props.getProperty(CACHE_CONFIG.PROP_CACHE_EXPIRY);
+  const cachedVersion = props.getProperty(CACHE_CONFIG.PROP_CACHE_VERSION);
+  
+  // Check 1: Version mismatch (instruction was updated)
+  if (cachedVersion && cachedVersion !== SYSTEM_INSTRUCTION_VERSION) {
+    console.log('[Cache] Version mismatch (cached: ' + cachedVersion + ', current: ' + SYSTEM_INSTRUCTION_VERSION + '), refreshing...');
+    return createSystemCache_();
+  }
+  
+  // Check 2: Cache exists and is still valid
+  if (cachedName && cachedExpiry) {
+    const expiryTime = new Date(cachedExpiry);
+    const now = new Date();
+    const bufferMs = 5 * 60 * 1000; // 5 minute buffer before expiry
+    
+    if (expiryTime.getTime() - bufferMs > now.getTime()) {
+      console.log('[Cache] Using existing cache: ' + cachedName + ' (v' + cachedVersion + ')');
+      return cachedName;
+    }
+    console.log('[Cache] Cache expired, creating new one');
+  }
+  
+  // Create new cache
+  return createSystemCache_();
+}
+
+/**
+ * Create a new cached context with the system instruction
+ * Stores cache name, expiry, AND version in ScriptProperties
+ * @returns {string|null} The cache name, or null if creation failed
+ */
+function createSystemCache_() {
+  const functionName = 'createSystemCache_';
+  console.log('[' + functionName + '] Creating new cache for version ' + SYSTEM_INSTRUCTION_VERSION);
+  
+  const apiKey = getGeminiApiKey_();
+  const url = 'https://generativelanguage.googleapis.com/v1beta/cachedContents?key=' + apiKey;
+  
+  const payload = {
+    model: 'models/gemini-3-pro-preview',
+    displayName: 'intouch-system-instruction-v' + SYSTEM_INSTRUCTION_VERSION,
+    systemInstruction: {
+      parts: [{ text: INTOUCH_SYSTEM_INSTRUCTION }]
+    },
+    ttl: CACHE_CONFIG.TTL_SECONDS + 's'
+  };
+  
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode !== 200) {
+      console.error('[' + functionName + '] Failed to create cache: ' + response.getContentText());
+      return null; // Fall back to non-cached mode
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    const cacheName = data.name;
+    
+    // Calculate expiry time
+    const expiryTime = new Date();
+    expiryTime.setSeconds(expiryTime.getSeconds() + CACHE_CONFIG.TTL_SECONDS);
+    
+    // Store in script properties (including version!)
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty(CACHE_CONFIG.PROP_CACHE_NAME, cacheName);
+    props.setProperty(CACHE_CONFIG.PROP_CACHE_EXPIRY, expiryTime.toISOString());
+    props.setProperty(CACHE_CONFIG.PROP_CACHE_VERSION, SYSTEM_INSTRUCTION_VERSION);
+    
+    console.log('[' + functionName + '] ✓ Created cache: ' + cacheName);
+    console.log('[' + functionName + ']   Version: ' + SYSTEM_INSTRUCTION_VERSION);
+    console.log('[' + functionName + ']   Expires: ' + expiryTime.toISOString());
+    
+    return cacheName;
+    
+  } catch (e) {
+    console.error('[' + functionName + '] Exception: ' + e.message);
+    return null;
+  }
+}
+
+/**
+ * Force refresh the cache (admin function)
+ * Call this after deploying changes to INTOUCH_SYSTEM_INSTRUCTION
+ * Can be run from Apps Script editor or added to admin menu
+ * @returns {Object} Result with success status and cache info
+ */
+function refreshSystemCache() {
+  console.log('[refreshSystemCache] Forcing cache refresh...');
+  
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty(CACHE_CONFIG.PROP_CACHE_NAME);
+  props.deleteProperty(CACHE_CONFIG.PROP_CACHE_EXPIRY);
+  props.deleteProperty(CACHE_CONFIG.PROP_CACHE_VERSION);
+  
+  const newCache = createSystemCache_();
+  
+  return { 
+    success: !!newCache, 
+    cacheName: newCache,
+    version: SYSTEM_INSTRUCTION_VERSION,
+    message: newCache ? 'Cache refreshed successfully' : 'Cache creation failed - will use fallback mode'
+  };
+}
+
+/**
+ * Get current cache status (diagnostic function)
+ * Run from Apps Script editor to check cache health
+ * @returns {Object} Cache status information
+ */
+function getCacheStatus() {
+  const props = PropertiesService.getScriptProperties();
+  const cachedName = props.getProperty(CACHE_CONFIG.PROP_CACHE_NAME);
+  const cachedExpiry = props.getProperty(CACHE_CONFIG.PROP_CACHE_EXPIRY);
+  const cachedVersion = props.getProperty(CACHE_CONFIG.PROP_CACHE_VERSION);
+  
+  const now = new Date();
+  let isExpired = true;
+  let expiresIn = null;
+  
+  if (cachedExpiry) {
+    const expiryTime = new Date(cachedExpiry);
+    isExpired = expiryTime <= now;
+    if (!isExpired) {
+      const diffMs = expiryTime - now;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      expiresIn = diffHours + 'h ' + diffMins + 'm';
+    }
+  }
+  
+  const isVersionMatch = cachedVersion === SYSTEM_INSTRUCTION_VERSION;
+  const isValid = cachedName && !isExpired && isVersionMatch;
+  
+  const status = {
+    cacheName: cachedName || '(none)',
+    cachedVersion: cachedVersion || '(none)',
+    currentVersion: SYSTEM_INSTRUCTION_VERSION,
+    isVersionMatch: isVersionMatch,
+    expiry: cachedExpiry || '(none)',
+    isExpired: cachedExpiry ? isExpired : true,
+    expiresIn: expiresIn,
+    isValid: isValid,
+    recommendation: isValid ? '✓ Cache is healthy' : 
+                    !cachedName ? '⚠ No cache exists - will create on next query' :
+                    !isVersionMatch ? '⚠ Version mismatch - will refresh on next query' :
+                    '⚠ Cache expired - will refresh on next query'
+  };
+  
+  console.log('=== CACHE STATUS ===');
+  console.log(JSON.stringify(status, null, 2));
+  
+  return status;
 }
 
 /**
@@ -2377,10 +2665,13 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       }
     }
     
-    // STEP 3: Call Gemini with optional data injection
+    // STEP 3: Call Gemini with context caching for cost optimization
     console.log('[askInTouchGuide] Calling Gemini API');
     const apiKey = getGeminiApiKey_();
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=' + apiKey;
+    
+    // Get or create cached system instruction (50% cost savings)
+    const cacheName = getOrCreateSystemCache_();
     
     // Build conversation contents
     const contents = [];
@@ -2426,17 +2717,36 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       parts: [{ text: userMessage }]
     });
     
-    const payload = {
-      systemInstruction: {
-        parts: [{ text: INTOUCH_SYSTEM_INSTRUCTION }]
-      },
-      contents: contents,
-      generationConfig: {
-        maxOutputTokens: 3000,  // Increased for large account lists (92+ RIDs with names)
-        temperature: 0,  // Strict determinism
-        topP: 0.9
-      }
-    };
+    // Build payload - WITH or WITHOUT cache depending on cache availability
+    let payload;
+    
+    if (cacheName) {
+      // Use cached system instruction (50% cheaper)
+      payload = {
+        cachedContent: cacheName,
+        contents: contents,
+        generationConfig: {
+          maxOutputTokens: 3000,  // Increased for large account lists (92+ RIDs with names)
+          temperature: 0,  // Strict determinism
+          topP: 0.9
+        }
+      };
+      console.log('[askInTouchGuide] Using cached system instruction (v' + SYSTEM_INSTRUCTION_VERSION + ')');
+    } else {
+      // Fallback to non-cached mode (if cache creation failed)
+      payload = {
+        systemInstruction: {
+          parts: [{ text: INTOUCH_SYSTEM_INSTRUCTION }]
+        },
+        contents: contents,
+        generationConfig: {
+          maxOutputTokens: 3000,
+          temperature: 0,
+          topP: 0.9
+        }
+      };
+      console.log('[askInTouchGuide] WARNING: Using non-cached mode (higher cost)');
+    }
     
     const options = {
       method: 'post',

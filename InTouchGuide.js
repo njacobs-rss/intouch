@@ -2115,6 +2115,23 @@ function formatDataForInjection(data) {
     text += formatListWithRids('ACCOUNTS WITH NO ENGAGEMENT IN LAST 90 DAYS', data.noEngagement90.rids);
   }
 
+  // 🟢 NEW: Raw dates per account for DYNAMIC time-based filtering
+  // Allows AI to answer "met in past week", "no tasks in 30 days", any arbitrary time window
+  if (data.accountsWithDates && data.accountsWithDates.length > 0) {
+    text += `\n--- ACCOUNT DATES FOR DYNAMIC FILTERING ---\n`;
+    text += `Today's Date: ${new Date().toISOString().split('T')[0]}\n`;
+    text += `Use these dates to filter by ANY time window (7 days, 30 days, etc.)\n`;
+    text += `Format: RID | Name | Last Meeting | Last Task | Last Engagement\n\n`;
+    
+    data.accountsWithDates.forEach(acct => {
+      const meeting = acct.eventDate || '[NO MEETING]';
+      const task = acct.taskDate || '[NO TASK]';
+      const engaged = acct.lastEngagedDate || '[NO ENGAGEMENT]';
+      text += `${acct.rid} | ${acct.name} | ${meeting} | ${task} | ${engaged}\n`;
+    });
+    text += `--- END ACCOUNT DATES ---\n\n`;
+  }
+
   // Enhanced category with per-category metrics (System Mix, Quality Tiers)
   // IMPORTANT: Include ALL RIDs WITH NAMES so AI can list them without hallucinating
   const formatMetricCategory = (name, items) => {
@@ -2417,7 +2434,6 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       generationConfig: {
         maxOutputTokens: 3000,  // Increased for large account lists (92+ RIDs with names)
         temperature: 0,  // Strict determinism
-        response_mime_type: "application/json",
         topP: 0.9
       }
     };

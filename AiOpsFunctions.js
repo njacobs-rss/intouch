@@ -1484,6 +1484,9 @@ function getDetailedAMData(amName) {
       noMeetings90: [],         // Accounts with L90 Total Meetings = 0 OR blank Event Date [{rid, name}]
       noTasks90: [],            // Accounts with blank Task Date (no tasks logged in 90 days) [{rid, name}]
       noEngagement90: [],       // Accounts with blank Last Engaged Date (no activity at all in 90 days) [{rid, name}]
+      // 🟢 NEW: Raw date values per account for dynamic time-based filtering
+      // Allows AI to answer "met in past week", "no tasks in 30 days", any arbitrary window
+      accountsWithDates: [],    // [{rid, name, eventDate, taskDate, lastEngagedDate}]
       staleEngagement90: [],    // Accounts with Last Engaged Date > 90 days ago [{rid, name, daysSince}]
       staleEngagement60: [],    // Accounts with Last Engaged Date > 60 days ago [{rid, name, daysSince}]
       staleEngagement30: [],    // Accounts with Last Engaged Date > 30 days ago [{rid, name, daysSince}]
@@ -1734,6 +1737,23 @@ function getDetailedAMData(amName) {
           }
         }
       }
+      
+      // 🟢 NEW: Collect raw dates for dynamic time-based filtering
+      // Allows AI to answer "met in past week", "no contact in 14 days", etc.
+      const formatDateForAI = (val) => {
+        if (isBlank(val)) return null;
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().split('T')[0]; // YYYY-MM-DD format
+      };
+      
+      data.accountsWithDates.push({
+        rid: rid,
+        name: name,
+        eventDate: map.eventDate > -1 ? formatDateForAI(row[map.eventDate]) : null,
+        taskDate: map.taskDate > -1 ? formatDateForAI(row[map.taskDate]) : null,
+        lastEngagedDate: map.lastEngaged > -1 ? formatDateForAI(row[map.lastEngaged]) : null
+      });
     });
     
     // Calculate averages
@@ -1823,6 +1843,10 @@ function getDetailedAMData(amName) {
       staleEngagement90: { count: data.staleEngagement90.length, rids: data.staleEngagement90 },
       staleEngagement60: { count: data.staleEngagement60.length, rids: data.staleEngagement60 },
       staleEngagement30: { count: data.staleEngagement30.length, rids: data.staleEngagement30 },
+      
+      // 🟢 NEW: Raw dates per account for dynamic time-based filtering
+      // AI can filter by any time window: "met in past week", "no tasks in 30 days", etc.
+      accountsWithDates: data.accountsWithDates,
       
       durationMs: new Date() - startTime
     };

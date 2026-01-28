@@ -59,7 +59,7 @@ function onOpen(e) {
     .addItem('Remove RIDs from Smart Select', 'removeTrueAccountsFromFocus20Optimized');
 
   const globalFunctionsSubMenu = ui.createMenu('Global Functions')
-    .addItem('🔌 Test Gemini API (Fleet)', 'testGeminiFleet');
+
 
   adminMenu.addSubMenu(amTabsSubMenu)
            .addSubMenu(focus20SubMenu)

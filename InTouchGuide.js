@@ -2755,31 +2755,118 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       muteHttpExceptions: true
     };
     
-    const response = UrlFetchApp.fetch(url, options);
-    const responseCode = response.getResponseCode();
+    let response = UrlFetchApp.fetch(url, options);
+    let responseCode = response.getResponseCode();
+    let data;
+    let answer;
     
+    // First attempt with cache
     if (responseCode !== 200) {
       const errorText = response.getContentText();
-      console.log('API ERROR: ' + errorText);
-      throw new Error('Gemini API error: ' + responseCode);
+      console.log('[askInTouchGuide] API ERROR (code ' + responseCode + '): ' + errorText);
+      
+      // If cache-related error, try without cache
+      if (cacheName && (errorText.includes('cachedContent') || errorText.includes('INVALID') || responseCode === 400)) {
+        console.log('[askInTouchGuide] Cache error detected, retrying without cache...');
+        
+        // Clear bad cache
+        const props = PropertiesService.getScriptProperties();
+        props.deleteProperty(CACHE_CONFIG.PROP_CACHE_NAME);
+        props.deleteProperty(CACHE_CONFIG.PROP_CACHE_EXPIRY);
+        props.deleteProperty(CACHE_CONFIG.PROP_CACHE_VERSION);
+        
+        // Retry with full system instruction
+        const fallbackPayload = {
+          systemInstruction: {
+            parts: [{ text: INTOUCH_SYSTEM_INSTRUCTION }]
+          },
+          contents: contents,
+          generationConfig: {
+            maxOutputTokens: 3000,
+            temperature: 0,
+            topP: 0.9
+          }
+        };
+        
+        options.payload = JSON.stringify(fallbackPayload);
+        response = UrlFetchApp.fetch(url, options);
+        responseCode = response.getResponseCode();
+        
+        if (responseCode !== 200) {
+          throw new Error('Gemini API error: ' + responseCode);
+        }
+      } else {
+        throw new Error('Gemini API error: ' + responseCode);
+      }
     }
     
-    const data = JSON.parse(response.getContentText());
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    data = JSON.parse(response.getContentText());
+    answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     // Log token usage to central sheet
     if (data.usageMetadata) {
       try {
         const queryType = injectedData && injectedData.success ? 'portfolio_analysis' : 'chat';
         logApiUsage(data.usageMetadata, queryType);
+        
+        // Log cache hit for monitoring
+        if (data.usageMetadata.cachedContentTokenCount > 0) {
+          console.log('[askInTouchGuide] Cache HIT: ' + data.usageMetadata.cachedContentTokenCount + ' tokens from cache');
+        }
       } catch (logErr) {
         console.log('[askInTouchGuide] Token logging failed: ' + logErr.message);
       }
     }
     
+    // Check for blocked content or empty response
     if (!answer) {
-      console.log('No answer in response: ' + JSON.stringify(data));
-      throw new Error('No response generated');
+      // Check if content was blocked
+      if (data.promptFeedback?.blockReason) {
+        console.log('[askInTouchGuide] Content blocked: ' + data.promptFeedback.blockReason);
+        throw new Error('Response blocked by safety filter');
+      }
+      
+      // Check finish reason
+      const finishReason = data.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== 'STOP') {
+        console.log('[askInTouchGuide] Unexpected finish reason: ' + finishReason);
+        
+        // If cache-related issue, retry without cache
+        if (cacheName && (finishReason === 'OTHER' || finishReason === 'RECITATION')) {
+          console.log('[askInTouchGuide] Retrying without cache due to finish reason...');
+          
+          // Clear cache and retry
+          const props = PropertiesService.getScriptProperties();
+          props.deleteProperty(CACHE_CONFIG.PROP_CACHE_NAME);
+          props.deleteProperty(CACHE_CONFIG.PROP_CACHE_EXPIRY);
+          props.deleteProperty(CACHE_CONFIG.PROP_CACHE_VERSION);
+          
+          const fallbackPayload = {
+            systemInstruction: {
+              parts: [{ text: INTOUCH_SYSTEM_INSTRUCTION }]
+            },
+            contents: contents,
+            generationConfig: {
+              maxOutputTokens: 3000,
+              temperature: 0,
+              topP: 0.9
+            }
+          };
+          
+          options.payload = JSON.stringify(fallbackPayload);
+          response = UrlFetchApp.fetch(url, options);
+          
+          if (response.getResponseCode() === 200) {
+            data = JSON.parse(response.getContentText());
+            answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          }
+        }
+      }
+      
+      if (!answer) {
+        console.log('[askInTouchGuide] No answer in response: ' + JSON.stringify(data).substring(0, 500));
+        throw new Error('No response generated');
+      }
     }
     
     const durationMs = new Date() - startTime;

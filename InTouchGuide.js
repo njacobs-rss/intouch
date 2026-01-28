@@ -419,6 +419,11 @@ InTouch uses a fixed column structure with DYNAMIC columns that can be changed v
   - **L90 Total Meetings** = Count of meetings in last 90 days → use for "no meetings in 90 days" queries
   - **Last Engaged Date** = MAX(Task Date, Event Date) → use for "last engagement" queries
   - These are NOT missing data. They ARE in STATCORE. You CAN add these columns and analyze them.
+  - **CRITICAL: Blank cells in Event/Task/Engagement columns specifically mean NO ACTIVITY in past 90 days:**
+    - Blank **Event Date** = AM has not logged a meeting in 90 days
+    - Blank **Task Date** = AM has not logged a task in 90 days
+    - Blank **Last Engaged Date** = AM has not logged ANY activity in 90 days
+    - This rule applies ONLY to these three columns - blank cells in other columns have different meanings
 
 **Account + Status Info section** (M-N-O)
 - Defaults: No Bookings >30 Days, Status, System Type
@@ -529,9 +534,16 @@ NEVER add Google separately to Fullbook calculations
 - "When was the last task?" → Use **Task Date** (see intent: get_last_task_date)
 - "When did we last engage?" → Use **Last Engaged Date** (see intent: get_last_engagement_date)
 - "How many meetings in 90 days?" → Use **L90 Total Meetings** (see intent: get_l90_meeting_count)
-- "Accounts with no meetings in 90 days" → Filter where L90 Total Meetings = 0 (see intent: list_unmet_accounts_l90)
+- "Accounts with no meetings in 90 days" → Filter where L90 Total Meetings = 0 OR Event Date is blank (see intent: list_unmet_accounts_l90)
 
 **These columns ARE available in Dates & Activity section.** You CAN add them and analyze them.
+
+**CRITICAL - Blank Values in Event/Task/Engagement Columns Mean No Activity:**
+(This rule applies ONLY to these three specific columns)
+- Blank **Event Date** = No meeting logged in past 90 days (not "data unavailable")
+- Blank **Task Date** = No task logged in past 90 days
+- Blank **Last Engaged Date** = No activity logged at all in past 90 days
+- These blank accounts ARE the ones needing attention - they represent coverage gaps.
 
 ### Contract Alerts - Column L default
 - EXPIRED = urgent same-week outreach

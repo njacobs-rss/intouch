@@ -1470,7 +1470,11 @@ function getDetailedAMData(amName) {
       alertFlags: {},           // { "⚠️ 0-Fullbook": [{rid, name}], "❗Hibernated": [{rid, name}] }
       accountsWithAlerts: [],   // All accounts that have any alert flag [{rid, name, alerts: [...]}]
       // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, focus20_meetings_gap, etc.)
-      noMeetings90: [],         // Accounts with L90 Total Meetings = 0 [{rid, name}]
+      // IMPORTANT: Blank cells in Event Date, Task Date, Last Engaged Date columns specifically
+      // mean NO ACTIVITY in past 90 days - this rule applies ONLY to these three columns
+      noMeetings90: [],         // Accounts with L90 Total Meetings = 0 OR blank Event Date [{rid, name}]
+      noTasks90: [],            // Accounts with blank Task Date (no tasks logged in 90 days) [{rid, name}]
+      noEngagement90: [],       // Accounts with blank Last Engaged Date (no activity at all in 90 days) [{rid, name}]
       staleEngagement90: [],    // Accounts with Last Engaged Date > 90 days ago [{rid, name, daysSince}]
       staleEngagement60: [],    // Accounts with Last Engaged Date > 60 days ago [{rid, name, daysSince}]
       staleEngagement30: [],    // Accounts with Last Engaged Date > 30 days ago [{rid, name, daysSince}]
@@ -1478,7 +1482,8 @@ function getDetailedAMData(amName) {
         active: [],             // <30 days
         monitor: [],            // 30-60 days
         atRisk: [],             // 60-90 days
-        critical: []            // >90 days
+        critical: [],           // >90 days
+        noActivity: []          // Blank Last Engaged Date = no activity logged at all
       },
       // Numeric aggregations (overall)
       subSum: 0, subCnt: 0,
@@ -1628,35 +1633,66 @@ function getDetailedAMData(amName) {
       }
       
       // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, etc.)
-      // Track L90 Total Meetings = 0 (accounts with no meetings in 90 days)
+      // IMPORTANT: Blank cells in Event Date, Task Date, Last Engaged Date columns specifically
+      // mean NO ACTIVITY in past 90 days - this rule applies ONLY to these three columns
+      
+      // Helper to check if value is blank/empty
+      const isBlank = (val) => val === '' || val === null || val === undefined || 
+                               (typeof val === 'string' && val.trim() === '');
+      
+      // Track accounts with no meetings in 90 days (L90 = 0 OR blank Event Date)
+      let hasNoMeetings = false;
       if (map.l90Meetings > -1) {
         const l90 = parseFloat(row[map.l90Meetings]);
-        if (l90 === 0 || isNaN(l90) || row[map.l90Meetings] === '' || row[map.l90Meetings] === null) {
-          data.noMeetings90.push({ rid, name });
+        if (l90 === 0 || isNaN(l90) || isBlank(row[map.l90Meetings])) {
+          hasNoMeetings = true;
         }
+      }
+      // Also check Event Date - blank means no meeting logged in 90 days
+      if (map.eventDate > -1 && isBlank(row[map.eventDate])) {
+        hasNoMeetings = true;
+      }
+      if (hasNoMeetings) {
+        data.noMeetings90.push({ rid, name });
+      }
+      
+      // Track accounts with no tasks in 90 days (blank Task Date)
+      if (map.taskDate > -1 && isBlank(row[map.taskDate])) {
+        data.noTasks90.push({ rid, name });
       }
       
       // Track Last Engaged Date buckets (for engagement coverage analysis)
-      if (map.lastEngaged > -1 && row[map.lastEngaged]) {
-        const engagedDate = new Date(row[map.lastEngaged]);
-        if (!isNaN(engagedDate.getTime())) {
-          const daysSince = Math.floor((today - engagedDate) / (1000 * 60 * 60 * 24));
-          
-          // Bucket assignment (mutual exclusive - account goes in worst bucket)
-          if (daysSince > 90) {
-            data.engagementBuckets.critical.push({ rid, name, daysSince });
-            data.staleEngagement90.push({ rid, name, daysSince });
-            data.staleEngagement60.push({ rid, name, daysSince });
-            data.staleEngagement30.push({ rid, name, daysSince });
-          } else if (daysSince > 60) {
-            data.engagementBuckets.atRisk.push({ rid, name, daysSince });
-            data.staleEngagement60.push({ rid, name, daysSince });
-            data.staleEngagement30.push({ rid, name, daysSince });
-          } else if (daysSince > 30) {
-            data.engagementBuckets.monitor.push({ rid, name, daysSince });
-            data.staleEngagement30.push({ rid, name, daysSince });
-          } else {
-            data.engagementBuckets.active.push({ rid, name, daysSince });
+      // Blank Last Engaged Date = NO ACTIVITY AT ALL in 90 days (worst case)
+      if (map.lastEngaged > -1) {
+        if (isBlank(row[map.lastEngaged])) {
+          // Blank = No engagement logged at all - this is CRITICAL
+          data.engagementBuckets.noActivity.push({ rid, name });
+          data.engagementBuckets.critical.push({ rid, name, daysSince: 999 }); // Also in critical
+          data.noEngagement90.push({ rid, name });
+          data.staleEngagement90.push({ rid, name, daysSince: 999 });
+          data.staleEngagement60.push({ rid, name, daysSince: 999 });
+          data.staleEngagement30.push({ rid, name, daysSince: 999 });
+        } else {
+          const engagedDate = new Date(row[map.lastEngaged]);
+          if (!isNaN(engagedDate.getTime())) {
+            const daysSince = Math.floor((today - engagedDate) / (1000 * 60 * 60 * 24));
+            
+            // Bucket assignment (mutual exclusive - account goes in worst bucket)
+            if (daysSince > 90) {
+              data.engagementBuckets.critical.push({ rid, name, daysSince });
+              data.staleEngagement90.push({ rid, name, daysSince });
+              data.staleEngagement60.push({ rid, name, daysSince });
+              data.staleEngagement30.push({ rid, name, daysSince });
+            } else if (daysSince > 60) {
+              data.engagementBuckets.atRisk.push({ rid, name, daysSince });
+              data.staleEngagement60.push({ rid, name, daysSince });
+              data.staleEngagement30.push({ rid, name, daysSince });
+            } else if (daysSince > 30) {
+              data.engagementBuckets.monitor.push({ rid, name, daysSince });
+              data.staleEngagement30.push({ rid, name, daysSince });
+            } else {
+              data.engagementBuckets.active.push({ rid, name, daysSince });
+            }
           }
         }
       }
@@ -1733,14 +1769,18 @@ function getDetailedAMData(amName) {
       },
       
       // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, focus20_meetings_gap, etc.)
-      noMeetings90: { count: data.noMeetings90.length, rids: data.noMeetings90 },
+      // IMPORTANT: Blank cells in Event/Task/Engagement columns specifically mean NO ACTIVITY in past 90 days
+      noMeetings90: { count: data.noMeetings90.length, rids: data.noMeetings90 },  // L90=0 OR blank Event Date
+      noTasks90: { count: data.noTasks90.length, rids: data.noTasks90 },            // Blank Task Date
+      noEngagement90: { count: data.noEngagement90.length, rids: data.noEngagement90 }, // Blank Last Engaged Date
       
       // Engagement coverage buckets (for coverage analysis queries)
       engagementCoverage: {
         active: { count: data.engagementBuckets.active.length, rids: data.engagementBuckets.active },
         monitor: { count: data.engagementBuckets.monitor.length, rids: data.engagementBuckets.monitor },
         atRisk: { count: data.engagementBuckets.atRisk.length, rids: data.engagementBuckets.atRisk },
-        critical: { count: data.engagementBuckets.critical.length, rids: data.engagementBuckets.critical }
+        critical: { count: data.engagementBuckets.critical.length, rids: data.engagementBuckets.critical },
+        noActivity: { count: data.engagementBuckets.noActivity.length, rids: data.engagementBuckets.noActivity }
       },
       staleEngagement90: { count: data.staleEngagement90.length, rids: data.staleEngagement90 },
       staleEngagement60: { count: data.staleEngagement60.length, rids: data.staleEngagement60 },

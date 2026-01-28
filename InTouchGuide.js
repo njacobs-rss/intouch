@@ -2971,6 +2971,789 @@ function layerSmartSelectFilter(newRids, previousRids, expectedAM) {
   }
 }
 
+// =============================================================
+// SECTION: INTENT LOGIC FILTER (Data Contract Enforcement)
+// =============================================================
+// This layer wraps the existing parser to add:
+// - Field type classification for null/missing data handling
+// - Temporal disambiguation (timeframe hierarchy)
+// - Confidence scoring with clarifying questions
+// - Data contract compliance (Section 12.1, 12.2, 12.3)
+//
+// IMPORTANT: This does NOT modify any existing mappings.
+// All COLUMN_CATEGORIES, VALUE_TO_METRIC, SCRIPTED_RESPONSES,
+// and ACCOUNT_DATA_PATTERNS are preserved 100%.
+// =============================================================
+
+/**
+ * DATA CONTRACT: Field Type Rules
+ * Classifies all fields by their data type for proper null handling
+ * Reference: data_contract.field_type_rules
+ */
+const FIELD_TYPE_RULES = {
+  // Identity and Categorical fields - never infer from other fields
+  IDENTITY_CATEGORICAL: {
+    fields: [
+      'System Type', 'System Status', 'Restaurant Status', 'Status',
+      'Payment Method', 'System of Record', 'Rest. Quality', 'Special Programs',
+      'Exclusive Pricing', 'POS Type', 'Metro', 'Macro', 'Neighborhood'
+    ],
+    null_behavior: {
+      output: 'Data unavailable',
+      never_infer: true,
+      message_template: '{field} is not available for this account.'
+    }
+  },
+  
+  // Boolean and flag fields - null is unknown, not false
+  BOOLEAN_FLAGS: {
+    fields: [
+      'Active PI', 'Active XP', 'Private Dining', 'Instant Booking',
+      'Shift w/MAX CAP', 'PartnerFeed EXCLUDED', 'No Bookings >30 Days',
+      'Email Integration', 'AutoTags Active - Last 30'
+    ],
+    null_behavior: {
+      treat_null_as_unknown: true,
+      never_assume_false: true,
+      message_template: 'Status for {field} is not available in this view.'
+    }
+  },
+  
+  // Date fields - never infer or approximate
+  DATE_FIELDS: {
+    fields: [
+      'Last Engaged Date', 'Event Date', 'Task Date', 'Customer Since',
+      'Current Term End Date', 'AM Assigned Date', 'Focus20'
+    ],
+    null_behavior: {
+      message_template: 'No date is recorded in InTouch for {field} on this account.',
+      never_infer: true,
+      never_approximate: true
+    }
+  },
+  
+  // Count and volume metrics - 0 is valid, null is different
+  COUNT_VOLUME: {
+    fields: [
+      'CVR Last Month - Direct', 'CVR Last Month - Discovery', 'CVR Last Month - Network',
+      'CVR Last Month - Google', 'CVR Last Month - Fullbook', 'CVR Last Month - RestRef',
+      'CVR Last Month - Phone/Walkin', 'CVRs 12m Avg. - Network', 'CVRs 12m Avg. - Dir',
+      'CVRs 12m Avg. - Disc', 'CVRs 12m Avg. - FullBook', 'CVRs 12m Avg. - Google',
+      'L90 Total Meetings', 'PRO-Last Sent'
+    ],
+    null_behavior: {
+      zero_is_valid: true,
+      null_message: 'Data unavailable',
+      null_explanation: 'May indicate no activity or missing data.',
+      aggregate_rule: 'exclude_null_from_sums_and_note_partial_coverage'
+    }
+  },
+  
+  // Revenue and monetary fields
+  REVENUE_MONETARY: {
+    fields: [
+      'Revenue - Total Last Month', 'Revenue - Total 12m Avg.', 'Revenue - Subs Last Month',
+      'Revenue - PI Last Month', 'Total Due', 'Past Due', 'Rev Yield - Total Last Month',
+      'Check Avg. Last 30', 'SUBFEES'
+    ],
+    null_behavior: {
+      revenue_message: 'Revenue data is unavailable for this period.',
+      billing_message: 'Billing balance is unavailable.',
+      yield_rule: 'If numerator or denominator is null or 0, return N/A with explanation.'
+    }
+  },
+  
+  // Percentage and share fields
+  PERCENTAGE_SHARE: {
+    fields: [
+      'Disco % Current', 'CVRs LM - Discovery %', 'CVRs LM - Direct %',
+      'CVRs - Discovery % Avg. 12m', 'Google % Avg. 12m', 'Disco % MoM (+/-)',
+      'Disco % WoW (+/-)*', 'PI Rev Share %', 'POS Match %'
+    ],
+    null_behavior: {
+      zero_denominator_output: 'N/A',
+      explanation: 'Metric is not available because the denominator for this period is zero or missing.'
+    }
+  }
+};
+
+/**
+ * DATA CONTRACT: Timeframe Hierarchy
+ * Maps natural language timeframes to specific fields
+ * Reference: data_contract.temporal_disambiguation
+ */
+const TIMEFRAME_HIERARCHY = {
+  // Explicit periods - honor exactly as stated
+  EXPLICIT: {
+    'last month': {
+      covers: ['CVR Last Month - *'],
+      revenue: ['Revenue - * Last Month'],
+      shares: ['CVRs LM - *']
+    },
+    'last 12 months': {
+      covers: ['CVRs 12m Avg. - *'],
+      revenue: ['Revenue - * 12m Avg.'],
+      shares: ['* % Avg. 12m']
+    },
+    'over the last year': {
+      covers: ['CVRs 12m Avg. - *'],
+      revenue: ['Revenue - * 12m Avg.'],
+      shares: ['* % Avg. 12m']
+    },
+    'on average': {
+      covers: ['CVRs 12m Avg. - *'],
+      revenue: ['Revenue - * 12m Avg.'],
+      shares: ['* % Avg. 12m']
+    }
+  },
+  
+  // Relative recent periods
+  RELATIVE_RECENT: {
+    patterns: [/recent(ly)?/i, /lately/i],
+    default_mapping: {
+      covers: 'CVR Last Month - *',
+      revenue: 'Revenue - * Last Month',
+      shares: 'CVRs LM - *'
+    }
+  },
+  
+  // Current/right now
+  CURRENT_SNAPSHOT: {
+    patterns: [/right now/i, /current(ly)?/i, /today/i],
+    default_mapping: {
+      shares: 'Disco % Current',
+      status: ['No Bookings >30 Days', 'System Status', 'Status']
+    }
+  },
+  
+  // Trend language
+  TREND: {
+    monthly: {
+      patterns: [/month over month/i, /mom/i, /monthly trend/i],
+      field: 'Disco % MoM (+/-)'
+    },
+    weekly: {
+      patterns: [/week over week/i, /wow/i, /weekly trend/i, /this week vs last/i],
+      field: 'Disco % WoW (+/-)*'
+    }
+  }
+};
+
+/**
+ * DATA CONTRACT: Channel Math Rules
+ * Enforces correct channel calculations
+ * Reference: data_contract.channel_math_rules
+ */
+const CHANNEL_MATH_RULES = {
+  network_identity: {
+    formula: 'Network = Direct + Discovery',
+    note: 'Exact identity. Google is NOT added on top of Network.'
+  },
+  fullbook_reconciliation: {
+    formula: 'Fullbook = Network + RestRef + Phone/Walk-In',
+    note: 'Fullbook represents all covers from all sources.'
+  },
+  google_attribution: {
+    rule: 'Google is an attribution overlay within Direct/Discovery, NOT a separate additive channel.',
+    violations: [
+      'Never add Google covers as a separate term in Fullbook.',
+      'Do not double-count Google when computing cover totals or shares.'
+    ]
+  }
+};
+
+/**
+ * Parse intent with confidence scoring
+ * Wraps existing tryScriptedResponse with confidence levels
+ * @param {string} query - User's natural language query
+ * @returns {Object} { intent, confidence, field, timeframe, needsClarification, clarificationPrompt }
+ */
+function parseIntentWithConfidence(query) {
+  const functionName = 'parseIntentWithConfidence';
+  console.log(`[${functionName}] Parsing: "${query}"`);
+  
+  const result = {
+    intent: null,
+    confidence: 0,
+    field: null,
+    fieldType: null,
+    timeframe: null,
+    needsClarification: false,
+    clarificationPrompt: null,
+    candidates: []
+  };
+  
+  if (!query || query.trim() === '') {
+    return result;
+  }
+  
+  const normalizedQuery = query.toLowerCase().trim();
+  
+  // Step 1: Try existing scripted response (highest confidence)
+  const scriptedResult = tryScriptedResponse(query);
+  if (scriptedResult && scriptedResult.success) {
+    result.intent = 'scripted_response';
+    result.confidence = 1.0;
+    result.scriptedAnswer = scriptedResult.answer;
+    console.log(`[${functionName}] Scripted match - confidence: 1.0`);
+    return result;
+  }
+  
+  // Step 2: Check VALUE_TO_METRIC mappings with confidence scoring
+  const valueMatches = scoreValueMatches(normalizedQuery);
+  if (valueMatches.length > 0) {
+    result.candidates = valueMatches;
+    const topMatch = valueMatches[0];
+    
+    // Check for ambiguity (top two candidates within 0.1 of each other)
+    if (valueMatches.length > 1) {
+      const delta = topMatch.score - valueMatches[1].score;
+      if (delta < 0.1) {
+        result.needsClarification = true;
+        result.clarificationPrompt = buildClarificationPrompt(valueMatches.slice(0, 3), query);
+        result.confidence = topMatch.score;
+        console.log(`[${functionName}] Ambiguous match - delta ${delta.toFixed(2)} < 0.1, triggering clarification`);
+        return result;
+      }
+    }
+    
+    result.intent = 'field_lookup';
+    result.confidence = topMatch.score;
+    result.field = topMatch.metric;
+    result.fieldType = getFieldType(topMatch.metric);
+    
+    // Check confidence threshold
+    if (result.confidence < 0.8) {
+      result.needsClarification = true;
+      result.clarificationPrompt = buildLowConfidenceClarification(topMatch, query);
+      console.log(`[${functionName}] Low confidence ${result.confidence.toFixed(2)} < 0.8, triggering clarification`);
+    }
+  }
+  
+  // Step 3: Detect and resolve timeframe
+  const timeframeResult = detectTimeframe(normalizedQuery);
+  if (timeframeResult.detected) {
+    result.timeframe = timeframeResult;
+  }
+  
+  // Step 4: Check for conflicting timeframes
+  if (timeframeResult.conflict) {
+    result.needsClarification = true;
+    result.clarificationPrompt = timeframeResult.clarificationPrompt;
+  }
+  
+  console.log(`[${functionName}] Final confidence: ${result.confidence.toFixed(2)}, needsClarification: ${result.needsClarification}`);
+  return result;
+}
+
+/**
+ * Score matches against VALUE_TO_METRIC mappings
+ * @param {string} query - Normalized query
+ * @returns {Array} Sorted array of {value, metric, category, score}
+ */
+function scoreValueMatches(query) {
+  const matches = [];
+  const queryWords = query.split(/\s+/);
+  
+  for (const [value, mapping] of Object.entries(VALUE_TO_METRIC)) {
+    let score = 0;
+    const valueLower = value.toLowerCase();
+    
+    // Exact word match
+    if (queryWords.includes(valueLower)) {
+      score = 0.95;
+    }
+    // Partial match (word starts with value)
+    else if (queryWords.some(w => w.startsWith(valueLower))) {
+      score = 0.85;
+    }
+    // Contains match
+    else if (query.includes(valueLower)) {
+      score = 0.7;
+    }
+    // Fuzzy match (allow for typos)
+    else {
+      const fuzzyScore = fuzzyMatch(query, valueLower);
+      if (fuzzyScore > 0.6) {
+        score = fuzzyScore * 0.8; // Cap fuzzy matches at 0.8 max
+      }
+    }
+    
+    if (score > 0) {
+      matches.push({
+        value: value,
+        metric: mapping.metric,
+        category: mapping.category,
+        score: score
+      });
+    }
+  }
+  
+  // Also check METRIC_TO_CATEGORY for direct metric names
+  for (const [metric, categoryKey] of Object.entries(METRIC_TO_CATEGORY)) {
+    const metricLower = metric.toLowerCase();
+    let score = 0;
+    
+    if (query.includes(metricLower)) {
+      score = 0.9;
+    } else {
+      const fuzzyScore = fuzzyMatch(query, metricLower);
+      if (fuzzyScore > 0.6) {
+        score = fuzzyScore * 0.85;
+      }
+    }
+    
+    if (score > 0) {
+      // Avoid duplicates
+      if (!matches.some(m => m.metric.toLowerCase() === metric)) {
+        matches.push({
+          value: metric,
+          metric: metric,
+          category: categoryKey,
+          score: score
+        });
+      }
+    }
+  }
+  
+  return matches.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Simple fuzzy matching (Levenshtein-based similarity)
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} Similarity score 0-1
+ */
+function fuzzyMatch(str1, str2) {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  
+  if (len1 === 0) return len2 === 0 ? 1 : 0;
+  if (len2 === 0) return 0;
+  
+  // Simple containment check for short terms
+  if (len2 <= 4 && str1.includes(str2)) {
+    return 0.8;
+  }
+  
+  // Jaccard similarity on character bigrams
+  const getBigrams = (str) => {
+    const bigrams = new Set();
+    for (let i = 0; i < str.length - 1; i++) {
+      bigrams.add(str.substring(i, i + 2));
+    }
+    return bigrams;
+  };
+  
+  const bigrams1 = getBigrams(str1);
+  const bigrams2 = getBigrams(str2);
+  
+  let intersection = 0;
+  for (const bg of bigrams1) {
+    if (bigrams2.has(bg)) intersection++;
+  }
+  
+  const union = bigrams1.size + bigrams2.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/**
+ * Get field type classification for a metric
+ * @param {string} metric - The metric name
+ * @returns {string|null} Field type key or null
+ */
+function getFieldType(metric) {
+  if (!metric) return null;
+  const metricLower = metric.toLowerCase();
+  
+  for (const [typeKey, typeConfig] of Object.entries(FIELD_TYPE_RULES)) {
+    if (typeConfig.fields.some(f => f.toLowerCase() === metricLower || metricLower.includes(f.toLowerCase()))) {
+      return typeKey;
+    }
+  }
+  return null;
+}
+
+/**
+ * Detect timeframe from query
+ * @param {string} query - Normalized query
+ * @returns {Object} { detected, type, field, conflict, clarificationPrompt }
+ */
+function detectTimeframe(query) {
+  const result = {
+    detected: false,
+    type: null,
+    field: null,
+    explicit: null,
+    conflict: false,
+    clarificationPrompt: null
+  };
+  
+  const detectedTimeframes = [];
+  
+  // Check explicit periods
+  for (const [phrase, mappings] of Object.entries(TIMEFRAME_HIERARCHY.EXPLICIT)) {
+    if (query.includes(phrase)) {
+      detectedTimeframes.push({ type: 'EXPLICIT', phrase, mappings });
+    }
+  }
+  
+  // Check relative recent
+  for (const pattern of TIMEFRAME_HIERARCHY.RELATIVE_RECENT.patterns) {
+    if (pattern.test(query)) {
+      detectedTimeframes.push({ 
+        type: 'RELATIVE_RECENT', 
+        mappings: TIMEFRAME_HIERARCHY.RELATIVE_RECENT.default_mapping 
+      });
+    }
+  }
+  
+  // Check current snapshot
+  for (const pattern of TIMEFRAME_HIERARCHY.CURRENT_SNAPSHOT.patterns) {
+    if (pattern.test(query)) {
+      detectedTimeframes.push({ 
+        type: 'CURRENT_SNAPSHOT', 
+        mappings: TIMEFRAME_HIERARCHY.CURRENT_SNAPSHOT.default_mapping 
+      });
+    }
+  }
+  
+  // Check trends
+  for (const pattern of TIMEFRAME_HIERARCHY.TREND.monthly.patterns) {
+    if (pattern.test(query)) {
+      detectedTimeframes.push({ 
+        type: 'TREND_MONTHLY', 
+        field: TIMEFRAME_HIERARCHY.TREND.monthly.field 
+      });
+    }
+  }
+  for (const pattern of TIMEFRAME_HIERARCHY.TREND.weekly.patterns) {
+    if (pattern.test(query)) {
+      detectedTimeframes.push({ 
+        type: 'TREND_WEEKLY', 
+        field: TIMEFRAME_HIERARCHY.TREND.weekly.field 
+      });
+    }
+  }
+  
+  if (detectedTimeframes.length === 0) {
+    return result;
+  }
+  
+  result.detected = true;
+  
+  // Check for conflicts (multiple explicit timeframes)
+  const explicitCount = detectedTimeframes.filter(t => t.type === 'EXPLICIT').length;
+  if (explicitCount > 1) {
+    result.conflict = true;
+    const phrases = detectedTimeframes.filter(t => t.type === 'EXPLICIT').map(t => t.phrase);
+    result.clarificationPrompt = `I noticed you mentioned multiple timeframes: "${phrases.join('" and "')}". Would you like me to:\n\n1. **Compare** them side by side?\n2. Use just **${phrases[0]}**?\n3. Use just **${phrases[1]}**?`;
+  } else {
+    // Use hierarchy: EXPLICIT > TREND > CURRENT_SNAPSHOT > RELATIVE_RECENT
+    const priority = ['EXPLICIT', 'TREND_MONTHLY', 'TREND_WEEKLY', 'CURRENT_SNAPSHOT', 'RELATIVE_RECENT'];
+    for (const p of priority) {
+      const match = detectedTimeframes.find(t => t.type === p || t.type.startsWith(p.split('_')[0]));
+      if (match) {
+        result.type = match.type;
+        result.field = match.field;
+        result.mappings = match.mappings;
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Build clarification prompt for ambiguous matches
+ * @param {Array} candidates - Top matching candidates
+ * @param {string} originalQuery - The original query
+ * @returns {string} Clarification prompt
+ */
+function buildClarificationPrompt(candidates, originalQuery) {
+  const options = candidates.map((c, i) => `${i + 1}. **${c.metric}** (${COLUMN_CATEGORIES[c.category]?.name || c.category})`);
+  
+  return `I can interpret "${originalQuery}" a few different ways:\n\n${options.join('\n')}\n\nWhich one are you looking for?`;
+}
+
+/**
+ * Build clarification prompt for low confidence matches
+ * @param {Object} match - The best match candidate
+ * @param {string} originalQuery - The original query
+ * @returns {string} Clarification prompt
+ */
+function buildLowConfidenceClarification(match, originalQuery) {
+  return `I think you might be asking about **${match.metric}** in the **${COLUMN_CATEGORIES[match.category]?.name || match.category}** section, but I'm not 100% sure.\n\nIs that right, or did you mean something else?`;
+}
+
+/**
+ * Apply null behavior rules to a data value
+ * Wraps raw data values with Data Contract compliant formatting
+ * @param {string} fieldName - The field name
+ * @param {*} value - The raw data value
+ * @returns {Object} { displayValue, isNull, explanation }
+ */
+function applyNullBehavior(fieldName, value) {
+  const result = {
+    displayValue: value,
+    isNull: false,
+    explanation: null,
+    fieldType: null
+  };
+  
+  // Check if value is null/undefined/empty
+  const isNullish = value === null || value === undefined || value === '' || 
+                    (typeof value === 'string' && value.trim() === '');
+  
+  if (!isNullish) {
+    // Special handling for "unknown" or "inferred" values - preserve verbatim
+    if (typeof value === 'string') {
+      const lowerVal = value.toLowerCase();
+      if (lowerVal === 'unknown' || lowerVal === 'inferred') {
+        result.displayValue = value;
+        result.explanation = `${fieldName} is "${value}" in the source data.`;
+        return result;
+      }
+    }
+    return result;
+  }
+  
+  result.isNull = true;
+  const fieldType = getFieldType(fieldName);
+  result.fieldType = fieldType;
+  
+  if (!fieldType) {
+    result.displayValue = 'Data unavailable';
+    return result;
+  }
+  
+  const rules = FIELD_TYPE_RULES[fieldType];
+  
+  switch (fieldType) {
+    case 'IDENTITY_CATEGORICAL':
+      result.displayValue = rules.null_behavior.output;
+      result.explanation = rules.null_behavior.message_template.replace('{field}', fieldName);
+      break;
+      
+    case 'BOOLEAN_FLAGS':
+      result.displayValue = 'Status unknown';
+      result.explanation = rules.null_behavior.message_template.replace('{field}', fieldName);
+      break;
+      
+    case 'DATE_FIELDS':
+      result.displayValue = 'No date recorded';
+      result.explanation = rules.null_behavior.message_template.replace('{field}', fieldName);
+      break;
+      
+    case 'COUNT_VOLUME':
+      result.displayValue = rules.null_behavior.null_message;
+      result.explanation = rules.null_behavior.null_explanation;
+      break;
+      
+    case 'REVENUE_MONETARY':
+      result.displayValue = 'N/A';
+      result.explanation = rules.null_behavior.revenue_message;
+      break;
+      
+    case 'PERCENTAGE_SHARE':
+      result.displayValue = rules.null_behavior.zero_denominator_output;
+      result.explanation = rules.null_behavior.explanation;
+      break;
+      
+    default:
+      result.displayValue = 'Data unavailable';
+  }
+  
+  return result;
+}
+
+/**
+ * Validate channel math to prevent double-counting
+ * @param {Object} coverData - Object containing cover values by channel
+ * @returns {Object} { valid, warnings, correctedData }
+ */
+function validateChannelMath(coverData) {
+  const result = {
+    valid: true,
+    warnings: [],
+    correctedData: { ...coverData }
+  };
+  
+  // Validate Network = Direct + Discovery
+  if (coverData.network !== undefined && coverData.direct !== undefined && coverData.discovery !== undefined) {
+    const expectedNetwork = (coverData.direct || 0) + (coverData.discovery || 0);
+    if (Math.abs(coverData.network - expectedNetwork) > 1) { // Allow for rounding
+      result.warnings.push(`Network (${coverData.network}) does not equal Direct (${coverData.direct}) + Discovery (${coverData.discovery}). Using sum: ${expectedNetwork}`);
+      result.correctedData.network = expectedNetwork;
+    }
+  }
+  
+  // Warn if Google is being added separately to totals
+  if (coverData.google !== undefined && coverData.fullbook !== undefined) {
+    // Check if Google appears to be added on top
+    const expectedFullbook = (coverData.network || 0) + (coverData.restref || 0) + (coverData.phonewalkin || 0);
+    if (coverData.fullbook > expectedFullbook + coverData.google) {
+      result.warnings.push('Warning: Google appears to be double-counted. Google is already included in Network (Direct/Discovery).');
+      result.valid = false;
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Select best timeframe field based on hierarchy and query context
+ * @param {string} conceptType - 'covers', 'revenue', or 'shares'
+ * @param {Object} timeframeResult - Result from detectTimeframe()
+ * @param {Object} availableFields - Available fields in current data context
+ * @returns {Object} { field, explanation }
+ */
+function selectBestTimeframe(conceptType, timeframeResult, availableFields) {
+  const result = {
+    field: null,
+    explanation: null
+  };
+  
+  if (!timeframeResult || !timeframeResult.detected) {
+    // Default to "Last Month" for covers/revenue, "Current" for shares
+    if (conceptType === 'shares') {
+      result.field = 'Disco % Current';
+      result.explanation = 'Using current snapshot (no timeframe specified).';
+    } else if (conceptType === 'covers') {
+      result.field = 'CVR Last Month - Network';
+      result.explanation = 'Using last month (no timeframe specified).';
+    } else if (conceptType === 'revenue') {
+      result.field = 'Revenue - Total Last Month';
+      result.explanation = 'Using last month (no timeframe specified).';
+    }
+    return result;
+  }
+  
+  // Use explicit mapping if available
+  if (timeframeResult.mappings && timeframeResult.mappings[conceptType]) {
+    const mapping = timeframeResult.mappings[conceptType];
+    result.field = Array.isArray(mapping) ? mapping[0] : mapping;
+    result.explanation = `Using ${timeframeResult.type.toLowerCase().replace('_', ' ')} timeframe.`;
+  } else if (timeframeResult.field) {
+    result.field = timeframeResult.field;
+    result.explanation = `Using ${timeframeResult.type.toLowerCase().replace('_', ' ')} metric.`;
+  }
+  
+  return result;
+}
+
+/**
+ * Main wrapper function for intent parsing with Data Contract enforcement
+ * This is the enhanced entry point that layers on top of existing logic
+ * @param {string} query - User's natural language query
+ * @param {Object} dataContext - Optional data context for field availability
+ * @returns {Object} Enhanced parsing result with Data Contract compliance
+ */
+function parseQueryWithDataContract(query, dataContext) {
+  const functionName = 'parseQueryWithDataContract';
+  const startTime = new Date();
+  
+  console.log(`[${functionName}] Processing: "${query}"`);
+  
+  // Step 1: Parse intent with confidence scoring
+  const intentResult = parseIntentWithConfidence(query);
+  
+  // Step 2: If clarification needed, return early with prompt
+  if (intentResult.needsClarification) {
+    console.log(`[${functionName}] Clarification needed`);
+    return {
+      success: true,
+      requiresClarification: true,
+      clarificationPrompt: intentResult.clarificationPrompt,
+      confidence: intentResult.confidence,
+      candidates: intentResult.candidates,
+      durationMs: new Date() - startTime
+    };
+  }
+  
+  // Step 3: If scripted response matched, return it
+  if (intentResult.intent === 'scripted_response') {
+    return {
+      success: true,
+      response: intentResult.scriptedAnswer,
+      source: 'scripted',
+      confidence: 1.0,
+      durationMs: new Date() - startTime
+    };
+  }
+  
+  // Step 4: Resolve timeframe if applicable
+  let timeframeGuidance = null;
+  if (intentResult.timeframe && intentResult.timeframe.detected) {
+    // Determine concept type from the field
+    let conceptType = 'covers';
+    if (intentResult.field) {
+      const fieldLower = intentResult.field.toLowerCase();
+      if (fieldLower.includes('revenue') || fieldLower.includes('yield') || fieldLower.includes('due')) {
+        conceptType = 'revenue';
+      } else if (fieldLower.includes('%') || fieldLower.includes('disco') || fieldLower.includes('share')) {
+        conceptType = 'shares';
+      }
+    }
+    timeframeGuidance = selectBestTimeframe(conceptType, intentResult.timeframe, dataContext);
+  }
+  
+  // Step 5: Build enhanced result
+  const result = {
+    success: true,
+    intent: intentResult.intent,
+    field: intentResult.field,
+    fieldType: intentResult.fieldType,
+    confidence: intentResult.confidence,
+    timeframe: intentResult.timeframe,
+    timeframeGuidance: timeframeGuidance,
+    nullBehaviorRules: intentResult.fieldType ? FIELD_TYPE_RULES[intentResult.fieldType] : null,
+    durationMs: new Date() - startTime
+  };
+  
+  console.log(`[${functionName}] Complete - confidence: ${result.confidence.toFixed(2)}, field: ${result.field}`);
+  return result;
+}
+
+/**
+ * TEST FUNCTION: Verify Intent Logic Filter is working
+ * Run from Apps Script editor to test the new layer
+ */
+function TEST_IntentLogicFilter() {
+  const testCases = [
+    'How many Core accounts do I have?',           // Should match with high confidence
+    'What is the discovery percent?',               // Should match Disco % Current
+    'Show me revenue last month',                   // Should detect explicit timeframe
+    'What about performance recently?',             // Should trigger clarification (vague)
+    'Show me covers from last month and last year', // Should detect timeframe conflict
+    'xyzabc123',                                    // Should have low confidence
+  ];
+  
+  const results = [];
+  
+  for (const query of testCases) {
+    const result = parseQueryWithDataContract(query, {});
+    results.push({
+      query: query,
+      confidence: result.confidence ? result.confidence.toFixed(2) : 'N/A',
+      requiresClarification: result.requiresClarification || false,
+      field: result.field || 'N/A',
+      timeframe: result.timeframe?.type || 'none'
+    });
+  }
+  
+  console.log('=== INTENT LOGIC FILTER TEST ===');
+  console.log(JSON.stringify(results, null, 2));
+  
+  return results;
+}
+
+// =============================================================
+// END: INTENT LOGIC FILTER
+// =============================================================
+
 /**
  * PING TEST: Verify Gemini API connectivity
  * Call this from the Apps Script editor to test your API key

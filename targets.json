@@ -24,8 +24,12 @@
     "scriptId": "1I-NmhkSUdtI_syDnuz5wBIXDXVDXCBR51FOBxucx1NFWspjBTuc3kUzE"
   },
   {
-  "label": "MEXICO",
-  "scriptId": "1fE3xsuohLYSQoG_MzBXcyA9D2meDuztfnefBHtyBNCPfUuPBqTmHkvaQ"
+    "label": "MEXICO",
+    "scriptId": "1fE3xsuohLYSQoG_MzBXcyA9D2meDuztfnefBHtyBNCPfUuPBqTmHkvaQ"
+  },
+  {
+    "label": "USG_WEST",
+    "scriptId": "1J23BHZu9_J500rMe1wozoLsMlQqwT1WZDZryaIbKwJtL-CNyYSnqCaBI"
   },
   {
     "label": "USG_Central",

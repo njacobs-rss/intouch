@@ -93,6 +93,7 @@
       overflow-y: auto;
       padding: 16px 0;
       background: #ffffff;
+      min-height: 0;  /* CRITICAL: allows flex item to shrink and enable scrolling */
     }
 
     /* Controls Container - Above Input */
@@ -996,11 +997,26 @@
       display: block;
     }
     
-    /* Account List */
+    /* Account List - scrollable when many accounts */
     .kh-jumpstart-list {
       margin-bottom: 10px;
-      max-height: 180px;
+      max-height: 200px;
       overflow-y: auto;
+    }
+    /* Styled scrollbar for Jump Start list */
+    .kh-jumpstart-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .kh-jumpstart-list::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 2px;
+    }
+    .kh-jumpstart-list::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+    .kh-jumpstart-list::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
     }
     
     .kh-jumpstart-row {
@@ -1076,6 +1092,21 @@
     }
     .kh-custom-tooltip.visible { 
       opacity: 1; 
+    }
+    
+    /* Clickable Account Names in Chat (click to copy RID) */
+    .kh-clickable-account {
+      cursor: pointer;
+      text-decoration: underline dotted;
+      text-decoration-color: #94a3b8;
+      text-underline-offset: 2px;
+      color: inherit;
+      border-radius: 2px;
+      transition: background 0.15s;
+    }
+    .kh-clickable-account:hover {
+      background: #f1f5f9;
+      text-decoration-color: #64748b;
     }
 
     /* Action Buttons */
@@ -1336,7 +1367,7 @@
     <div class="bucket-iq-input-area">
       <!-- Controls Container (New Chat & Help) -->
       <div class="bucket-iq-controls-container">
-        <button class="bucket-iq-new-chat" id="khClear" title="Start New Chat">
+        <button class="bucket-iq-new-chat" id="khClear" onmouseenter="showCustomTooltip(this, 'Start new chat')" onmouseleave="hideCustomTooltip()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -1470,6 +1501,7 @@
   <script>
     // --- GLOBAL VARIABLES ---
     let ACCOUNT_MAP = {}; 
+    let ACCOUNT_NAME_TO_RID = {};  // Lookup for click-to-copy RID in chat
     let CURRENT_SCOPE = 'INDIVIDUAL'; 
     let CURRENT_BASELINE_REV = 0; 
     let isAICancelled = false; 
@@ -1570,11 +1602,16 @@
       if (dataList) {
         let accHtml = '';
         ACCOUNT_MAP = {}; 
+        ACCOUNT_NAME_TO_RID = {};  // Reset lookup
   
         if (data.accounts && data.accounts.length > 0) {
           data.accounts.forEach(acc => {
             const displayVal = `${acc.name} (${acc.rid})`;
             ACCOUNT_MAP[displayVal] = acc;
+            // Build name -> RID lookup for chat click-to-copy
+            if (acc.name && acc.rid) {
+              ACCOUNT_NAME_TO_RID[acc.name] = acc.rid;
+            }
             accHtml += `<option value="${displayVal}">`;
           });
         }
@@ -2368,7 +2405,7 @@
             <div class="kh-jumpstart-section-header" ${headerClickHandler}>
               <span class="kh-jumpstart-chevron ${chevronClass}">▶</span>
               <span class="kh-jumpstart-dot">${section.priorityDot}</span>
-              <span class="kh-jumpstart-name" title="${sectionTooltip}">${section.title}</span>
+              <span class="kh-jumpstart-name" onmouseenter="showCustomTooltip(this, '${sectionTooltip}')" onmouseleave="hideCustomTooltip()">${section.title}</span>
               <span class="kh-jumpstart-badge ${section.priority === 'high' && count > 0 ? 'urgent' : ''}">${count}</span>
             </div>
             <div class="kh-jumpstart-content">
@@ -2424,11 +2461,11 @@
       section.accounts.forEach((acc, idx) => {
         const name = truncateAccountName(acc.name);
         
-        // Render emoji tags inline with individual hover labels
+        // Render emoji tags inline with individual hover labels (using custom tooltip)
         let emojiHtml = '';
         if (acc.emojiTags && acc.emojiTags.length > 0) {
           emojiHtml = acc.emojiTags
-            .map(tag => `<span class="kh-emoji-tag" title="${tag.label}">${tag.emoji}</span>`)
+            .map(tag => `<span class="kh-emoji-tag" onmouseenter="showCustomTooltip(this, '${tag.label}')" onmouseleave="hideCustomTooltip()">${tag.emoji}</span>`)
             .join('');
         } else if (acc.emoji) {
           // Fallback to old format if emojiTags not available
@@ -2448,23 +2485,23 @@
         listHtml += `
           <div class="kh-jumpstart-row">
             <span class="kh-jumpstart-emoji">${emojiHtml}</span>
-            <span class="kh-jumpstart-acc-name" title="Click to copy RID: ${acc.rid}" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
+            <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
             ${daysHtml}
           </div>
         `;
       });
       listHtml += '</div>';
       
-      // Build action buttons with hover tooltips
+      // Build action buttons with hover tooltips (using custom tooltip)
       const actionsHtml = `
         <div class="kh-jumpstart-actions">
-          <button class="kh-jumpstart-btn" onclick="jumpStartIsolate('${section.id}')" title="Filter Smart Select to show only these accounts">
+          <button class="kh-jumpstart-btn" onclick="jumpStartIsolate('${section.id}')" onmouseenter="showCustomTooltip(this, 'Filter Smart Select to show only these accounts')" onmouseleave="hideCustomTooltip()">
             🎯 Isolate
           </button>
-          <button class="kh-jumpstart-btn primary" onclick="jumpStartDigIn('${section.id}')" title="Isolate accounts and generate AI analysis">
+          <button class="kh-jumpstart-btn primary" onclick="jumpStartDigIn('${section.id}')" onmouseenter="showCustomTooltip(this, 'Isolate accounts and generate AI analysis')" onmouseleave="hideCustomTooltip()">
             🔍 Dig In
           </button>
-          <button class="kh-jumpstart-btn" onclick="jumpStartGlean('${section.id}')" id="gleanBtn-${section.id}" title="Copy prompt to clipboard and open Glean">
+          <button class="kh-jumpstart-btn" onclick="jumpStartGlean('${section.id}')" id="gleanBtn-${section.id}" onmouseenter="showCustomTooltip(this, 'Copy prompt to clipboard and open Glean')" onmouseleave="hideCustomTooltip()">
             🧠 Glean
           </button>
         </div>
@@ -2510,9 +2547,18 @@
       const isExpanded = sectionEl.classList.contains('expanded');
       
       if (isExpanded) {
+        // Collapse this section
         sectionEl.classList.remove('expanded');
         khState.expandedSections[sectionId] = false;
       } else {
+        // ACCORDION BEHAVIOR: Collapse all other sections first
+        document.querySelectorAll('.kh-jumpstart-section.expanded').forEach(el => {
+          el.classList.remove('expanded');
+          const id = el.dataset.sectionId;
+          if (id) khState.expandedSections[id] = false;
+        });
+        
+        // Then expand this one
         sectionEl.classList.add('expanded');
         khState.expandedSections[sectionId] = true;
       }
@@ -4457,6 +4503,19 @@ If you have any other questions about the team data I'd be happy to dive in with
       
       // Numbered lists
       html = html.replace(/<br>(\d+)\.\s+/g, '<br>$1. ');
+      
+      // Make account names clickable to copy RID
+      // Sort by name length (longest first) to avoid partial matches
+      const sortedNames = Object.keys(ACCOUNT_NAME_TO_RID).sort((a, b) => b.length - a.length);
+      sortedNames.forEach(name => {
+        if (name.length < 4) return; // Skip very short names to avoid false matches
+        const rid = ACCOUNT_NAME_TO_RID[name];
+        // Escape special regex characters in name
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match whole word boundaries, case-insensitive
+        const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
+        html = html.replace(regex, `<span class="kh-clickable-account" data-rid="${rid}" onclick="copyRIDToClipboard('${rid}')" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${rid}')" onmouseleave="hideCustomTooltip()">${name}</span>`);
+      });
 
       return html;
     }

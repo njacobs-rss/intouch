@@ -1417,6 +1417,14 @@ function getDetailedAMData(amName) {
       ib: findCol(sHead, "instantbooking"),
       pd: findCol(sHead, "privatedining"),
       alertList: findCol(sHead, "alertlist"),
+      // Meeting/Event columns (for DATA_CONTRACT_INTENTS: get_last_meeting_date, get_l90_meeting_count, etc.)
+      eventDate: findCol(sHead, "eventdate"),
+      eventType: findCol(sHead, "eventtype"),
+      taskDate: findCol(sHead, "taskdate"),
+      taskType: findCol(sHead, "tasktype"),
+      l90Meetings: findCol(sHead, "l90totalmeetings"),
+      lastEngaged: findCol(sHead, "lastengageddate"),
+      // DISTRO columns
       d_rid: findCol(dHead, "rid"),
       subfees: findCol(dHead, "subslastmonth"),
       yield: findCol(dHead, "revyield"),
@@ -1461,6 +1469,17 @@ function getDetailedAMData(amName) {
       // Alert flags (from STATCORE "Alert List" column)
       alertFlags: {},           // { "⚠️ 0-Fullbook": [{rid, name}], "❗Hibernated": [{rid, name}] }
       accountsWithAlerts: [],   // All accounts that have any alert flag [{rid, name, alerts: [...]}]
+      // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, focus20_meetings_gap, etc.)
+      noMeetings90: [],         // Accounts with L90 Total Meetings = 0 [{rid, name}]
+      staleEngagement90: [],    // Accounts with Last Engaged Date > 90 days ago [{rid, name, daysSince}]
+      staleEngagement60: [],    // Accounts with Last Engaged Date > 60 days ago [{rid, name, daysSince}]
+      staleEngagement30: [],    // Accounts with Last Engaged Date > 30 days ago [{rid, name, daysSince}]
+      engagementBuckets: {      // Engagement coverage buckets
+        active: [],             // <30 days
+        monitor: [],            // 30-60 days
+        atRisk: [],             // 60-90 days
+        critical: []            // >90 days
+      },
       // Numeric aggregations (overall)
       subSum: 0, subCnt: 0,
       yldSum: 0, yldCnt: 0,
@@ -1607,6 +1626,40 @@ function getDetailedAMData(amName) {
           }
         }
       }
+      
+      // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, etc.)
+      // Track L90 Total Meetings = 0 (accounts with no meetings in 90 days)
+      if (map.l90Meetings > -1) {
+        const l90 = parseFloat(row[map.l90Meetings]);
+        if (l90 === 0 || isNaN(l90) || row[map.l90Meetings] === '' || row[map.l90Meetings] === null) {
+          data.noMeetings90.push({ rid, name });
+        }
+      }
+      
+      // Track Last Engaged Date buckets (for engagement coverage analysis)
+      if (map.lastEngaged > -1 && row[map.lastEngaged]) {
+        const engagedDate = new Date(row[map.lastEngaged]);
+        if (!isNaN(engagedDate.getTime())) {
+          const daysSince = Math.floor((today - engagedDate) / (1000 * 60 * 60 * 24));
+          
+          // Bucket assignment (mutual exclusive - account goes in worst bucket)
+          if (daysSince > 90) {
+            data.engagementBuckets.critical.push({ rid, name, daysSince });
+            data.staleEngagement90.push({ rid, name, daysSince });
+            data.staleEngagement60.push({ rid, name, daysSince });
+            data.staleEngagement30.push({ rid, name, daysSince });
+          } else if (daysSince > 60) {
+            data.engagementBuckets.atRisk.push({ rid, name, daysSince });
+            data.staleEngagement60.push({ rid, name, daysSince });
+            data.staleEngagement30.push({ rid, name, daysSince });
+          } else if (daysSince > 30) {
+            data.engagementBuckets.monitor.push({ rid, name, daysSince });
+            data.staleEngagement30.push({ rid, name, daysSince });
+          } else {
+            data.engagementBuckets.active.push({ rid, name, daysSince });
+          }
+        }
+      }
     });
     
     // Calculate averages
@@ -1678,6 +1731,20 @@ function getDetailedAMData(amName) {
         count: data.accountsWithAlerts.length, 
         rids: data.accountsWithAlerts 
       },
+      
+      // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, focus20_meetings_gap, etc.)
+      noMeetings90: { count: data.noMeetings90.length, rids: data.noMeetings90 },
+      
+      // Engagement coverage buckets (for coverage analysis queries)
+      engagementCoverage: {
+        active: { count: data.engagementBuckets.active.length, rids: data.engagementBuckets.active },
+        monitor: { count: data.engagementBuckets.monitor.length, rids: data.engagementBuckets.monitor },
+        atRisk: { count: data.engagementBuckets.atRisk.length, rids: data.engagementBuckets.atRisk },
+        critical: { count: data.engagementBuckets.critical.length, rids: data.engagementBuckets.critical }
+      },
+      staleEngagement90: { count: data.staleEngagement90.length, rids: data.staleEngagement90 },
+      staleEngagement60: { count: data.staleEngagement60.length, rids: data.staleEngagement60 },
+      staleEngagement30: { count: data.staleEngagement30.length, rids: data.staleEngagement30 },
       
       durationMs: new Date() - startTime
     };

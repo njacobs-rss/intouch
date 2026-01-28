@@ -411,6 +411,14 @@ InTouch uses a fixed column structure with DYNAMIC columns that can be changed v
 **Dates & Activity section** (J-K-L)
 - Defaults: Customer Since, Last Engaged Date, Contract Alerts
 - Options: AM Assigned Date, Task Created By, Task Date, Task Type, Event Created By, Event Date, Event Type, L90 Total Meetings, Last Engaged Date, Current Term End Date, Focus20, Customer Since, Contract Alerts
+- **IMPORTANT - Meeting/Event Columns ARE Available (per DATA_CONTRACT_INTENTS):**
+  - **Event Date** = Date of last SFDC Event (meeting) → use for "last meeting" queries
+  - **Event Type** = Type of meeting (QBR, Save, Initial, Follow-up, etc.)
+  - **Task Date** = Date of last SFDC Task (call, email, text) → use for "last task" queries
+  - **Task Type** = Type of task activity
+  - **L90 Total Meetings** = Count of meetings in last 90 days → use for "no meetings in 90 days" queries
+  - **Last Engaged Date** = MAX(Task Date, Event Date) → use for "last engagement" queries
+  - These are NOT missing data. They ARE in STATCORE. You CAN add these columns and analyze them.
 
 **Account + Status Info section** (M-N-O)
 - Defaults: No Bookings >30 Days, Status, System Type
@@ -505,6 +513,26 @@ NEVER add Google separately to Fullbook calculations
 - Coverage indicator; long gaps correlate with churn risk
 - <30 days = active, 30-60 = monitor, 60-90 = at risk, >90 = critical
 
+### CRITICAL TERMINOLOGY: Meetings vs Tasks vs Engagement
+**Users will use these terms interchangeably. Know the exact mappings:**
+
+| User Says | InTouch Column | Meaning |
+|-----------|----------------|---------|
+| "Meeting", "met with", "sit down", "QBR", "event" | **Event Date** / **Event Type** | SFDC Event records (actual meetings) |
+| "Task", "logged", "call", "email", "text", "activity" | **Task Date** / **Task Type** | SFDC Task records (activities) |
+| "Engagement", "touch", "interaction", "contact" | **Last Engaged Date** | MAX(Task Date, Event Date) - most recent of either |
+| "L90 meetings", "meetings in 90 days", "meeting count" | **L90 Total Meetings** | Count of SFDC Events in last 90 days |
+| "Bucket penetration", "coverage" | Task Date + Event Date columns | How well the AM is covering their book |
+
+**Key Rules (aligned with DATA_CONTRACT_INTENTS):**
+- "When was the last meeting?" → Use **Event Date**, NOT Last Engaged Date (see intent: get_last_meeting_date)
+- "When was the last task?" → Use **Task Date** (see intent: get_last_task_date)
+- "When did we last engage?" → Use **Last Engaged Date** (see intent: get_last_engagement_date)
+- "How many meetings in 90 days?" → Use **L90 Total Meetings** (see intent: get_l90_meeting_count)
+- "Accounts with no meetings in 90 days" → Filter where L90 Total Meetings = 0 (see intent: list_unmet_accounts_l90)
+
+**These columns ARE available in Dates & Activity section.** You CAN add them and analyze them.
+
 ### Contract Alerts - Column L default
 - EXPIRED = urgent same-week outreach
 - Term Pending = plan renewal conversation
@@ -588,31 +616,69 @@ I've checked these **5** accounts in Smart Select (Column D). **Click the filter
 "I can show that for you!
 [COLUMN_ACTION:LOCATION:Metro]"
 
-## ENGAGEMENT DATE QUERIES (COVERAGE ANALYSIS)
+## ENGAGEMENT & MEETING COVERAGE QUERIES
 
-When users ask about engagement, coverage, or "when did I last talk to" accounts:
+When users ask about engagement, coverage, meetings, or "when did I last talk to" accounts:
 
-**Last Engaged Date Thresholds:**
+**CRITICAL: Distinguish between meetings and general engagement (per DATA_CONTRACT_INTENTS):**
+- "Meetings", "met with", "QBR", "events", "sat down with" → Use **Event Date** or **L90 Total Meetings**
+- "Tasks", "calls", "emails", "logged activity" → Use **Task Date**
+- "Engagement", "touch", "interaction", "contact" → Use **Last Engaged Date** (max of Task/Event)
+
+**Last Engaged Date Thresholds (for general engagement):**
 - **<30 days** = Active/healthy coverage
 - **30-60 days** = Monitor/needs attention soon
 - **60-90 days** = At risk
 - **>90 days** = Critical/urgent outreach needed
 
-**How to Respond:**
-1. Calculate counts for each threshold bucket from the injected data
-2. Provide the breakdown with percentages
-3. Offer to isolate accounts in a specific bucket (e.g., ">90 days")
+**Meeting Coverage (L90 Total Meetings):**
+- **0 meetings** = No meetings in 90 days - needs immediate scheduling
+- **1-2 meetings** = Light coverage - may need more touchpoints
+- **3+ meetings** = Good coverage
 
-**Example Response:**
+**How to Respond:**
+1. **Identify the intent:** Is user asking about meetings specifically or general engagement?
+2. Use the appropriate metric (Event Date/L90 for meetings, Last Engaged Date for general)
+3. Calculate counts for each threshold bucket from the injected data
+4. Provide the breakdown with percentages
+5. Auto-trigger [SMART_SELECT_ACTION] for the accounts in question
+
+**When user asks "accounts with no meetings in 90 days" or similar:**
+→ Look for accounts where L90 Total Meetings = 0 in the noMeetings90 list
+→ If that data isn't in context, offer to add the column: [COLUMN_ACTION:DATES_ACTIVITY:L90 Total Meetings]
+→ Use table format for 4+ accounts, include Smart Select action
+
+**Example Response (General Engagement):**
 "Here's Ellen's engagement coverage:
 - **Active (<30 days):** 45 accounts (28%)
 - **Monitor (30-60 days):** 32 accounts (20%)
 - **At Risk (60-90 days):** 28 accounts (17%)
 - **Critical (>90 days):** 56 accounts (35%)
 
-Would you like me to isolate the 56 critical accounts that haven't been engaged in over 90 days?
+| RID | Account Name |
+|-----|--------------|
+| 123456 | Restaurant A |
+| 234567 | Restaurant B |
+...
 
-[SMART_SELECT_ACTION:rid1,rid2,...]"
+I've checked these **56** accounts in Smart Select (Column D) for you.
+
+[SMART_SELECT_ACTION:123456,234567,...]
+
+**Next Steps:**
+1. Go to **Column D (Smart Select)**.
+2. Click the filter icon and select **TRUE**.
+3. Use the **Focus20** menu to prioritize these accounts."
+
+**Example Response (Meeting-Specific):**
+"Ellen has **23 accounts** with no meetings logged in the past 90 days (L90 Total Meetings = 0).
+
+| RID | Account Name |
+|-----|--------------|
+| 345678 | Restaurant C |
+...
+
+[SMART_SELECT_ACTION:345678,...]"
 
 ## COLUMN VISUALIZATION ACTION (IMPORTANT CAPABILITY)
 
@@ -743,6 +809,17 @@ You have access to real account data for the AM whose tab is active. When data i
 - **NEVER use "You" or "your"** when referring to the AM's data - always use their name
 - Extract the first name from the full name in the data header
 
+### AM Tab Context - Trust the Injected Data
+When data is injected with "--- ACCOUNT DATA FOR [AM Name] ---", the system has already determined which AM's tab the user is viewing. **Trust this context.**
+
+**DO NOT add unnecessary verbal verification like:**
+- "To clarify, are you asking about [AM Name]?"
+- "Did you mean [AM Name]'s accounts?"
+
+**Why this matters:** The frontend handles tab verification separately via a visual verification tile. If the user is on the wrong tab, the system will show them a warning BEFORE checking RIDs. Your job is to answer the question using the provided data context, not to second-guess which AM is being queried.
+
+**When to use AM name:** Always use the AM's name from the data header when discussing their accounts. This provides clarity without asking for confirmation.
+
 ### CRITICAL: Count Response Format (ALWAYS FOLLOW)
 When answering questions about counts or sums, ALWAYS include:
 1. The specific count (the answer) - from the injected data
@@ -832,10 +909,14 @@ If a user asks for accounts matching MULTIPLE criteria (e.g., "Pro accounts that
 4. Report the count of the *intersected* list.
 5. If the count is 0, say "I found 0 accounts that are both [Criteria A] and [Criteria B]."
 
-**FORMATTING RULES:**
-1. **For 1-3 accounts:** Use a bulleted list.
-2. **For 4+ accounts:** ALWAYS use a Markdown Table with columns \`| RID | Account Name |\`.
-3. **For "Smart Select" requests:** Always prioritize the [SMART_SELECT_ACTION].
+**FORMATTING RULES (STRICT COMPLIANCE REQUIRED):**
+1. **For 1-3 accounts:** Use a bulleted list with RID and Account Name.
+2. **For 4+ accounts:** ALWAYS use a Markdown Table with columns \`| RID | Account Name |\`. NO EXCEPTIONS. Using bullets for 4+ accounts is a formatting violation.
+3. **For ANY request that returns specific accounts** ("show me", "isolate", "filter", "find", "list", "which"):
+   - Use table format if 4+ accounts
+   - ALWAYS include [SMART_SELECT_ACTION:rid1,rid2,...] with the matching RIDs
+   - ALWAYS include the "Next Steps" guidance for Column D filtering
+   - Do NOT ask "Would you like me to check these?" - JUST DO IT
 
 **SMART SELECT & NEXT STEPS:**
 When you offer or perform a [SMART_SELECT_ACTION], you MUST provide "Next Steps" guidance so the user knows what to do with the checked boxes.
@@ -3752,6 +3833,766 @@ function TEST_IntentLogicFilter() {
 
 // =============================================================
 // END: INTENT LOGIC FILTER
+// =============================================================
+
+// =============================================================
+// SECTION: DATA CONTRACT INTENT LAYER
+// =============================================================
+// This layer wraps the existing parser with semantic intent matching
+// from the data_contract schema (v1.0). It does NOT delete or modify
+// any existing mappings (COLUMN_CATEGORIES, VALUE_TO_METRIC, 
+// SCRIPTED_RESPONSES, ACCOUNT_DATA_PATTERNS are 100% preserved).
+//
+// Integration points:
+// - Section 12.1: Connects intents to FIELD_TYPE_RULES via columnGroup
+// - Section 12.2: Uses intent timeWindow to guide TIMEFRAME_HIERARCHY
+// - Section 12.3: Triggers clarification when confidence < 0.8
+// =============================================================
+
+/**
+ * DATA CONTRACT: Intent Definitions
+ * Training data for semantic intent matching
+ * Reference: data_contract.intents (schema_version 1.0)
+ * 
+ * IMPORTANT: This is ADDITIVE to existing mappings. All VALUE_TO_METRIC
+ * and SCRIPTED_RESPONSES patterns continue to work as before.
+ */
+const DATA_CONTRACT_INTENTS = {
+  // --- Dates & Activity Intents ---
+  'get_last_meeting_date': {
+    name: 'get_last_meeting_date',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Event Date',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'when was the last meeting we had with this restaurant',
+      'what date was our most recent meeting with this account',
+      'when did we last meet with them, not just email or call',
+      'show me the date of the last meeting logged for this rid',
+      'how long has it been since we had a meeting with this partner',
+      'what was the last meeting date for this account',
+      'when did the team most recently sit down with this restaurant'
+    ],
+    notes: 'User explicitly references a meeting (QBR, save, follow-up, on-site, Zoom, etc.). Map to Event Date, not Last Engaged Date.'
+  },
+  'get_last_engagement_date': {
+    name: 'get_last_engagement_date',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Last Engaged Date',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'when did we last engage with this account',
+      'how long has it been since our last touch with this restaurant',
+      'what is the most recent engagement date for this partner',
+      'show me the last time anyone on our side engaged this rid',
+      'are we currently stale on this account when was the last engagement',
+      'what\'s the last touch date for this customer in intouch',
+      'when was the most recent am interaction recorded for this restaurant'
+    ],
+    notes: 'Generic engagement/touch question. Use Last Engaged Date (max of Task Date and Event Date).'
+  },
+  'get_last_task_date': {
+    name: 'get_last_task_date',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Task Date',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'when was the last time anyone logged a task on this account',
+      'show me the date of the most recent task for this restaurant',
+      'what\'s the last task date on this rid',
+      'when was the last salesforce task created for this partner',
+      'how long ago was our last logged task for this account',
+      'what is the date of the latest task entry in sfdc for this restaurant'
+    ],
+    notes: 'User explicitly mentions task or logged task; prefer Task Date over Event Date or Last Engaged Date.'
+  },
+  'compare_last_touch_channel': {
+    name: 'compare_last_touch_channel',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Last Engage Type',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'was our most recent touch with them a meeting or just an email',
+      'did we last connect via email, call, or an actual meeting',
+      'how did we last engage with this restaurant meeting call or email',
+      'tell me whether the last interaction was a meeting or a message',
+      'what type of engagement was the latest one on this account',
+      'was the last thing logged for this partner a qbr a call or an email',
+      'channel check what was the last engage type for this rid'
+    ],
+    notes: 'User asks about channel/type of most recent engagement. Use Last Engage Type.'
+  },
+  'get_last_task_type': {
+    name: 'get_last_task_type',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Task Type',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'what kind of task was the last one we logged for this partner',
+      'was the last task an email or a call',
+      'show me the type of the most recent task on this account',
+      'for the last task on this rid what was the activity type',
+      'was our last logged task a phone call email or something else',
+      'what task type did we log most recently for this restaurant'
+    ],
+    notes: 'User explicitly focuses on task-level activity. Answer from Task Type.'
+  },
+  'get_last_meeting_type': {
+    name: 'get_last_meeting_type',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Event Type',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'was our last meeting with them a qbr or a save meeting',
+      'what type of meeting did we most recently have with this restaurant',
+      'tell me whether the last meeting was an initial meeting qbr or follow-up',
+      'show the event type for the most recent meeting on this account',
+      'how was the last meeting classified in salesforce',
+      'what was the type of our last meeting with this partner'
+    ],
+    notes: 'User mentions meeting and specific categories; answer from Event Type.'
+  },
+  'get_l90_meeting_count': {
+    name: 'get_l90_meeting_count',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'L90 Total Meetings',
+    timeWindow: 'last_90_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'how many meetings have we had with this account in the last 90 days',
+      'count the meetings we\'ve logged with this restaurant over the past 3 months',
+      'what\'s the l90 meeting count for this rid',
+      'have we actually met with them at all in the last 90 days',
+      'show the number of meetings recorded for this partner in the last 90 days',
+      'how many meeting-type events have there been with this account recently'
+    ],
+    notes: 'User wants meeting volume over ~quarter window; map to L90 Total Meetings.'
+  },
+  'list_unmet_accounts_l90': {
+    name: 'list_unmet_accounts_l90',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'L90 Total Meetings',
+    timeWindow: 'last_90_days',
+    filters: { scope: 'portfolio_for_current_am', l90_total_meetings: 0 },
+    examples: [
+      'show me my accounts with no meetings in the last 90 days',
+      'which restaurants in my book have zero meetings logged in the past 3 months',
+      'list accounts i haven\'t had a single meeting with in the last 90 days',
+      'find rids in my portfolio where l90 total meetings is zero',
+      'which of my accounts have not had any meetings recently',
+      'filter my list to only those with no meetings in the last 90 days'
+    ],
+    notes: 'Filtered view over portfolio where L90 Total Meetings = 0.'
+  },
+  'focus20_meetings_gap': {
+    name: 'focus20_meetings_gap',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'L90 Total Meetings',
+    timeWindow: 'last_90_days',
+    filters: { scope: 'portfolio_for_current_am', Focus20: true },
+    examples: [
+      'which of my focus 20 accounts haven\'t had a meeting in the last 60 days',
+      'show focus 20 rids with stale meetings',
+      'list my focus20 where i\'m behind on meetings',
+      'among my focus 20 which accounts have l90 total meetings equals 0 or 1',
+      'highlight focus 20 accounts that are under-covered on meetings recently',
+      'find focus 20 accounts where the last meeting was more than 60 days ago'
+    ],
+    notes: 'Meeting coverage inside Focus20. Use Focus20 filter + Event Date / L90 Total Meetings.'
+  },
+  'check_focus20_membership': {
+    name: 'check_focus20_membership',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Focus20',
+    timeWindow: null,
+    filters: { scope: 'single_account' },
+    examples: [
+      'is this account part of my focus 20',
+      'is this restaurant currently on my focus20 list',
+      'tell me if this rid is tagged as focus 20',
+      'is this partner included in my focus 20 accounts right now',
+      'check whether this account is in my focus20',
+      'is this restaurant one of my top 20 priority accounts'
+    ],
+    notes: 'Binary membership check; respond based on Focus20 flag.'
+  },
+  'focus20_stale_engagement': {
+    name: 'focus20_stale_engagement',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Last Engaged Date',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'portfolio_for_current_am', Focus20: true },
+    examples: [
+      'list my focus 20 accounts i haven\'t touched in over 90 days',
+      'which focus20 rids are stale on engagement',
+      'show focus20 accounts where last engaged date is older than 3 months',
+      'filter my focus 20 to only those without recent engagement',
+      'among my focus 20 which accounts have the oldest last engaged dates',
+      'surface focus20 accounts that are overdue for contact'
+    ],
+    notes: 'Stale engagement within Focus20. Apply Focus20 = TRUE and Last Engaged Date > 90 days filter.'
+  },
+  'compare_meeting_vs_email_recency': {
+    name: 'compare_meeting_vs_email_recency',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Last Engaged Date',
+    timeWindow: 'last_180_days',
+    filters: { scope: 'single_account' },
+    examples: [
+      'for this restaurant what\'s more recent our last meeting or our last email',
+      'did we meet with them more recently than we emailed them',
+      'which happened later the last meeting or the last non-meeting activity',
+      'compare the recency of our last meeting vs our last email for this account',
+      'is the latest engagement with this partner a meeting or an email',
+      'was our most recent interaction with them a meeting or some other activity'
+    ],
+    notes: 'Requires looking at Last Engage Type + Last Engaged Date, and potentially Event Date vs Task Date.'
+  },
+  'portfolio_coverage_summary': {
+    name: 'portfolio_coverage_summary',
+    columnGroup: 'DATES_ACTIVITY',
+    recommendedMetric: 'Last Engaged Date',
+    timeWindow: 'last_90_days',
+    filters: { scope: 'portfolio_for_current_am' },
+    examples: [
+      'do i have good coverage on my book or are there a lot of stale accounts',
+      'give me a summary of coverage across my portfolio based on engagement recency',
+      'how many of my accounts have been touched in the last 30 60 and 90 days',
+      'what share of my book has had recent engagement vs is going stale',
+      'show a coverage breakdown for my portfolio using last engaged date and meetings',
+      'are most of my accounts recently engaged or do i have a lot of overdue rids'
+    ],
+    notes: 'Higher-level aggregation: use Last Engaged Date across all accounts to compute coverage buckets.'
+  },
+  
+  // --- Seated Covers Intents ---
+  'get_last_booking_date': {
+    name: 'get_last_booking_date',
+    columnGroup: 'SEATED_COVERS',
+    recommendedMetric: 'CVR Last Month - Network',
+    timeWindow: 'last_month',
+    filters: { scope: 'single_account' },
+    examples: [
+      'when did they last book through opentable',
+      'what\'s the most recent month we saw covers from this restaurant',
+      'show me the latest booking activity month for this account',
+      'have they had any bookings recently when was the last period with covers',
+      'when was the last time they seated guests via the ot network',
+      'what is the last month where this restaurant had network covers'
+    ],
+    notes: 'Question is about guest bookings, NOT AM engagement. Must NOT be mapped to Task/Event/Last Engaged Date.'
+  },
+  
+  // --- Revenue Intents ---
+  'get_last_month_revenue': {
+    name: 'get_last_month_revenue',
+    columnGroup: 'REVENUE',
+    recommendedMetric: 'Revenue - Total Last Month',
+    timeWindow: 'last_month',
+    filters: { scope: 'single_account' },
+    examples: [
+      'how much did we make from this account last month',
+      'show me this restaurant\'s total revenue for the last full month',
+      'what was their total ot revenue last month',
+      'give me last month\'s total revenue for this rid',
+      'what did this partner generate in revenue in the most recent month',
+      'pull the total revenue last month for this account'
+    ],
+    notes: 'Pure revenue intent. Do not route to engagement metrics.'
+  }
+};
+
+/**
+ * Match query against Data Contract intents using semantic similarity
+ * @param {string} query - User's natural language query (normalized)
+ * @returns {Object} { matched, intent, confidence, metric, timeWindow, clarificationPrompt }
+ */
+function matchDataContractIntent(query) {
+  const functionName = 'matchDataContractIntent';
+  console.log(`[${functionName}] Matching: "${query}"`);
+  
+  const result = {
+    matched: false,
+    intent: null,
+    confidence: 0,
+    metric: null,
+    columnGroup: null,
+    timeWindow: null,
+    filters: null,
+    notes: null,
+    candidates: [],
+    needsClarification: false,
+    clarificationPrompt: null
+  };
+  
+  if (!query || query.trim() === '') {
+    return result;
+  }
+  
+  const normalizedQuery = query.toLowerCase().trim()
+    .replace(/[^\w\s]/g, ' ')  // Remove punctuation
+    .replace(/\s+/g, ' ');      // Normalize whitespace
+  
+  const queryWords = new Set(normalizedQuery.split(' ').filter(w => w.length > 2));
+  
+  const candidates = [];
+  
+  // Score each intent against the query
+  for (const [intentKey, intent] of Object.entries(DATA_CONTRACT_INTENTS)) {
+    let bestScore = 0;
+    let bestExample = null;
+    
+    for (const example of intent.examples) {
+      const exampleNorm = example.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+      const score = computeSemanticSimilarity(normalizedQuery, exampleNorm, queryWords);
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestExample = example;
+      }
+    }
+    
+    if (bestScore > 0.5) {  // Minimum threshold to be a candidate
+      candidates.push({
+        intentKey: intentKey,
+        intent: intent,
+        score: bestScore,
+        matchedExample: bestExample
+      });
+    }
+  }
+  
+  // Sort by score descending
+  candidates.sort((a, b) => b.score - a.score);
+  result.candidates = candidates.slice(0, 5);  // Top 5 for debugging
+  
+  if (candidates.length === 0) {
+    console.log(`[${functionName}] No intent match found`);
+    return result;
+  }
+  
+  const topMatch = candidates[0];
+  result.matched = true;
+  result.intent = topMatch.intentKey;
+  result.confidence = topMatch.score;
+  result.metric = topMatch.intent.recommendedMetric;
+  result.columnGroup = topMatch.intent.columnGroup;
+  result.timeWindow = topMatch.intent.timeWindow;
+  result.filters = topMatch.intent.filters;
+  result.notes = topMatch.intent.notes;
+  
+  // Check for ambiguity (Section 12.3)
+  if (candidates.length > 1) {
+    const delta = topMatch.score - candidates[1].score;
+    if (delta < 0.1) {
+      // Ambiguous: top two are very close
+      result.needsClarification = true;
+      result.clarificationPrompt = buildIntentClarificationPrompt(candidates.slice(0, 3), query);
+      console.log(`[${functionName}] Ambiguous match - delta ${delta.toFixed(3)} < 0.1`);
+    }
+  }
+  
+  // Check confidence threshold (Section 12.3)
+  if (result.confidence < 0.8 && !result.needsClarification) {
+    result.needsClarification = true;
+    result.clarificationPrompt = buildLowIntentConfidenceClarification(topMatch, query);
+    console.log(`[${functionName}] Low confidence ${result.confidence.toFixed(3)} < 0.8`);
+  }
+  
+  console.log(`[${functionName}] Matched: ${result.intent} (${result.confidence.toFixed(3)}), metric: ${result.metric}`);
+  return result;
+}
+
+/**
+ * Compute semantic similarity between query and example
+ * Uses word overlap + bigram similarity + phrase matching
+ * @param {string} query - Normalized query
+ * @param {string} example - Normalized example
+ * @param {Set} queryWords - Pre-computed query words
+ * @returns {number} Similarity score 0-1
+ */
+function computeSemanticSimilarity(query, example, queryWords) {
+  const exampleWords = new Set(example.split(' ').filter(w => w.length > 2));
+  
+  // 1. Word overlap (Jaccard)
+  let intersection = 0;
+  for (const word of queryWords) {
+    if (exampleWords.has(word)) intersection++;
+  }
+  const union = queryWords.size + exampleWords.size - intersection;
+  const wordOverlap = union > 0 ? intersection / union : 0;
+  
+  // 2. Key phrase matching (higher weight for important phrases)
+  const keyPhrases = [
+    'last meeting', 'last engaged', 'last task', 'last touch',
+    'focus 20', 'focus20', 'l90', '90 days', '180 days',
+    'meeting date', 'engagement date', 'task date',
+    'how many meetings', 'meeting count', 'no meetings',
+    'last month', 'revenue', 'covers', 'network',
+    'stale', 'overdue', 'coverage', 'channel'
+  ];
+  
+  let phraseScore = 0;
+  let phrasesFound = 0;
+  for (const phrase of keyPhrases) {
+    const inQuery = query.includes(phrase);
+    const inExample = example.includes(phrase);
+    if (inQuery && inExample) {
+      phraseScore += 0.15;  // Bonus for matching key phrases
+      phrasesFound++;
+    }
+  }
+  phraseScore = Math.min(phraseScore, 0.4);  // Cap phrase bonus
+  
+  // 3. Length penalty (very short queries get slight penalty)
+  const lengthFactor = queryWords.size >= 4 ? 1.0 : 0.9;
+  
+  // 4. Exact substring match bonus
+  const substringBonus = example.includes(query) || query.includes(example) ? 0.2 : 0;
+  
+  // Combined score
+  const finalScore = Math.min(1.0, (wordOverlap * 0.6 + phraseScore + substringBonus) * lengthFactor);
+  
+  return finalScore;
+}
+
+/**
+ * Build clarification prompt for ambiguous intent matches
+ * @param {Array} candidates - Top matching intent candidates
+ * @param {string} originalQuery - The original query
+ * @returns {string} Clarification prompt
+ */
+function buildIntentClarificationPrompt(candidates, originalQuery) {
+  const options = candidates.map((c, i) => {
+    const intentName = c.intentKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return `${i + 1}. **${intentName}** → uses **${c.intent.recommendedMetric}**`;
+  });
+  
+  return `I can interpret "${originalQuery}" a few different ways:\n\n${options.join('\n')}\n\nWhich question are you asking?`;
+}
+
+/**
+ * Build clarification prompt for low confidence intent matches
+ * @param {Object} match - The best match candidate
+ * @param {string} originalQuery - The original query
+ * @returns {string} Clarification prompt
+ */
+function buildLowIntentConfidenceClarification(match, originalQuery) {
+  const intentName = match.intentKey.replace(/_/g, ' ');
+  return `I think you might be asking about **${intentName}** (which uses **${match.intent.recommendedMetric}**), but I'm not 100% certain.\n\nIs that right, or did you mean something else?\n\n_Note: ${match.intent.notes}_`;
+}
+
+/**
+ * Enhanced intent parsing that checks Data Contract intents FIRST
+ * Wraps existing parseIntentWithConfidence with intent layer
+ * @param {string} query - User's natural language query
+ * @returns {Object} Enhanced parsing result
+ */
+function parseIntentWithDataContract(query) {
+  const functionName = 'parseIntentWithDataContract';
+  console.log(`[${functionName}] Processing: "${query}"`);
+  
+  // Step 1: Try scripted response first (fastest path, unchanged)
+  const scriptedResult = tryScriptedResponse(query);
+  if (scriptedResult && scriptedResult.success) {
+    console.log(`[${functionName}] Scripted match - returning immediately`);
+    return {
+      source: 'scripted',
+      intent: 'scripted_response',
+      confidence: 1.0,
+      scriptedAnswer: scriptedResult.answer,
+      needsClarification: false
+    };
+  }
+  
+  // Step 2: Try Data Contract intent matching (NEW LAYER)
+  const intentResult = matchDataContractIntent(query);
+  if (intentResult.matched && intentResult.confidence >= 0.8 && !intentResult.needsClarification) {
+    console.log(`[${functionName}] High-confidence intent match: ${intentResult.intent}`);
+    return {
+      source: 'data_contract',
+      intent: intentResult.intent,
+      confidence: intentResult.confidence,
+      field: intentResult.metric,
+      fieldType: getFieldType(intentResult.metric),
+      columnGroup: intentResult.columnGroup,
+      timeWindow: intentResult.timeWindow,
+      filters: intentResult.filters,
+      notes: intentResult.notes,
+      nullBehaviorRules: intentResult.columnGroup ? FIELD_TYPE_RULES[mapColumnGroupToFieldType(intentResult.columnGroup)] : null,
+      needsClarification: false
+    };
+  }
+  
+  // Step 2b: Intent matched but needs clarification (Section 12.3)
+  if (intentResult.matched && intentResult.needsClarification) {
+    console.log(`[${functionName}] Intent match needs clarification`);
+    return {
+      source: 'data_contract',
+      intent: intentResult.intent,
+      confidence: intentResult.confidence,
+      field: intentResult.metric,
+      needsClarification: true,
+      clarificationPrompt: intentResult.clarificationPrompt,
+      candidates: intentResult.candidates
+    };
+  }
+  
+  // Step 3: Fall back to existing VALUE_TO_METRIC matching (PRESERVED)
+  console.log(`[${functionName}] Falling back to VALUE_TO_METRIC matching`);
+  return parseIntentWithConfidence(query);
+}
+
+/**
+ * Map columnGroup to FIELD_TYPE_RULES key
+ * Connects Data Contract intents to null behavior rules (Section 12.1)
+ * @param {string} columnGroup - The columnGroup from intent
+ * @returns {string|null} FIELD_TYPE_RULES key
+ */
+function mapColumnGroupToFieldType(columnGroup) {
+  const mapping = {
+    'DATES_ACTIVITY': 'DATE_FIELDS',
+    'ACCOUNT_STATUS': 'IDENTITY_CATEGORICAL',
+    'SYSTEM_STATS': 'BOOLEAN_FLAGS',
+    'PERCENTAGE_METRICS': 'PERCENTAGE_SHARE',
+    'REVENUE': 'REVENUE_MONETARY',
+    'SEATED_COVERS': 'COUNT_VOLUME',
+    'PRICING': 'IDENTITY_CATEGORICAL',
+    'LOCATION': 'IDENTITY_CATEGORICAL',
+    'ACCOUNT_IDS': 'IDENTITY_CATEGORICAL',
+    'ACCOUNT_NAME': 'IDENTITY_CATEGORICAL'
+  };
+  return mapping[columnGroup] || null;
+}
+
+/**
+ * Resolve timeWindow from Data Contract intent using TIMEFRAME_HIERARCHY
+ * Connects intent timeWindow to existing temporal disambiguation (Section 12.2)
+ * @param {string} timeWindow - The timeWindow from intent (e.g., 'last_180_days')
+ * @param {string} conceptType - 'covers', 'revenue', or 'shares'
+ * @returns {Object} { field, explanation }
+ */
+function resolveIntentTimeWindow(timeWindow, conceptType) {
+  const result = {
+    field: null,
+    explanation: null
+  };
+  
+  if (!timeWindow) {
+    // No specific timeframe - use defaults from selectBestTimeframe
+    return selectBestTimeframe(conceptType, { detected: false }, {});
+  }
+  
+  // Map intent timeWindow to TIMEFRAME_HIERARCHY
+  switch (timeWindow) {
+    case 'last_month':
+      if (conceptType === 'covers') {
+        result.field = 'CVR Last Month - Network';
+      } else if (conceptType === 'revenue') {
+        result.field = 'Revenue - Total Last Month';
+      } else if (conceptType === 'shares') {
+        result.field = 'CVRs LM - Discovery %';
+      }
+      result.explanation = 'Using last month per intent definition.';
+      break;
+      
+    case 'last_90_days':
+      if (conceptType === 'covers') {
+        result.field = 'L90 Total Meetings';
+      }
+      result.explanation = 'Using 90-day window per intent definition.';
+      break;
+      
+    case 'last_180_days':
+      result.explanation = 'Using 180-day engagement window per intent definition.';
+      // Fall through to use recommendedMetric directly
+      break;
+      
+    default:
+      result.explanation = `Using ${timeWindow} per intent definition.`;
+  }
+  
+  return result;
+}
+
+/**
+ * Full Data Contract aware query processor
+ * Main entry point that orchestrates all layers
+ * @param {string} query - User's natural language query
+ * @param {Object} dataContext - Optional data context for field availability
+ * @returns {Object} Complete result with Data Contract compliance
+ */
+function processQueryWithFullDataContract(query, dataContext) {
+  const functionName = 'processQueryWithFullDataContract';
+  const startTime = new Date();
+  
+  console.log(`[${functionName}] Processing: "${query}"`);
+  
+  // Step 1: Parse intent (tries scripted → data_contract → VALUE_TO_METRIC)
+  const intentResult = parseIntentWithDataContract(query);
+  
+  // Step 2: Handle clarification requests (Section 12.3)
+  if (intentResult.needsClarification) {
+    console.log(`[${functionName}] Clarification required`);
+    return {
+      success: true,
+      requiresClarification: true,
+      clarificationPrompt: intentResult.clarificationPrompt,
+      confidence: intentResult.confidence,
+      candidates: intentResult.candidates,
+      source: intentResult.source,
+      durationMs: new Date() - startTime
+    };
+  }
+  
+  // Step 3: Handle scripted responses (unchanged)
+  if (intentResult.source === 'scripted') {
+    return {
+      success: true,
+      response: intentResult.scriptedAnswer,
+      source: 'scripted',
+      confidence: 1.0,
+      durationMs: new Date() - startTime
+    };
+  }
+  
+  // Step 4: Build result with Data Contract compliance
+  const result = {
+    success: true,
+    source: intentResult.source,
+    intent: intentResult.intent,
+    field: intentResult.field,
+    fieldType: intentResult.fieldType,
+    confidence: intentResult.confidence,
+    durationMs: new Date() - startTime
+  };
+  
+  // Step 5: Apply null behavior rules (Section 12.1)
+  if (intentResult.columnGroup) {
+    const fieldTypeKey = mapColumnGroupToFieldType(intentResult.columnGroup);
+    if (fieldTypeKey && FIELD_TYPE_RULES[fieldTypeKey]) {
+      result.nullBehaviorRules = FIELD_TYPE_RULES[fieldTypeKey];
+    }
+  }
+  
+  // Step 6: Resolve timeframe (Section 12.2)
+  if (intentResult.timeWindow) {
+    const conceptType = determineConceptType(intentResult.field);
+    result.timeframeGuidance = resolveIntentTimeWindow(intentResult.timeWindow, conceptType);
+  }
+  
+  // Step 7: Include filters if present
+  if (intentResult.filters) {
+    result.filters = intentResult.filters;
+  }
+  
+  // Step 8: Include notes for response generation
+  if (intentResult.notes) {
+    result.notes = intentResult.notes;
+  }
+  
+  console.log(`[${functionName}] Complete - source: ${result.source}, intent: ${result.intent}, confidence: ${result.confidence?.toFixed(2)}`);
+  return result;
+}
+
+/**
+ * Determine concept type from field name
+ * Helper for timeframe resolution
+ * @param {string} field - The field name
+ * @returns {string} 'covers', 'revenue', or 'shares'
+ */
+function determineConceptType(field) {
+  if (!field) return 'covers';
+  const fieldLower = field.toLowerCase();
+  
+  if (fieldLower.includes('revenue') || fieldLower.includes('yield') || fieldLower.includes('due')) {
+    return 'revenue';
+  }
+  if (fieldLower.includes('%') || fieldLower.includes('disco') || fieldLower.includes('share')) {
+    return 'shares';
+  }
+  return 'covers';
+}
+
+/**
+ * Apply null behavior to a value based on Data Contract rules
+ * Wrapper that uses intent context for better messaging
+ * @param {string} fieldName - The field name
+ * @param {*} value - The raw data value
+ * @param {Object} intentContext - Optional intent context from parseIntentWithDataContract
+ * @returns {Object} { displayValue, isNull, explanation }
+ */
+function applyNullBehaviorWithContext(fieldName, value, intentContext) {
+  // Use existing applyNullBehavior as base
+  const baseResult = applyNullBehavior(fieldName, value);
+  
+  // Enhance explanation with intent context if available
+  if (baseResult.isNull && intentContext && intentContext.notes) {
+    baseResult.explanation = `${baseResult.explanation}\n\n_Note: ${intentContext.notes}_`;
+  }
+  
+  return baseResult;
+}
+
+/**
+ * TEST FUNCTION: Verify Data Contract Intent Layer is working
+ * Run from Apps Script editor to test the new layer
+ */
+function TEST_DataContractIntentLayer() {
+  const testCases = [
+    // Should match get_last_meeting_date
+    'When was our last meeting with this account?',
+    
+    // Should match get_last_engagement_date  
+    'When did we last engage with this restaurant?',
+    
+    // Should match get_l90_meeting_count
+    'How many meetings in the last 90 days?',
+    
+    // Should match focus20_stale_engagement
+    'Which Focus 20 accounts are stale?',
+    
+    // Should match get_last_month_revenue
+    'What was their revenue last month?',
+    
+    // Should trigger clarification (ambiguous - meeting vs engagement)
+    'When did we last connect with them?',
+    
+    // Should fall back to VALUE_TO_METRIC (not in intents)
+    'How many Core accounts do I have?',
+    
+    // Should have low confidence
+    'random gibberish xyz123'
+  ];
+  
+  const results = [];
+  
+  for (const query of testCases) {
+    const result = processQueryWithFullDataContract(query, {});
+    results.push({
+      query: query.substring(0, 50) + (query.length > 50 ? '...' : ''),
+      source: result.source || 'unknown',
+      intent: result.intent || 'none',
+      field: result.field || 'N/A',
+      confidence: result.confidence ? result.confidence.toFixed(2) : 'N/A',
+      needsClarification: result.requiresClarification || false
+    });
+  }
+  
+  console.log('=== DATA CONTRACT INTENT LAYER TEST ===');
+  console.log(JSON.stringify(results, null, 2));
+  
+  return results;
+}
+
+// =============================================================
+// END: DATA CONTRACT INTENT LAYER
 // =============================================================
 
 /**

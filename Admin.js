@@ -3,6 +3,12 @@
 // PURPOSE: Internal logic (AM Tabs, Focus20 Tagging, Data Refresh)
 // =============================================================
 
+// PROTECTED SHEETS: These sheets should NEVER be deleted by tab management functions
+var PROTECTED_SHEET_NAMES = [
+  'Setup', 'STATCORE', 'SYSCORE', 'DAGCORE', 'DISTRO', 
+  'Launcher', 'Sets', 'Refresh', 'Config', 'Benchmarks'
+];
+
 // =============================================================
 // SECTION: ORCHESTRATION & AUTOMATION
 // =============================================================
@@ -162,7 +168,14 @@ function createEmployeeTabs(targetSS) {
     .map(r => r[0].trim()).filter(name => name && name !== "Manager Lens"); 
 
   var firstNames = employeeNames.map(n => n.split(' ')[0]);
-  ss.getSheets().forEach(s => { if (firstNames.includes(s.getName())) ss.deleteSheet(s); });
+  ss.getSheets().forEach(s => { 
+    var name = s.getName();
+    if (PROTECTED_SHEET_NAMES.includes(name)) {
+      Logger.log('WARNING: Skipping protected sheet: ' + name);
+      return;
+    }
+    if (firstNames.includes(name)) ss.deleteSheet(s); 
+  });
 
   firstNames.forEach((name, i) => {
     var copy = launcherSheet.copyTo(ss).setName(getUniqueSheetName(ss, name));
@@ -241,12 +254,20 @@ function deploySheetToTarget_(sourceSS, targetSS, sheetName, hideSheet) {
 }
 
 function deleteEmployeeTabs() {
+  assertAdminAccess(); // Requires admin - destructive operation
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var names = ss.getSheetByName("Setup").getRange("B3:B").getValues()
     .map(r => r[0].trim()).filter(name => name && name !== "Manager Lens"); 
 
   var firstNames = names.map(n => n.split(' ')[0]);
-  ss.getSheets().forEach(s => { if (firstNames.includes(s.getName())) ss.deleteSheet(s); });
+  ss.getSheets().forEach(s => { 
+    var name = s.getName();
+    if (PROTECTED_SHEET_NAMES.includes(name)) {
+      Logger.log('WARNING: Skipping protected sheet: ' + name);
+      return;
+    }
+    if (firstNames.includes(name)) ss.deleteSheet(s); 
+  });
   return "Employee tabs deleted.";
 }
 

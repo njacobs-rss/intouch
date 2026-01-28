@@ -31,6 +31,12 @@ function checkAdminAccess() {
 var TARGET_FOLDER_ID = '1oqbXf4CPouogLMvlB5rzZipOwiGZyRwE'; 
 var TARGET_NAME_REGEX = /iQ/i; // Case-insensitive regex match (replaces 'iQ' string)
 
+// PROTECTED SHEETS: These sheets should NEVER be deleted by tab management functions
+var PROTECTED_SHEET_NAMES = [
+  'Setup', 'STATCORE', 'SYSCORE', 'DAGCORE', 'DISTRO', 
+  'Launcher', 'Sets', 'Refresh', 'Config', 'Benchmarks'
+];
+
 /**
  * HELPER: Centralized file matching logic
  * @param {string} filename - Name of the file to check
@@ -556,9 +562,14 @@ function runCreateEmployeeTabs() {
         // 2. Get first names for tab naming
         var firstNames = employeeNames.map(function(n) { return n.split(' ')[0]; });
 
-        // 3. Delete existing employee tabs
+        // 3. Delete existing employee tabs (with protection for system sheets)
         var sheetsToDelete = targetSS.getSheets().filter(function(s) { 
-          return firstNames.includes(s.getName()); 
+          var name = s.getName();
+          if (PROTECTED_SHEET_NAMES.includes(name)) {
+            Logger.log('WARNING: Skipping protected sheet "' + name + '" in ' + file.getName());
+            return false;
+          }
+          return firstNames.includes(name); 
         });
         sheetsToDelete.forEach(function(s) { targetSS.deleteSheet(s); });
 

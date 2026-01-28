@@ -1582,7 +1582,10 @@ function getDetailedAMData(amName) {
         const d = row[map.termEnd];
         if (d instanceof Date) {
           if (d < today) data.termExpired.push({ rid, name });
-          else if (d <= warnDate) data.termWarning.push({ rid, name });
+          else if (d <= warnDate) {
+            const daysUntil = Math.floor((d - today) / (1000 * 60 * 60 * 24));
+            data.termWarning.push({ rid, name, daysUntil });
+          }
         }
       }
       
@@ -2465,6 +2468,55 @@ function mapStatusToEmoji_(statuses) {
 }
 
 /**
+ * Maps account status/programs to emoji with labels for UI display
+ * Returns array of {emoji, label} for individual tooltip display
+ * @param {Array<string>} statuses - Array of status strings (e.g., ['Freemium', 'Visa'])
+ * @returns {Array<{emoji: string, label: string}>} Array of emoji objects with labels
+ */
+function mapStatusToEmojiWithLabels_(statuses) {
+  if (!statuses || !Array.isArray(statuses)) return [];
+  
+  const emojiMap = {
+    'freemium': { emoji: '💸', label: 'Freemium' },
+    'ayce': { emoji: '🍽️', label: 'AYCE' },
+    'visa': { emoji: '💳', label: 'Visa' },
+    'chase': { emoji: '🔵', label: 'Chase' },
+    'uber': { emoji: '🚗', label: 'Uber' },
+    'icon': { emoji: '⭐', label: 'Icon' },
+    'icons': { emoji: '⭐', label: 'Icon' },
+    'elite': { emoji: '👑', label: 'Elite/VIP' },
+    'elites': { emoji: '👑', label: 'Elite/VIP' },
+    'vip': { emoji: '👑', label: 'Elite/VIP' },
+    'platinum': { emoji: '💎', label: 'Platinum' },
+    'gold': { emoji: '🥇', label: 'Gold' },
+    'silver': { emoji: '🥈', label: 'Silver' },
+    'bronze': { emoji: '🥉', label: 'Bronze' }
+  };
+  
+  const result = [];
+  const seen = new Set();
+  
+  for (const status of statuses) {
+    if (!status) continue;
+    const normalized = String(status).toLowerCase().trim();
+    
+    // Skip "Top" or "Top [Nom]" as these are non-informative
+    if (normalized === 'top' || normalized === 'top [nom]') continue;
+    
+    // Check each key in the map
+    for (const [key, emojiObj] of Object.entries(emojiMap)) {
+      if (normalized.includes(key) && !seen.has(emojiObj.emoji)) {
+        result.push({ emoji: emojiObj.emoji, label: emojiObj.label });
+        seen.add(emojiObj.emoji);
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Get Jump Start data for Daily Jump Start panel
  * Returns 5 sections with account lists formatted for UI display
  * @param {string} amName - The AM's full name (optional, will detect from active tab if not provided)
@@ -2613,7 +2665,9 @@ function formatAccountsForUI_(rids, data) {
       rid: rid,
       name: acc.name || 'Unknown',
       emoji: mapStatusToEmoji_(statuses),
-      daysSince: acc.daysSince || null  // For engagement tracking
+      emojiTags: mapStatusToEmojiWithLabels_(statuses),  // Array of {emoji, label} for hover tooltips
+      daysSince: acc.daysSince || null,  // For engagement tracking
+      daysUntil: acc.daysUntil || null   // For contract expiration tracking
     };
   });
 }

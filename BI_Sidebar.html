@@ -1036,6 +1036,47 @@
     .kh-jumpstart-acc-name:hover {
       background: #f1f5f9;
     }
+    
+    /* Days Label (for contract expiring and no engagement) */
+    .kh-days-label {
+      font-size: 9px;
+      font-weight: 600;
+      margin-left: 4px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #f1f5f9;
+      flex-shrink: 0;
+    }
+    .days-green { color: #16a34a; background: #dcfce7; }
+    .days-orange { color: #ea580c; background: #ffedd5; }
+    .days-red { color: #dc2626; background: #fee2e2; }
+    
+    /* Emoji Tags (inline with hover labels) */
+    .kh-emoji-tag {
+      cursor: help;
+      font-size: 10px;
+      margin-right: 1px;
+    }
+    
+    /* Custom Tooltip (single tooltip at a time) */
+    .kh-custom-tooltip {
+      position: fixed;
+      background: #1e293b;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      max-width: 250px;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      line-height: 1.4;
+    }
+    .kh-custom-tooltip.visible { 
+      opacity: 1; 
+    }
 
     /* Action Buttons */
     .kh-jumpstart-actions {
@@ -1432,6 +1473,46 @@
     let CURRENT_SCOPE = 'INDIVIDUAL'; 
     let CURRENT_BASELINE_REV = 0; 
     let isAICancelled = false; 
+    let activeTooltipEl = null;  // Track active tooltip element
+
+    // --- CUSTOM TOOLTIP SYSTEM (only one visible at a time) ---
+    function showCustomTooltip(el, text) {
+      const tooltip = document.getElementById('khCustomTooltip');
+      if (!tooltip || !text) return;
+      
+      // Close any existing tooltip
+      if (activeTooltipEl) {
+        hideCustomTooltip();
+      }
+      
+      const rect = el.getBoundingClientRect();
+      tooltip.textContent = text;
+      
+      // Position tooltip below the element
+      tooltip.style.left = Math.max(4, rect.left) + 'px';
+      tooltip.style.top = (rect.bottom + 4) + 'px';
+      
+      // Ensure tooltip doesn't overflow right edge
+      tooltip.style.maxWidth = Math.min(250, window.innerWidth - rect.left - 8) + 'px';
+      
+      tooltip.classList.add('visible');
+      activeTooltipEl = el;
+    }
+    
+    function hideCustomTooltip() {
+      const tooltip = document.getElementById('khCustomTooltip');
+      if (tooltip) {
+        tooltip.classList.remove('visible');
+      }
+      activeTooltipEl = null;
+    }
+    
+    // Close tooltip when clicking anywhere else
+    document.addEventListener('click', function(e) {
+      if (activeTooltipEl && !e.target.closest('.kh-custom-tooltip') && e.target !== activeTooltipEl) {
+        hideCustomTooltip();
+      }
+    });
 
     // --- INITIALIZATION ---
     window.onload = function() {
@@ -2227,6 +2308,15 @@
      * Handles threshold behavior: 0 (empty), 1-6 (expanded), 7+ (collapsed)
      * @param {Object} data - Data from getJumpStartData()
      */
+    // Section tooltip definitions - natural language descriptions of qualifiers
+    const sectionTooltips = {
+      termPending: 'Accounts with status indicating termination or cancellation in progress',
+      contractsExpiring: 'Accounts with contracts ending within the next 45 days',
+      noEngagement60: 'Accounts with no logged engagement in the last 60+ days',
+      noBookings30: 'Accounts with booking issues like 0-Fullbook or no recent bookings',
+      highPIRevenue: 'Accounts with PI revenue share >30% AND total revenue >$1,200'
+    };
+    
     function renderJumpStartAccordion(data) {
       const jumpStartContent = document.getElementById('khJumpStartContent');
       if (!jumpStartContent || !data.sections) {
@@ -2271,13 +2361,14 @@
         
         const emptyClass = isEmpty ? 'empty' : '';
         const chevronClass = isEmpty ? 'hidden' : '';
+        const sectionTooltip = sectionTooltips[sectionId] || '';
         
         html += `
           <div class="kh-jumpstart-section ${expanded} ${emptyClass}" data-section-id="${sectionId}" data-count="${count}">
             <div class="kh-jumpstart-section-header" ${headerClickHandler}>
               <span class="kh-jumpstart-chevron ${chevronClass}">▶</span>
               <span class="kh-jumpstart-dot">${section.priorityDot}</span>
-              <span class="kh-jumpstart-name">${section.title}</span>
+              <span class="kh-jumpstart-name" title="${sectionTooltip}">${section.title}</span>
               <span class="kh-jumpstart-badge ${section.priority === 'high' && count > 0 ? 'urgent' : ''}">${count}</span>
             </div>
             <div class="kh-jumpstart-content">
@@ -2303,6 +2394,18 @@
     }
     
     /**
+     * Get color class for days since engagement
+     * @param {number} daysSince - Days since last engagement (999 = no date)
+     * @returns {string} CSS class name
+     */
+    function getDaysColorClass(daysSince) {
+      if (daysSince === 999) return 'days-red';     // No date = +90D
+      if (daysSince <= 45) return 'days-green';
+      if (daysSince <= 75) return 'days-orange';
+      return 'days-red';                            // 76-90+
+    }
+    
+    /**
      * Render content for a section with accounts
      * EDGE CASE 6: Handles threshold behavior for large sections (7+)
      * @param {Object} section - Section data with accounts array
@@ -2319,31 +2422,49 @@
       // Build account list
       let listHtml = '<div class="kh-jumpstart-list">';
       section.accounts.forEach((acc, idx) => {
-        const emoji = acc.emoji || '';
         const name = truncateAccountName(acc.name);
         
-        // EDGE CASE 5: Multiple emojis show in order from mapStatusToEmoji_
-        // Emoji field already contains combined emojis like "💸💳⭐"
+        // Render emoji tags inline with individual hover labels
+        let emojiHtml = '';
+        if (acc.emojiTags && acc.emojiTags.length > 0) {
+          emojiHtml = acc.emojiTags
+            .map(tag => `<span class="kh-emoji-tag" title="${tag.label}">${tag.emoji}</span>`)
+            .join('');
+        } else if (acc.emoji) {
+          // Fallback to old format if emojiTags not available
+          emojiHtml = `<span class="kh-emoji-tag">${acc.emoji}</span>`;
+        }
+        
+        // Build days label based on section type
+        let daysHtml = '';
+        if (section.id === 'contractsExpiring' && acc.daysUntil != null) {
+          daysHtml = `<span class="kh-days-label">${acc.daysUntil}D</span>`;
+        } else if (section.id === 'noEngagement60' && acc.daysSince != null) {
+          const daysDisplay = acc.daysSince === 999 ? '+90D' : `${acc.daysSince}D`;
+          const colorClass = getDaysColorClass(acc.daysSince);
+          daysHtml = `<span class="kh-days-label ${colorClass}">${daysDisplay}</span>`;
+        }
         
         listHtml += `
           <div class="kh-jumpstart-row">
-            <span class="kh-jumpstart-emoji">${emoji}</span>
+            <span class="kh-jumpstart-emoji">${emojiHtml}</span>
             <span class="kh-jumpstart-acc-name" title="Click to copy RID: ${acc.rid}" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
+            ${daysHtml}
           </div>
         `;
       });
       listHtml += '</div>';
       
-      // Build action buttons
+      // Build action buttons with hover tooltips
       const actionsHtml = `
         <div class="kh-jumpstart-actions">
-          <button class="kh-jumpstart-btn" onclick="jumpStartIsolate('${section.id}')">
+          <button class="kh-jumpstart-btn" onclick="jumpStartIsolate('${section.id}')" title="Filter Smart Select to show only these accounts">
             🎯 Isolate
           </button>
-          <button class="kh-jumpstart-btn primary" onclick="jumpStartDigIn('${section.id}')">
+          <button class="kh-jumpstart-btn primary" onclick="jumpStartDigIn('${section.id}')" title="Isolate accounts and generate AI analysis">
             🔍 Dig In
           </button>
-          <button class="kh-jumpstart-btn" onclick="jumpStartGlean('${section.id}')" id="gleanBtn-${section.id}">
+          <button class="kh-jumpstart-btn" onclick="jumpStartGlean('${section.id}')" id="gleanBtn-${section.id}" title="Copy prompt to clipboard and open Glean">
             🧠 Glean
           </button>
         </div>
@@ -4406,6 +4527,9 @@ If you have any other questions about the team data I'd be happy to dive in with
       </div>
     </div>
   </div>
+
+  <!-- Custom Tooltip Container (only one visible at a time) -->
+  <div id="khCustomTooltip" class="kh-custom-tooltip"></div>
 
 </body>
 </html>

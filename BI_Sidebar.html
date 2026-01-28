@@ -71,9 +71,8 @@
     #tab-bucket-iq .kh-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 16px 0;
       background: #ffffff;
-      position: relative; /* For floating new chat button */
     }
 
     /* Controls Container - Above Input */
@@ -187,11 +186,11 @@
 
     /* Assistant messages - OpenTable style */
     #tab-bucket-iq .kh-message.assistant {
-      background: #f1f2f4;
+      background: transparent;
       border: none;
       color: #2d333f;
-      border-radius: 18px 18px 18px 4px;
-      padding: 12px 0; /* Removed horizontal padding */
+      border-radius: 0;
+      padding: 12px 0;
       font-size: 13px;
       line-height: 1.5;
       width: 100%;
@@ -1957,13 +1956,6 @@
       // Clear messages and show welcome screen
       if (khEls.messages) {
         khEls.messages.innerHTML = `
-          <!-- New Chat Button (Floating) -->
-          <button class="bucket-iq-new-chat" id="khClear" title="Start New Chat">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-
           <!-- Daily Jump Start Accordion -->
           <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
             <div class="kh-jumpstart-header">
@@ -2016,21 +2008,8 @@
             }
           });
         });
-
-        // Re-wire New Chat button (since it was re-created in innerHTML)
-        const newChatBtn = document.getElementById('khClear');
-        if (newChatBtn) {
-          newChatBtn.addEventListener('click', clearKHChat);
-          khEls.clearBtn = newChatBtn; // Update reference
-        }
-
-        // Re-wire Help button (since it was re-created in innerHTML if it was inside khMessages, but it's now in bucket-iq-controls-container which is inside khMessages)
-        // Actually, bucket-iq-controls-container is inside khMessages, so we need to re-wire helpBtn too
-        const helpBtn = document.getElementById('helpBtn');
-        if (helpBtn) {
-          helpBtn.addEventListener('click', showHelpGuide);
-          khEls.helpBtn = helpBtn; // Update reference
-        }
+        // Note: New Chat and Help buttons are now in bucket-iq-input-area (outside khMessages)
+        // so they don't need to be re-wired when clearing the chat
       }
       
       // Update welcome reference
@@ -4303,7 +4282,7 @@ If you have any other questions about the team data I'd be happy to dive in with
   </div>
 
   <!-- Help Modal -->
-  <div class="help-modal-overlay" id="helpModal">
+  <div class="kh-modal-overlay" id="helpModal">
     <div class="help-modal">
       <div class="help-modal-header">
         <span>Bucket iQ Guide</span>

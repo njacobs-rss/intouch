@@ -2726,7 +2726,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
         cachedContent: cacheName,
         contents: contents,
         generationConfig: {
-          maxOutputTokens: 3000,  // Increased for large account lists (92+ RIDs with names)
+          maxOutputTokens: 8192,  // Increased for Gemini 3 Pro (uses tokens for thinking + response)
           temperature: 0,  // Strict determinism
           topP: 0.9
         }
@@ -2740,7 +2740,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
         },
         contents: contents,
         generationConfig: {
-          maxOutputTokens: 3000,
+          maxOutputTokens: 8192,
           temperature: 0,
           topP: 0.9
         }
@@ -2782,7 +2782,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
           },
           contents: contents,
           generationConfig: {
-            maxOutputTokens: 3000,
+            maxOutputTokens: 8192,
             temperature: 0,
             topP: 0.9
           }
@@ -2847,7 +2847,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
             },
             contents: contents,
             generationConfig: {
-              maxOutputTokens: 3000,
+              maxOutputTokens: 8192,
               temperature: 0,
               topP: 0.9
             }

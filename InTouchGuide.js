@@ -2090,6 +2090,31 @@ function formatDataForInjection(data) {
   text += `Instant Booking: ${data.instantBooking.count} | Private Dining: ${data.privateDining.count}\n`;
   text += `Partner Feed Excluded: ${data.partnerFeedExcluded.count}\n\n`;
   
+  // Meeting/Event Tracking (L90)
+  text += `No Meetings (L90): ${data.noMeetings90.count} | No Tasks (L90): ${data.noTasks90.count} | No Engagement (L90): ${data.noEngagement90.count}\n\n`;
+  
+  // Helper to format list with RIDs and Names
+  const formatListWithRids = (name, items) => {
+    if (!items || items.length === 0) return '';
+    let result = `${name}:\n`;
+    items.forEach(item => {
+      result += `- ${item.name} (RID: ${item.rid})\n`;
+    });
+    result += '\n';
+    return result;
+  };
+
+  // Expose specific lists for L90 filtering
+  if (data.noMeetings90.count > 0) {
+    text += formatListWithRids('ACCOUNTS WITH NO MEETINGS IN LAST 90 DAYS', data.noMeetings90.rids);
+  }
+  if (data.noTasks90.count > 0) {
+    text += formatListWithRids('ACCOUNTS WITH NO TASKS IN LAST 90 DAYS', data.noTasks90.rids);
+  }
+  if (data.noEngagement90.count > 0) {
+    text += formatListWithRids('ACCOUNTS WITH NO ENGAGEMENT IN LAST 90 DAYS', data.noEngagement90.rids);
+  }
+
   // Enhanced category with per-category metrics (System Mix, Quality Tiers)
   // IMPORTANT: Include ALL RIDs WITH NAMES so AI can list them without hallucinating
   const formatMetricCategory = (name, items) => {

@@ -1642,31 +1642,60 @@ function getDetailedAMData(amName) {
       }
       
       // Meeting/Event tracking (for DATA_CONTRACT_INTENTS: list_unmet_accounts_l90, etc.)
-      // IMPORTANT: Blank cells in Event Date, Task Date, Last Engaged Date columns specifically
-      // mean NO ACTIVITY in past 90 days - this rule applies ONLY to these three columns
       
       // Helper to check if value is blank/empty
       const isBlank = (val) => val === '' || val === null || val === undefined || 
                                (typeof val === 'string' && val.trim() === '');
       
-      // Track accounts with no meetings in 90 days (L90 = 0 OR blank Event Date)
+      // Calculate L90 cutoff date (90 days ago from today)
+      const cutoffDate = new Date();
+      cutoffDate.setDate(today.getDate() - 90);
+
+      // Track accounts with no meetings in 90 days
+      // Logic: Include if Event Date is BLANK OR (Valid Date AND Older than 90 days)
       let hasNoMeetings = false;
-      if (map.l90Meetings > -1) {
+      
+      // Check Event Date (Primary Source)
+      if (map.eventDate > -1) {
+        const eDateVal = row[map.eventDate];
+        if (isBlank(eDateVal)) {
+          hasNoMeetings = true; // No date = No meeting
+        } else {
+          const eDate = new Date(eDateVal);
+          if (!isNaN(eDate.getTime()) && eDate < cutoffDate) {
+            hasNoMeetings = true; // Date exists but is older than 90 days
+          }
+        }
+      }
+      
+      // Fallback/Safety: If L90 Total Meetings column explicitly says 0
+      if (!hasNoMeetings && map.l90Meetings > -1) {
         const l90 = parseFloat(row[map.l90Meetings]);
-        if (l90 === 0 || isNaN(l90) || isBlank(row[map.l90Meetings])) {
+        if (l90 === 0) {
           hasNoMeetings = true;
         }
       }
-      // Also check Event Date - blank means no meeting logged in 90 days
-      if (map.eventDate > -1 && isBlank(row[map.eventDate])) {
-        hasNoMeetings = true;
-      }
+
       if (hasNoMeetings) {
         data.noMeetings90.push({ rid, name });
       }
       
-      // Track accounts with no tasks in 90 days (blank Task Date)
-      if (map.taskDate > -1 && isBlank(row[map.taskDate])) {
+      // Track accounts with no tasks in 90 days
+      // Logic: Include if Task Date is BLANK OR (Valid Date AND Older than 90 days)
+      let hasNoTasks = false;
+      if (map.taskDate > -1) {
+        const tDateVal = row[map.taskDate];
+        if (isBlank(tDateVal)) {
+          hasNoTasks = true; // No date = No task
+        } else {
+          const tDate = new Date(tDateVal);
+          if (!isNaN(tDate.getTime()) && tDate < cutoffDate) {
+            hasNoTasks = true; // Date exists but is older than 90 days
+          }
+        }
+      }
+      
+      if (hasNoTasks) {
         data.noTasks90.push({ rid, name });
       }
       

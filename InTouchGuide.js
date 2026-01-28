@@ -7,6 +7,7 @@
  * This file contains all components for the InTouch Guide chat feature:
  * - Column/metric category mappings for smart responses
  * - Scripted response patterns (fast-path, no API call)
+ * - Strategic Playbook (renewals, system types, pricing plays)
  * - System instruction (Gemini persona and knowledge)
  * - Account data injection for contextual answers
  * - Main chat orchestration (askInTouchGuide)
@@ -25,7 +26,7 @@
 // INTOUCH_SYSTEM_INSTRUCTION. This ensures the cache auto-refreshes.
 // =============================================================
 
-const SYSTEM_INSTRUCTION_VERSION = '1.1.0';  // ← BUMP THIS ON INSTRUCTION CHANGES (Added Opportunity Engine)
+const SYSTEM_INSTRUCTION_VERSION = '1.2.0';  // ← BUMP THIS ON INSTRUCTION CHANGES (Added Strategic Playbook)
 
 const CACHE_CONFIG = {
   TTL_SECONDS: 86400,  // 24 hours
@@ -389,6 +390,26 @@ const SCRIPTED_RESPONSES = {
         // Otherwise let it fall through to Gemini with data injection
         return null;
       }
+    }
+  ],
+  
+  // Strategic playbook quick references - no API needed for framework explanations
+  strategic: [
+    {
+      patterns: [/what.*three.*layer/i, /time.*system.*economics/i, /explain.*framework/i],
+      response: `**The Three-Layer Framework:**\n\n1. **Layer 1: TIME** — Where is the partner in their renewal lifecycle? (90+, 60-90, 30-60, 0-30 days)\n2. **Layer 2: SYSTEM** — What System Type are they on? Is it working?\n3. **Layer 3: ECONOMICS** — Only AFTER System is addressed, which pricing lever fits?\n\n**Critical rule:** Fix System before changing Price. Price complaints are often proxies for system misalignment.\n\nWant me to show your accounts by renewal phase? I can filter by term end date.`
+    },
+    {
+      patterns: [/what.*plays?.*are.*there/i, /list.*plays/i, /types?\s*of\s*plays?/i, /fairness.*stability.*operational/i],
+      response: `**The Three Strategic Plays:**\n\n**Fairness Play** — Use when partner feels fee structure is unfair\n- Objection: "Paying for my own website" or "double-paying Google"\n- Lever: Freemium or Free Google\n\n**Stability Play** — Use when partner can't budget due to bill volatility\n- Objection: "Can't predict what we'll owe"\n- Lever: AYCE flat envelope\n\n**Operational Relief Play** — Use when partner says "too expensive" but system usage is weak\n- Action: Fix system BEFORE touching price\n- Check: Active XP, Active PI, System Type\n\nWant me to diagnose which play fits a specific account?`
+    },
+    {
+      patterns: [/what.*phases?.*renewal/i, /renewal.*lifecycle/i, /explain.*phases?/i],
+      response: `**The 4-Phase Renewal Lifecycle:**\n\n**Phase 1 (90+ days out):** Discover & Qualify\n- Tag risk, identify System Type, draft internal note\n\n**Phase 2 (60-90 days):** Build Value Story\n- Assemble performance view, diagnose system, decide play type\n\n**Phase 3 (30-60 days):** Run & Close\n- Structured renewal conversation with options\n\n**Phase 4 (0-30 days post):** Land & Setup\n- Confirm billing matches agreement, schedule check-in\n\nWant me to show accounts by phase? I can filter by Current Term End Date.\n\n[COLUMN_ACTION:DATES_ACTIVITY:Current Term End Date]`
+    },
+    {
+      patterns: [/what.*system.*archetypes?/i, /list.*archetypes?/i, /basic.*core.*pro.*types?/i],
+      response: `**The 5 System Archetypes:**\n\n1. **BASIC / Light-Touch** — OT is just a booking feed; chaos at host stand\n2. **CORE Constrained-Access** — CORE tied to one device; IT risk, limited remote access\n3. **PRO Partial Integration** — Paying for PRO, using like BASIC; config doesn't match service\n4. **PRO Full Platform, Low Network** — Strong ops but under-uses marketing tools\n5. **PRO Integrated Group** — Multi-location with uneven adoption\n\nCheck **System Type** column to identify which applies. Want me to show it?\n\n[COLUMN_ACTION:ACCOUNT_STATUS:System Type]`
     }
   ]
 };
@@ -1659,7 +1680,368 @@ Found 6 accounts matching these criteria:
 
 [SMART_SELECT_ACTION:12345,12346,...]
 
-I've checked these 6 accounts in Smart Select. **Click the filter icon in Column D and select TRUE** to isolate them.`;
+I've checked these 6 accounts in Smart Select. **Click the filter icon in Column D and select TRUE** to isolate them.
+
+## STRATEGIC PLAYBOOK
+
+This section provides strategic guidance for partner conversations—renewals, saves, and system upgrades. It complements the InTouch navigation knowledge with the "what to do" layer.
+
+### THE THREE-LAYER FRAMEWORK
+
+**Core belief:** Renewals and saves are predictable outcomes of handling these layers IN ORDER:
+
+1. **Layer 1: TIME** — Where is the partner in their renewal lifecycle?
+2. **Layer 2: SYSTEM** — What System Type are they on, and is it working?
+3. **Layer 3: ECONOMICS** — Only AFTER System is addressed, which pricing lever fits?
+
+**CRITICAL RULE (Never Violate):**
+> If a partner is unhappy, diagnose and fix the System (Layer 2) BEFORE changing Price (Layer 3).
+
+Price complaints are often proxies for:
+- Misaligned system type (running BASIC when they need CORE/PRO)
+- Broken configuration (wrong pacing, capacity, table templates)
+- Uneven adoption (paying for PRO but using it like BASIC)
+
+**InTouch connection:** When you see complaints about pricing, check these columns FIRST:
+- **System Type** (Column N/O) — Are they on the right tier?
+- **Active PI / Active XP** (System Stats) — Are they using what they pay for?
+- **Exclusive Pricing** (System Stats) — Already on Freemium/AYCE/Free Google?
+
+---
+
+### STAKEHOLDER PERSONAS
+
+Tailor your guidance based on who the AM is meeting with:
+
+| Stakeholder | What They Care About | Emphasize In Conversation |
+|-------------|---------------------|---------------------------|
+| **Owner-Operator** | Profitability, brand reputation, personal time | Fairness of fees, predictability, "your restaurant, your demand" |
+| **General Manager** | Smooth shifts, staff morale, not getting blamed | Shift control, 90-day prep runway, tools that reduce chaos |
+| **Finance/Controller** | Budgeting, margins, risk management | AYCE stability, clear cost breakdown, no surprises |
+| **Multi-Unit Director** | Consistency across locations, scalability, portfolio view | Group standardization, apples-to-apples comparison, QBR decks |
+| **Host/FOH Lead** | Ease of use, not being blamed for problems | Tools that make their job easier, training support |
+
+**How to use this:**
+- When AM says "I'm meeting with the owner" → Lead with Fairness framing and ROI
+- When AM says "I'm meeting with their finance person" → Lead with Stability (AYCE) and clear math
+- When AM says "I'm meeting with the GM" → Lead with Operational Relief and shift impact
+
+---
+
+### LAYER 1: RENEWAL LIFECYCLE (4 Phases)
+
+Use **Current Term End Date** (Dates & Activity section) to determine phase.
+
+#### Phase 1: Discover & Qualify (90+ days out)
+**InTouch signals:** Current Term End Date > 90 days from today
+
+**Actions:**
+- Confirm term end, notice window, auto-renew behavior in SFDC
+- Tag risk: Green / Yellow / Red
+- Identify System Type and any Exclusive Pricing flags
+- Draft internal note: status, key value points, risks, desired outcome
+
+**InTouch columns to check:** Status, System Type, Exclusive Pricing, Contract Alerts
+
+#### Phase 2: Build Value Story (60–90 days out)
+**InTouch signals:** Current Term End Date = 60-90 days out
+
+**Actions:**
+- Assemble performance view (covers, revenue, channel mix)
+- Check adoption: Active PI, Active XP, Integrations Total
+- Diagnose System Type and root causes for complaints
+- Decide play type: Standard Renewal, Exception, or Structured Recontracting
+
+**InTouch columns to check:** CVR Last Month - Network, Discovery %, Revenue - Total Last Month, Active PI, Active XP
+
+#### Phase 3: Run & Close (30–60 days out)
+**InTouch signals:** Current Term End Date = 30-60 days; Contract Alerts may show "Term Pending"
+
+**Actions:**
+- Run structured renewal conversation (meeting > email when risk is high)
+- Agenda: outcomes achieved, what's working/not, options, decision path
+- Reframe price in terms of Return on Network, not line items
+
+**InTouch columns to check:** Contract Alerts, No Bookings >30 Days, Last Engaged Date, HEALTH FLAGS - LM
+
+#### Phase 4: Land & Setup (0–30 days post-renewal)
+**InTouch signals:** Contract Alerts = cleared or new term date visible
+
+**Actions:**
+- Confirm billing and configuration match agreement
+- Validate integrations and any new EP constructs
+- Log "why they renewed" plus remaining risks
+- Schedule early-term check-in (30-60 days post)
+
+---
+
+### OPERATING RHYTHM
+
+**If an AM follows this rhythm, renewal work is distributed instead of compressed.**
+
+#### Daily
+- Clear tasks and events in SFDC
+- Log meaningful touches
+- Check InTouch for live health signals on upcoming renewals
+
+#### Weekly (in 1:1s with manager)
+- Review term pendings in the next 60–90 days
+- Review at-risk accounts (by healthscore flags, usage, pricing friction)
+- Confirm which accounts should enter formal renewal planning this week
+
+**InTouch action:** Filter by Contract Alerts = "Term Pending" and sort by Current Term End Date
+
+#### Monthly
+- Run a churn scan across portfolio using iQ column:
+  - 0-2 flags: Low risk
+  - 3-5 flags: Medium risk (pre-save motion)
+  - 6-9 flags: High risk (save motion now, ahead of term)
+
+**InTouch action:** Sort by iQ (Column H) descending to see highest-flag accounts first
+
+#### Quarterly
+- Prepare QBR/renewal decks for focus accounts
+- Build Return on Network story (incremental covers, revenue, guest quality)
+- Align new-term goals to features and pricing levers
+
+**InTouch action:** Use Meeting Prep tab → Create Presentation for QBR decks
+
+---
+
+### LAYER 2: SYSTEM TYPES (5 Archetypes)
+
+Check **System Type** column (Account + Status section) to identify which archetype applies.
+
+#### Archetype 1: BASIC / Light-Touch / Demand-Only
+**System Type column shows:** Basic, Connect
+
+**Detection signals (what they say → what it means):**
+- "We just need butts in seats" → No true host system; OT is a marketing widget
+- "Fridays are chaos at the front" → No pacing rules, no structured waitlist
+- "We still run the waitlist on paper" → High stress, frequent over/under-seating
+
+**The play:** Operational Relief — Upgrade BASIC → CORE/PRO
+
+**The script:**
+> "You're getting bookings in, but you don't have an engine that runs the room. That's why Fridays feel chaotic. Let's move you from demand-only to CORE host tools so you can seat smarter and build a memory of every diner."
+
+**Success signals:** Host team adopts CORE/PRO tools; partner reports fewer fire-drills; price objections soften
+
+#### Archetype 2: CORE On-Prem / Constrained-Access
+**System Type column shows:** Core (but partner mentions device/location constraints)
+
+**Detection signals:**
+- "Our setup works; my host knows it by heart" → Fear of change, not rational benefit comparison
+- "It crashes sometimes, but we manage" → High IT risk, hardware failures
+- "I can't see what's going on unless I'm at the restaurant" → Limited remote monitoring
+
+**The play:** Operational Relief — Migrate to modern CORE/PRO
+
+**The script:**
+> "You've gotten a lot of mileage out of this setup, but having it tied to one device limits what you can do. Moving to cloud-optimized CORE/PRO gives you a faster, more stable system you can access from anywhere. It's actually less risky than staying where you are."
+
+**Success signals:** They accept migration with defined go-live date; IT acknowledges lower risk post-migration
+
+#### Archetype 3: PRO Partial Integration / Under-Adopted
+**System Type column shows:** Pro OR Guest Center
+**Supporting evidence:** Active XP = FALSE, Active PI = FALSE, low feature usage
+
+**Detection signals:**
+- "We don't really use all that stuff" → PRO config doesn't match real service
+- "It's too expensive for what we get" → Staff confused by clutter, reports feel unreliable
+- "We just use it to hold reservations" → Paying for PRO, using like BASIC
+
+**The play:** Operational Relief — PRO cleanup & adoption (NOT discount)
+
+**The script:**
+> "You're right—if you're only using a slice of PRO, it will feel expensive. Instead of shrinking your plan, let's rebuild your configuration so OpenTable matches how you actually run service, then turn on the tools that drive your goals. You'll finally get full value from what you already invest."
+
+**Success signals:** Partner commits to PRO config audit; usage metrics increase; conversation shifts from "too expensive" to "how do we grow"
+
+#### Archetype 4: PRO Full Platform, Low Network
+**System Type column shows:** Pro OR Guest Center
+**Supporting evidence:** Strong host adoption, but Discovery % is low, Network covers flat
+
+**Detection signals:**
+- "We're usually full from regulars" → Strong in-house demand, but revenue plateaued
+- "We don't want discount diners" → Fear of over-filling peak services
+- "We're not using promotions or Experiences" → Under-leveraged Network for shoulder periods
+
+**The play:** Mix of Operational Relief (turn on marketing tools correctly) + Fairness Play if fee structure comes up
+
+**The script:**
+> "You're already excellent once the guest walks in. The opportunity isn't to cram more people into Friday at 7pm—it's to smooth out the rest of the week. With your existing PRO tools, we can use Network and targeted Experiences to fill only the services you care about, growing revenue without overwhelming the kitchen."
+
+**Success signals:** They pilot Network/marketing on specific days; coverage in targeted dayparts improves
+
+#### Archetype 5: PRO Integrated Multi-Location / Group
+**System Type column shows:** Pro OR Guest Center (multiple RIDs under same parent)
+**Check:** Parent Account column for group membership
+
+**Detection signals:**
+- "Every location runs OpenTable differently" → Operational discipline is uneven
+- "I can't compare performance across sites" → Leadership cares about portfolio, not just single units
+- "We rolled out integrations but I'm not sure everyone uses them" → Standardization needed
+
+**The play:** Operational Relief (standardization) + Stability Play (AYCE envelopes) if bill volatility is a concern
+
+**The script:**
+> "You've done the heavy lift rolling PRO out across locations. The next step isn't more complexity—it's standardization. We can align configurations and reporting so you compare locations apples-to-apples and copy what your top performers do."
+
+**Success signals:** They agree to group-level PRO standard; leadership uses group dashboards; renewals shift to multi-RID strategies
+
+---
+
+### LAYER 3: PRICING LEVERS
+
+Only apply AFTER System Type is addressed. Check **Exclusive Pricing** column (System Stats section) for current state.
+
+| Lever | When to Use | InTouch Signal |
+|-------|-------------|----------------|
+| **Freemium** | Partner resents paying for "their own demand" (website, owned channels) | Exclusive Pricing = blank (candidate) or already "Freemium" |
+| **Free Google** | Complaint focused on "double-paying Google" | Exclusive Pricing = blank (candidate) or "Free Google" |
+| **AYCE** | Core issue is bill volatility, inability to budget | Exclusive Pricing = blank (candidate) or "AYCE" |
+| **Standard** | System is healthy, no pricing friction | Exclusive Pricing = blank; Status = Active; low flags |
+
+**Guardrails:**
+- Freemium/Free Google require minimum 12-month term
+- AYCE envelopes calculated from L12M spend; exclude PI, Experiences, PD unless explicitly included
+- Never lead with pricing if system adoption is weak—fix system first
+
+---
+
+### STRATEGIC PLAYS (Quick Reference)
+
+#### Fairness Play
+**Use when:** Partner feels fee structure is unfair (paying for owned demand, Google double-pay)
+**Pricing lever:** Freemium or Free Google
+**InTouch trigger:** High Direct % in CVRs LM - Direct %, low Discovery %, complaints about "paying for my own website"
+
+#### Stability Play
+**Use when:** Partner can't budget due to bill volatility (seasonal swings, unpredictable months)
+**Pricing lever:** AYCE flat envelope
+**InTouch trigger:** High variance in monthly covers, partner mentions "can't predict what we'll owe"
+
+#### Operational Relief Play
+**Use when:** Partner says "too expensive" but system usage is weak
+**Action:** Fix system BEFORE touching price
+**InTouch trigger:** System Type = Pro but Active XP = FALSE, Active PI = FALSE, low usage metrics
+
+**Key rule:** If the primary problem is operational → Operational Relief Play. If the primary problem is fee structure → Fairness or Stability Play.
+
+---
+
+### TOP OBJECTION HANDLING SCRIPTS
+
+#### Objection 1: "It's too expensive for what we use"
+**What they're really saying:** PRO config doesn't match their service; they're paying for features they don't use or understand.
+
+**Diagnosis check (InTouch):**
+- System Type = Pro or Guest Center?
+- Active XP = FALSE?
+- Active PI = FALSE?
+- Low engagement in L90 Total Meetings?
+
+**The play:** Operational Relief — NOT a discount
+
+**Full script:**
+> "I hear you—and you're right that if you're only using a fraction of what you're paying for, the math doesn't feel fair. Here's what I'd like to propose: instead of cutting your plan, let's do a configuration cleanup. We'll rebuild your OpenTable setup to match how you actually run service today, turn off the clutter, and turn on the specific tools that will move the needle for you—whether that's reducing no-shows, filling slow nights, or building guest loyalty. That way you're getting real value from what you already invest, instead of just paying less for something that still doesn't fit."
+
+**Success signal:** They agree to a config audit meeting; conversation shifts from "cut my bill" to "help me use this better"
+
+#### Objection 2: "We're paying for our own demand / our own website traffic"
+**What they're really saying:** They see Direct covers as "theirs" and resent paying cover fees for them.
+
+**Diagnosis check (InTouch):**
+- CVRs LM - Direct % — Is it high (>50%)?
+- Discovery % — Is it low?
+- Google % Avg. 12m — Are they getting significant Google traffic?
+
+**The play:** Fairness Play → Freemium
+
+**Full script:**
+> "That's a fair concern, and it's one we've heard from other partners who have strong direct booking channels. The Freemium model was designed exactly for this: you'd keep your CORE/PRO subscription for the host tools and platform, pay $0 for covers that come through your own website and owned channels, and only pay cover fees for the incremental demand we bring you through the OpenTable marketplace. That way, you're not subsidizing your own traffic—you're only paying for the new guests we help you find."
+
+**Success signal:** They engage on Freemium specifics; ask about term requirements; stop framing it as "you're ripping me off"
+
+#### Objection 3: "I can't predict what I'll owe each month"
+**What they're really saying:** Bill volatility is causing budget stress; they may have positive ROI overall but hate the swings.
+
+**Diagnosis check (InTouch):**
+- Check Revenue - Total Last Month vs Revenue - Total 12m Avg. — Is there high variance?
+- Is this a seasonal business (beach town, ski resort, holiday-heavy)?
+- Who's the stakeholder? (Finance/Controller especially hates volatility)
+
+**The play:** Stability Play → AYCE
+
+**Full script:**
+> "Budgeting is hard when your OpenTable bill swings from $800 in January to $3,000 in July. The AYCE model was built for exactly this: we look at your last 12 months of spend, find a fair flat monthly number that works for both of us, and you pay that amount every month regardless of how many covers come through. You can budget to the dollar, and we smooth out the seasonality together. The only things outside the envelope are optional add-ons like Promoted Inventory or Experiences—and those are your choice to turn on."
+
+**Success signal:** They ask for a specific AYCE number; engage Finance/Controller in the conversation; stop complaining about "surprise bills"
+
+---
+
+### DECISION FRAMEWORK (If/Then)
+
+Use these rules when helping AMs decide what to do:
+
+**Phase-based triggers:**
+- IF Current Term End Date > 90 days AND no flags → Light-touch prep, explore growth
+- IF Current Term End Date > 90 days AND flags present → Early save motion, diagnose root cause
+- IF Current Term End Date = 30-60 days → Structured renewal conversation with options
+- IF Contract Alerts = EXPIRED → Same-week outreach, urgent
+
+**Objection-based triggers:**
+- IF objection = "too expensive" AND (System Type = Basic OR Active XP/PI = FALSE) → Operational Relief Play first
+- IF objection = "too expensive for what we use" AND System Type = Pro → PRO cleanup before pricing
+- IF objection = "can't budget / bills swing" AND system is healthy → Stability Play (AYCE)
+- IF objection = "paying for my own website" → Fairness Play (Freemium)
+- IF objection = "double-paying Google" → Free Google lever
+
+**Risk triggers (combine with InTouch data):**
+- IF No Bookings >30 Days = TRUE AND Status = Active → Urgent churn risk, diagnose system
+- IF Last Engaged Date > 90 days → Coverage gap, schedule outreach
+- IF HEALTH FLAGS - LM shows 3+ flags → High risk, pre-save motion needed
+- IF iQ shows red 3+ → Urgent, multiple issues compounding
+
+**Stakeholder-based triggers:**
+- IF meeting with Owner-Operator → Lead with fairness framing and ROI story
+- IF meeting with Finance/Controller → Lead with AYCE stability and clear math
+- IF meeting with GM → Lead with operational relief and shift impact
+- IF meeting with Multi-Unit Director → Lead with standardization and portfolio view
+
+---
+
+### CONNECTING PLAYBOOK TO INTOUCH ACTIONS
+
+When an AM asks a strategic question, connect the playbook guidance to InTouch features:
+
+| AM Question | Playbook Concept | InTouch Action |
+|-------------|------------------|----------------|
+| "What should I do about this renewal?" | Determine phase from term date | [COLUMN_ACTION:DATES_ACTIVITY:Current Term End Date] then advise based on phase |
+| "They say it's too expensive" | Check system adoption before pricing | Show System Type, Active PI, Active XP columns to diagnose |
+| "Who needs attention this week?" | Phase 3 accounts (30-60 days out) | Filter by Contract Alerts = Term Pending, isolate with Smart Select |
+| "How do I save this account?" | Identify play type (Fairness/Stability/Operational Relief) | Check Exclusive Pricing, System Type, adoption metrics |
+| "Should I offer Freemium?" | Only if system is healthy AND objection is about owned demand | Check Active XP, Active PI, Direct % before recommending |
+| "I'm meeting with their finance person" | Stakeholder = Finance → emphasize Stability | Lead with AYCE option and clear cost breakdown |
+| "What should I prep for my weekly 1:1?" | Operating rhythm: review 60-90 day term pendings | Filter Contract Alerts, sort by Current Term End Date |
+
+**Response pattern for strategic questions:**
+1. Identify the phase (from term date)
+2. Identify the system type (from System Type column + adoption signals)
+3. Identify the stakeholder (who are they meeting with?)
+4. Identify the complaint/objection pattern
+5. Recommend the appropriate play with script
+6. Offer to show relevant InTouch columns or isolate accounts
+
+**Example response:**
+> "Based on the term end date (45 days out), you're in **Phase 3: Run & Close**. The System Type is PRO but Active XP and Active PI are both FALSE—this looks like a **Partial Integration** situation. When they say 'too expensive,' that's usually code for 'not getting value from what I pay for.'
+>
+> Since you're meeting with the owner, frame this as protecting their investment rather than cutting costs. I'd recommend an **Operational Relief Play**: propose a PRO config cleanup before discussing pricing.
+>
+> **Script to use:** 'I hear you—and you're right that if you're only using a fraction of what you're paying for, the math doesn't feel fair. Instead of cutting your plan, let's rebuild your OpenTable setup to match how you actually run service today...'
+>
+> Want me to show the adoption columns so you can see the full picture?"`;
 
 /**
  * Patterns to detect account data questions
@@ -1845,7 +2227,45 @@ const ACCOUNT_DATA_PATTERNS = [
   /vs\s*(other|the)\s*ams?/i,
   /compared?\s*to\s*(other|the|my)\s*(ams?|team|peers?)/i,
   /how\s*(am\s*)?i\s*doing\s*(compared|vs|against)/i,
-  /stack\s*up/i
+  /stack\s*up/i,
+  
+  // === STRATEGIC / RENEWAL PATTERNS ===
+  // Phase-based questions
+  /renewal\s*(strategy|prep|plan|phase)/i,
+  /phase\s*(1|2|3|4|one|two|three|four)/i,
+  /(60|90)\s*days?\s*(out|until|from)/i,
+  /term\s*(end|pending).*days?/i,
+  
+  // System archetype questions
+  /system\s*archetype/i,
+  /partial\s*integration/i,
+  /under.?adopted?\s*pro/i,
+  /light.?touch/i,
+  /demand.?only/i,
+  /constrained.?access/i,
+  /full\s*platform.*low\s*network/i,
+  /integrated\s*(group|multi)/i,
+  
+  // Play-type questions
+  /(fairness|stability|operational\s*relief)\s*play/i,
+  /which\s*play\s*(should|to|for)/i,
+  /what.*play.*recommend/i,
+  /save\s*(play|strategy|motion)/i,
+  
+  // Objection handling
+  /objection/i,
+  /what.*say.*when.*they.*say/i,
+  /how.*respond.*to/i,
+  /script.*for/i,
+  /too\s*expensive/i,
+  /can'?t\s*budget/i,
+  /paying.*for.*(my\s*own|own\s*demand|website)/i,
+  /double.?paying\s*google/i,
+  
+  // Stakeholder questions
+  /meeting\s*with.*(owner|gm|finance|controller|director)/i,
+  /stakeholder/i,
+  /who\s*am\s*i\s*meeting/i
 ];
 
 /**
@@ -2221,6 +2641,18 @@ function tryScriptedResponse(query) {
           if (item.response) {
             return { success: true, answer: item.response, source: 'scripted' };
           }
+        }
+      }
+    }
+  }
+  
+  // 13. Check strategic playbook patterns
+  if (SCRIPTED_RESPONSES.strategic) {
+    for (const item of SCRIPTED_RESPONSES.strategic) {
+      for (const pattern of item.patterns) {
+        if (pattern.test(normalizedQuery)) {
+          console.log('[tryScriptedResponse] Matched strategic pattern');
+          return { success: true, answer: item.response, source: 'scripted' };
         }
       }
     }

@@ -2411,3 +2411,350 @@ function getAMRankings(targetAMName) {
     };
   }
 }
+
+// =============================================================
+// SECTION 8: DAILY JUMP START
+// =============================================================
+
+/**
+ * Maps account status/programs to emoji for visual display
+ * @param {Array<string>} statuses - Array of status strings (e.g., ['Freemium', 'Visa'])
+ * @returns {string} Combined emoji string (e.g., '💸💳')
+ */
+function mapStatusToEmoji_(statuses) {
+  if (!statuses || !Array.isArray(statuses)) return '';
+  
+  const emojiMap = {
+    'freemium': '💸',
+    'ayce': '🍽️',
+    'visa': '💳',
+    'chase': '🔵',
+    'uber': '🚗',
+    'icon': '⭐',
+    'icons': '⭐',
+    'elite': '👑',
+    'elites': '👑',
+    'vip': '👑',
+    'platinum': '💎',
+    'gold': '🥇',
+    'silver': '🥈',
+    'bronze': '🥉'
+  };
+  
+  let result = '';
+  const seen = new Set();
+  
+  for (const status of statuses) {
+    if (!status) continue;
+    const normalized = String(status).toLowerCase().trim();
+    
+    // Skip "Top" or "Top [Nom]" as these are non-informative
+    if (normalized === 'top' || normalized === 'top [nom]') continue;
+    
+    // Check each key in the map
+    for (const [key, emoji] of Object.entries(emojiMap)) {
+      if (normalized.includes(key) && !seen.has(emoji)) {
+        result += emoji;
+        seen.add(emoji);
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Get Jump Start data for Daily Jump Start panel
+ * Returns 5 sections with account lists formatted for UI display
+ * @param {string} amName - The AM's full name (optional, will detect from active tab if not provided)
+ * @returns {Object} Jump Start sections with account arrays
+ */
+function getJumpStartData(amName) {
+  const functionName = 'getJumpStartData';
+  const startTime = new Date();
+  
+  console.log(`[${functionName}] Starting for AM: "${amName || '(auto-detect)'}"`);
+  
+  try {
+    // If no AM name provided, detect from active tab
+    if (!amName || amName.trim() === '') {
+      const context = getActiveAMContext();
+      if (context.isAMTab && context.fullName) {
+        amName = context.fullName;
+        console.log(`[${functionName}] Auto-detected AM: "${amName}"`);
+      } else {
+        return { 
+          success: false, 
+          error: 'Could not detect AM. Please navigate to an AM tab.' 
+        };
+      }
+    }
+    
+    // Get detailed AM data (existing function)
+    const data = getDetailedAMData(amName);
+    if (!data.success) {
+      return { success: false, error: data.error || 'Failed to load account data' };
+    }
+    
+    console.log(`[${functionName}] Loaded ${data.totalAccounts} accounts for ${amName}`);
+    
+    // Get additional per-account data for highPIRevenue filter
+    const highPIAccounts = filterHighPIRevenue_(amName);
+    
+    // Get accounts with booking issues (0-Fullbook or similar)
+    const bookingIssueAccounts = filterBookingIssues_(data.noBookingReasons);
+    
+    // Build sections
+    const sections = {
+      termPending: {
+        id: 'termPending',
+        title: 'Term Pending',
+        priority: 'high',
+        priorityDot: '🔴',
+        count: data.termPending.count,
+        accounts: formatAccountsForUI_(data.termPending.rids, data)
+      },
+      contractsExpiring: {
+        id: 'contractsExpiring',
+        title: 'Contracts Expiring',
+        priority: 'high',
+        priorityDot: '🔴',
+        count: data.termWarning.count,
+        accounts: formatAccountsForUI_(data.termWarning.rids, data)
+      },
+      noEngagement60: {
+        id: 'noEngagement60',
+        title: 'No Engagement 60d',
+        priority: 'medium',
+        priorityDot: '🟡',
+        count: data.staleEngagement60.count,
+        accounts: formatAccountsForUI_(data.staleEngagement60.rids, data)
+      },
+      noBookings30: {
+        id: 'noBookings30',
+        title: 'Booking Issues',
+        priority: 'medium',
+        priorityDot: '🟡',
+        count: bookingIssueAccounts.length,
+        accounts: bookingIssueAccounts
+      },
+      highPIRevenue: {
+        id: 'highPIRevenue',
+        title: 'High PI + Revenue',
+        priority: 'opportunity',
+        priorityDot: '🟢',
+        count: highPIAccounts.length,
+        accounts: highPIAccounts
+      }
+    };
+    
+    const duration = new Date() - startTime;
+    console.log(`[${functionName}] Completed in ${duration}ms`);
+    
+    return {
+      success: true,
+      amName: amName,
+      generatedAt: new Date().toISOString(),
+      sections: sections,
+      totalAccounts: data.totalAccounts,
+      durationMs: duration
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Format account RIDs for UI display with emoji status
+ * @param {Array} rids - Array of {rid, name, ...} objects
+ * @param {Object} data - Full data object from getDetailedAMData
+ * @returns {Array} Formatted accounts [{rid, name, emoji}, ...]
+ */
+function formatAccountsForUI_(rids, data) {
+  if (!rids || !Array.isArray(rids)) return [];
+  
+  // Build lookup for exclusive pricing and special programs
+  const pricingMap = {};
+  const programsMap = {};
+  
+  if (data.exclusivePricing) {
+    data.exclusivePricing.forEach(item => {
+      if (item.rids) {
+        item.rids.forEach(acc => {
+          if (!pricingMap[acc.rid]) pricingMap[acc.rid] = [];
+          pricingMap[acc.rid].push(item.name);
+        });
+      }
+    });
+  }
+  
+  if (data.specialPrograms) {
+    data.specialPrograms.forEach(item => {
+      if (item.rids) {
+        item.rids.forEach(acc => {
+          if (!programsMap[acc.rid]) programsMap[acc.rid] = [];
+          programsMap[acc.rid].push(item.name);
+        });
+      }
+    });
+  }
+  
+  return rids.map(acc => {
+    const rid = acc.rid;
+    const statuses = [
+      ...(pricingMap[rid] || []),
+      ...(programsMap[rid] || [])
+    ];
+    
+    return {
+      rid: rid,
+      name: acc.name || 'Unknown',
+      emoji: mapStatusToEmoji_(statuses),
+      daysSince: acc.daysSince || null  // For engagement tracking
+    };
+  });
+}
+
+/**
+ * Filter accounts with booking issues (0-Fullbook, etc.)
+ * Uses noBookingReasons from getDetailedAMData
+ * @param {Array} noBookingReasons - Array of {name, count, rids} from data
+ * @returns {Array} Formatted accounts with booking issues
+ */
+function filterBookingIssues_(noBookingReasons) {
+  if (!noBookingReasons || !Array.isArray(noBookingReasons)) return [];
+  
+  // Keywords that indicate booking problems
+  const issueKeywords = ['0-fullbook', 'no booking', 'inactive', 'zero', 'none'];
+  
+  const accounts = [];
+  const seen = new Set();
+  
+  noBookingReasons.forEach(category => {
+    const categoryName = String(category.name || '').toLowerCase();
+    
+    // Check if this category indicates a booking issue
+    const isIssue = issueKeywords.some(kw => categoryName.includes(kw));
+    
+    if (isIssue && category.rids) {
+      category.rids.forEach(acc => {
+        if (!seen.has(acc.rid)) {
+          seen.add(acc.rid);
+          accounts.push({
+            rid: acc.rid,
+            name: acc.name || 'Unknown',
+            emoji: '📉',  // Booking issue indicator
+            reason: category.name
+          });
+        }
+      });
+    }
+  });
+  
+  return accounts;
+}
+
+/**
+ * Filter accounts with high PI revenue share AND high total revenue
+ * Criteria: piRevShare > 30% AND (subfees + yield) > $1,200
+ * @param {string} amName - The AM's full name
+ * @returns {Array} Formatted accounts meeting criteria
+ */
+function filterHighPIRevenue_(amName) {
+  const functionName = 'filterHighPIRevenue_';
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const statSheet = ss.getSheetByName('STATCORE');
+    const distroSheet = ss.getSheetByName('DISTRO');
+    
+    if (!statSheet || !distroSheet) {
+      console.log(`[${functionName}] Missing sheets`);
+      return [];
+    }
+    
+    // Get STATCORE data
+    const sHead = statSheet.getRange(2, 1, 1, statSheet.getLastColumn()).getValues()[0];
+    const sData = statSheet.getRange(3, 1, statSheet.getLastRow()-2, statSheet.getLastColumn()).getValues();
+    
+    // Get DISTRO data
+    const dHead = distroSheet.getRange(1, 1, 1, distroSheet.getLastColumn()).getValues()[0];
+    const dData = distroSheet.getRange(2, 1, distroSheet.getLastRow()-1, distroSheet.getLastColumn()).getValues();
+    
+    // Column mapping helper
+    const findCol = (headers, keyword) => headers.findIndex(h => 
+      String(h).toLowerCase().replace(/[^a-z0-9]/g, "").includes(keyword.toLowerCase().replace(/[^a-z0-9]/g, ""))
+    );
+    
+    // STATCORE columns
+    const s_ridIdx = findCol(sHead, "rid");
+    const s_amIdx = findCol(sHead, "accountmanager");
+    const s_nameIdx = findCol(sHead, "accountname");
+    
+    // DISTRO columns
+    const d_ridIdx = findCol(dHead, "rid");
+    const d_piShareIdx = findCol(dHead, "pirevshare");
+    const d_subfeesIdx = findCol(dHead, "subslastmonth");
+    const d_yieldIdx = findCol(dHead, "revyield");
+    const d_piIdx = findCol(dHead, "activepi");
+    
+    if (s_amIdx === -1) {
+      console.log(`[${functionName}] Could not find AM column`);
+      return [];
+    }
+    
+    // Build DISTRO lookup map
+    const dMap = new Map();
+    dData.forEach(row => {
+      const rid = String(row[d_ridIdx] || '');
+      if (rid) dMap.set(rid, row);
+    });
+    
+    // Filter accounts
+    const highPIAccounts = [];
+    
+    sData.forEach(row => {
+      const rowAM = String(row[s_amIdx] || '').trim();
+      if (rowAM.toLowerCase() !== amName.toLowerCase().trim()) return;
+      
+      const rid = String(row[s_ridIdx] || '');
+      const name = String(row[s_nameIdx] || 'Unknown');
+      const dRow = dMap.get(rid);
+      
+      if (!dRow) return;
+      
+      // Check if has active PI
+      const hasPI = hasActivePI(dRow[d_piIdx]);
+      if (!hasPI) return;
+      
+      // Get PI revenue share (percentage)
+      const piShare = parseFloat(String(dRow[d_piShareIdx] || '0').replace('%', '')) || 0;
+      
+      // Get total revenue (subfees + yield)
+      const subfees = parseFloat(dRow[d_subfeesIdx]) || 0;
+      const yieldVal = parseFloat(dRow[d_yieldIdx]) || 0;
+      const totalRevenue = subfees + yieldVal;
+      
+      // Apply filters: PI share > 30% AND total revenue > $1,200
+      if (piShare > 30 && totalRevenue > 1200) {
+        highPIAccounts.push({
+          rid: rid,
+          name: name,
+          emoji: '💰',
+          piShare: piShare.toFixed(1) + '%',
+          revenue: '$' + totalRevenue.toFixed(0)
+        });
+      }
+    });
+    
+    console.log(`[${functionName}] Found ${highPIAccounts.length} high PI revenue accounts`);
+    return highPIAccounts;
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return [];
+  }
+}

@@ -702,6 +702,349 @@
       font-size: 11px;
       padding: 6px 10px;
     }
+
+    /* =========================================
+       DAILY JUMP START
+       ========================================= */
+    .kh-jumpstart {
+      margin: 12px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .kh-jumpstart-header {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .kh-jumpstart-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .kh-jumpstart-refresh {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      color: #94a3b8;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .kh-jumpstart-refresh:hover {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    /* Section Box */
+    .kh-jumpstart-section {
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .kh-jumpstart-section:last-child {
+      border-bottom: none;
+    }
+    
+    .kh-jumpstart-section-header {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 12px;
+      color: #334155;
+    }
+    .kh-jumpstart-section-header:hover {
+      background: #f8fafc;
+    }
+    
+    .kh-jumpstart-chevron {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-right: 8px;
+      transition: transform 0.2s;
+      width: 12px;
+      text-align: center;
+    }
+    .kh-jumpstart-section.expanded .kh-jumpstart-chevron {
+      transform: rotate(90deg);
+    }
+    
+    .kh-jumpstart-dot {
+      font-size: 8px;
+      margin-right: 8px;
+    }
+    
+    .kh-jumpstart-name {
+      flex: 1;
+      font-weight: 500;
+    }
+    
+    .kh-jumpstart-badge {
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .kh-jumpstart-badge.urgent {
+      background: #fee2e2;
+      color: #ef4444;
+    }
+    
+    /* Section Content */
+    .kh-jumpstart-content {
+      display: none;
+      padding: 0 12px 12px 12px;
+      background: #fff;
+    }
+    .kh-jumpstart-section.expanded .kh-jumpstart-content {
+      display: block;
+    }
+    
+    /* Account List */
+    .kh-jumpstart-list {
+      margin-bottom: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    
+    .kh-jumpstart-row {
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 11px;
+      color: #475569;
+      border-bottom: 1px dashed #f1f5f9;
+    }
+    .kh-jumpstart-row:last-child {
+      border-bottom: none;
+    }
+    
+    .kh-jumpstart-emoji {
+      font-size: 10px;
+      width: 16px;
+      margin-right: 6px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    
+    .kh-jumpstart-acc-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    /* Action Buttons */
+    .kh-jumpstart-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    
+    .kh-jumpstart-btn {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .kh-jumpstart-btn:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    
+    .kh-jumpstart-btn.primary {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #2563eb;
+    }
+    .kh-jumpstart-btn.primary:hover {
+      background: #dbeafe;
+      border-color: #93c5fd;
+    }
+
+    /* Start My Day Button */
+    .kh-jumpstart-trigger {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kh-jumpstart-trigger:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+    }
+    
+    .kh-jumpstart-empty {
+      padding: 12px;
+      text-align: center;
+      color: #64748b;
+      font-size: 11px;
+      font-style: italic;
+      background: #f8fafc;
+      border-radius: 4px;
+      margin: 0 12px 12px 12px;
+    }
+    
+    /* Loading state */
+    .kh-jumpstart-loading {
+      padding: 24px 16px;
+      text-align: center;
+    }
+    
+    .kh-jumpstart-loading-text {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #64748b;
+    }
+    
+    /* Error state */
+    .kh-jumpstart-error {
+      padding: 20px 16px;
+      text-align: center;
+    }
+    
+    .kh-jumpstart-error-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    
+    .kh-jumpstart-error-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .kh-jumpstart-error-detail {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+    
+    /* All clear state */
+    .kh-jumpstart-all-clear {
+      padding: 24px 16px;
+      text-align: center;
+      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+      border-radius: 6px;
+      margin: 8px;
+    }
+    
+    .kh-jumpstart-all-clear-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .kh-jumpstart-all-clear-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #059669;
+      margin-bottom: 4px;
+    }
+    
+    .kh-jumpstart-all-clear-subtext {
+      font-size: 11px;
+      color: #10b981;
+    }
+    
+    /* Empty section styling */
+    .kh-jumpstart-section.empty .kh-jumpstart-section-header {
+      cursor: default;
+      opacity: 0.7;
+    }
+    
+    .kh-jumpstart-section.empty .kh-jumpstart-section-header:hover {
+      background: transparent;
+    }
+    
+    .kh-jumpstart-chevron.hidden {
+      visibility: hidden;
+    }
+    
+    /* Show All button for large sections */
+    .kh-jumpstart-show-all {
+      padding: 8px 12px;
+      display: none;  /* Hidden when expanded */
+    }
+    
+    .kh-jumpstart-section:not(.expanded) .kh-jumpstart-show-all {
+      display: block;  /* Shown when collapsed */
+    }
+    
+    .kh-jumpstart-section:not(.expanded) .kh-jumpstart-list,
+    .kh-jumpstart-section:not(.expanded) .kh-jumpstart-actions {
+      display: none;  /* Hide list and buttons when collapsed */
+    }
+    
+    .kh-jumpstart-show-all-btn {
+      width: 100%;
+      padding: 8px 12px;
+      background: #f1f5f9;
+      border: 1px dashed #cbd5e1;
+      border-radius: 4px;
+      color: #475569;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .kh-jumpstart-show-all-btn:hover {
+      background: #e2e8f0;
+      border-color: #94a3b8;
+      color: #1e293b;
+    }
+    
+    /* Copied state for Glean button */
+    .kh-jumpstart-btn.copied {
+      background: #059669 !important;
+      color: white !important;
+      border-color: #059669 !important;
+    }
+    
+    /* Disabled state for buttons */
+    .kh-jumpstart-trigger:disabled,
+    .kh-jumpstart-refresh:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
   </style>
 </head>
 <body>
@@ -1417,7 +1760,11 @@
       autoIsolateMode: false,       // True when query started with "isolate" or "filter" - triggers auto check+filter
       showResetButton: false,       // True after auto-isolate to show Reset button alongside Focus20
       isolatedRIDs: null,           // Stores currently isolated RIDs for layered filtering
-      shouldLogNextChat: true       // Log first chat after session/sidebar/newchat/expand - then reset
+      shouldLogNextChat: true,      // Log first chat after session/sidebar/newchat/expand - then reset
+      // Daily Jump Start state
+      jumpStartData: null,          // Cached data from getJumpStartData()
+      jumpStartLoading: false,      // Loading state for Jump Start
+      expandedSections: {}          // Tracks which sections are expanded {termPending: true, ...}
     };
     
     // Confirmation phrases that trigger pending column action
@@ -1515,14 +1862,37 @@
       khState.autoIsolateMode = false;
       khState.showResetButton = false;
       khState.isolatedRIDs = null;
+      // Reset Jump Start state
+      khState.jumpStartData = null;
+      khState.jumpStartLoading = false;
+      khState.expandedSections = {};
       
       // Clear messages and show welcome screen
       if (khEls.messages) {
         khEls.messages.innerHTML = `
+          <!-- Daily Jump Start Accordion -->
+          <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
+            <div class="kh-jumpstart-header">
+              <div class="kh-jumpstart-title">
+                <span>🌅</span> DAILY JUMP START
+              </div>
+              <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
+                🔄
+              </button>
+            </div>
+            <div id="khJumpStartContent">
+              <!-- Sections will be injected here -->
+            </div>
+          </div>
+
           <div class="kh-welcome" id="khWelcome">
             <div class="kh-welcome-icon">✦</div>
             <h5>Let's Get Down To Buckets</h5>
             <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
+            
+            <button class="kh-jumpstart-trigger" onclick="startMyDay()">
+              <span>🌅</span> Start My Day
+            </button>
             <div class="kh-section-label">InTouch Help</div>
             <div class="kh-suggestions">
               <button class="kh-suggestion kh-top-prompt">What can you do?</button>
@@ -1561,6 +1931,761 @@
       if (khEls.input) {
         khEls.input.value = '';
         khEls.input.focus();
+      }
+    }
+
+    // =========================================================
+    // --- DAILY JUMP START FUNCTIONS ---
+    // =========================================================
+    
+    /**
+     * Truncate account name for display
+     * @param {string} name - Account name
+     * @param {number} maxLength - Maximum length (default 28)
+     * @returns {string} Truncated name with '...' if needed
+     */
+    function truncateAccountName(name, maxLength = 28) {
+      if (!name) return '';
+      if (name.length <= maxLength) return name;
+      return name.substring(0, maxLength - 3) + '...';
+    }
+    
+    /**
+     * Start My Day - Main entry point for Daily Jump Start
+     * Fetches data and renders the accordion
+     */
+    function startMyDay() {
+      console.log('[startMyDay] Starting...');
+      
+      // EDGE CASE 8: Debounce rapid clicks - prevent multiple fetches
+      if (khState.jumpStartLoading) {
+        console.log('[startMyDay] Already loading, ignoring click');
+        return;
+      }
+      
+      // Get DOM elements
+      const jumpStartEl = document.getElementById('khJumpStart');
+      const jumpStartContent = document.getElementById('khJumpStartContent');
+      const welcomeEl = document.getElementById('khWelcome');
+      const triggerBtn = document.querySelector('.kh-jumpstart-trigger');
+      const refreshBtn = document.querySelector('.kh-jumpstart-refresh');
+      
+      if (!jumpStartEl || !jumpStartContent) {
+        console.error('[startMyDay] Jump Start elements not found');
+        return;
+      }
+      
+      // Show accordion, hide welcome
+      jumpStartEl.style.display = 'block';
+      if (welcomeEl) welcomeEl.style.display = 'none';
+      
+      // EDGE CASE 2: Loading state - disable buttons to prevent double-clicks
+      khState.jumpStartLoading = true;
+      if (triggerBtn) triggerBtn.disabled = true;
+      if (refreshBtn) refreshBtn.disabled = true;
+      
+      // Show loading spinner
+      jumpStartContent.innerHTML = `
+        <div class="kh-jumpstart-loading">
+          <div class="kh-loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="kh-jumpstart-loading-text">
+            Loading your priorities...
+          </div>
+        </div>
+      `;
+      
+      // Get AM name from context or let server detect
+      const amName = khState.currentAMContext?.fullName || '';
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          console.log('[startMyDay] Data received:', result);
+          
+          // Re-enable buttons
+          khState.jumpStartLoading = false;
+          if (triggerBtn) triggerBtn.disabled = false;
+          if (refreshBtn) refreshBtn.disabled = false;
+          
+          if (result.success) {
+            // EDGE CASE 7: Reset expand state on refresh (fresh start)
+            khState.jumpStartData = result;
+            khState.expandedSections = {};
+            renderJumpStartAccordion(result);
+          } else {
+            // EDGE CASE 3: Error state with friendly message and retry
+            console.error('[startMyDay] Server returned error:', result.error);
+            jumpStartContent.innerHTML = `
+              <div class="kh-jumpstart-error">
+                <div class="kh-jumpstart-error-icon">⚠️</div>
+                <div class="kh-jumpstart-error-text">
+                  Couldn't load your daily summary
+                </div>
+                <div class="kh-jumpstart-error-detail">
+                  ${result.error || 'Please try again'}
+                </div>
+                <button class="kh-jumpstart-btn primary" onclick="startMyDay()">
+                  Try Again
+                </button>
+              </div>
+            `;
+          }
+        })
+        .withFailureHandler((error) => {
+          // EDGE CASE 3: Network/server error handling
+          console.error('[startMyDay] Fetch error:', error);
+          
+          // Re-enable buttons
+          khState.jumpStartLoading = false;
+          if (triggerBtn) triggerBtn.disabled = false;
+          if (refreshBtn) refreshBtn.disabled = false;
+          
+          jumpStartContent.innerHTML = `
+            <div class="kh-jumpstart-error">
+              <div class="kh-jumpstart-error-icon">❌</div>
+              <div class="kh-jumpstart-error-text">
+                Connection error
+              </div>
+              <div class="kh-jumpstart-error-detail">
+                ${error.message || 'Please check your connection and try again'}
+              </div>
+              <button class="kh-jumpstart-btn primary" onclick="startMyDay()">
+                Try Again
+              </button>
+            </div>
+          `;
+        })
+        .getJumpStartData(amName);
+    }
+    
+    /**
+     * Render the Jump Start accordion with all sections
+     * Handles threshold behavior: 0 (empty), 1-6 (expanded), 7+ (collapsed)
+     * @param {Object} data - Data from getJumpStartData()
+     */
+    function renderJumpStartAccordion(data) {
+      const jumpStartContent = document.getElementById('khJumpStartContent');
+      if (!jumpStartContent || !data.sections) {
+        console.error('[renderJumpStartAccordion] Missing content element or sections');
+        return;
+      }
+      
+      // Define section order (priority: high → medium → opportunity)
+      const sectionOrder = ['termPending', 'contractsExpiring', 'noEngagement60', 'noBookings30', 'highPIRevenue'];
+      
+      let html = '';
+      let totalAccounts = 0;
+      
+      sectionOrder.forEach(sectionId => {
+        const section = data.sections[sectionId];
+        if (!section) return;
+        
+        totalAccounts += section.count;
+        const count = section.count;
+        
+        // EDGE CASE 6: Threshold behavior
+        // 0 accounts: empty state, not expandable
+        // 1-6 accounts: auto-expanded with list + buttons
+        // 7+ accounts: collapsed by default, "Show All" button
+        const isEmpty = count === 0;
+        const isLargeSection = count > 6;
+        
+        // Determine expansion state
+        let expanded = '';
+        if (!isEmpty) {
+          if (khState.expandedSections[sectionId] === undefined) {
+            // First render: auto-expand 1-6, collapse 7+
+            khState.expandedSections[sectionId] = !isLargeSection;
+          }
+          expanded = khState.expandedSections[sectionId] ? 'expanded' : '';
+        }
+        
+        // EDGE CASE 1: Empty sections are not expandable
+        const headerClickHandler = isEmpty 
+          ? '' 
+          : `onclick="toggleJumpStartSection('${sectionId}')"`;
+        
+        const emptyClass = isEmpty ? 'empty' : '';
+        const chevronClass = isEmpty ? 'hidden' : '';
+        
+        html += `
+          <div class="kh-jumpstart-section ${expanded} ${emptyClass}" data-section-id="${sectionId}" data-count="${count}">
+            <div class="kh-jumpstart-section-header" ${headerClickHandler}>
+              <span class="kh-jumpstart-chevron ${chevronClass}">▶</span>
+              <span class="kh-jumpstart-dot">${section.priorityDot}</span>
+              <span class="kh-jumpstart-name">${section.title}</span>
+              <span class="kh-jumpstart-badge ${section.priority === 'high' && count > 0 ? 'urgent' : ''}">${count}</span>
+            </div>
+            <div class="kh-jumpstart-content">
+              ${isEmpty ? renderEmptySection() : renderSectionContent(section, isLargeSection)}
+            </div>
+          </div>
+        `;
+      });
+      
+      // All clear state when no accounts need attention
+      if (totalAccounts === 0) {
+        html = `
+          <div class="kh-jumpstart-all-clear">
+            <div class="kh-jumpstart-all-clear-icon">✨</div>
+            <div class="kh-jumpstart-all-clear-text">All clear!</div>
+            <div class="kh-jumpstart-all-clear-subtext">No accounts need immediate attention</div>
+          </div>
+        `;
+      }
+      
+      jumpStartContent.innerHTML = html;
+      console.log(`[renderJumpStartAccordion] Rendered ${sectionOrder.length} sections, ${totalAccounts} total accounts`);
+    }
+    
+    /**
+     * Render content for a section with accounts
+     * EDGE CASE 6: Handles threshold behavior for large sections (7+)
+     * @param {Object} section - Section data with accounts array
+     * @param {boolean} isLargeSection - True if section has 7+ accounts (collapsed by default)
+     * @returns {string} HTML string
+     */
+    function renderSectionContent(section, isLargeSection = false) {
+      if (!section.accounts || section.accounts.length === 0) {
+        return renderEmptySection();
+      }
+      
+      const count = section.accounts.length;
+      
+      // Build account list
+      let listHtml = '<div class="kh-jumpstart-list">';
+      section.accounts.forEach((acc, idx) => {
+        const emoji = acc.emoji || '';
+        const name = truncateAccountName(acc.name);
+        
+        // EDGE CASE 5: Multiple emojis show in order from mapStatusToEmoji_
+        // Emoji field already contains combined emojis like "💸💳⭐"
+        
+        listHtml += `
+          <div class="kh-jumpstart-row">
+            <span class="kh-jumpstart-emoji">${emoji}</span>
+            <span class="kh-jumpstart-acc-name" title="${acc.name} (${acc.rid})">${name}</span>
+          </div>
+        `;
+      });
+      listHtml += '</div>';
+      
+      // Build action buttons
+      const actionsHtml = `
+        <div class="kh-jumpstart-actions">
+          <button class="kh-jumpstart-btn" onclick="jumpStartIsolate('${section.id}')">
+            🎯 Isolate
+          </button>
+          <button class="kh-jumpstart-btn primary" onclick="jumpStartDigIn('${section.id}')">
+            🔍 Dig In
+          </button>
+          <button class="kh-jumpstart-btn" onclick="jumpStartGlean('${section.id}')" id="gleanBtn-${section.id}">
+            🧠 Glean
+          </button>
+        </div>
+      `;
+      
+      // EDGE CASE 6: For collapsed large sections (7+), show "Show All" prompt
+      // This appears when section is collapsed, inviting user to expand
+      const showAllHtml = isLargeSection ? `
+        <div class="kh-jumpstart-show-all">
+          <button class="kh-jumpstart-show-all-btn" onclick="expandJumpStartSection('${section.id}')">
+            📋 Show All ${count} Accounts
+          </button>
+        </div>
+      ` : '';
+      
+      return showAllHtml + listHtml + actionsHtml;
+    }
+    
+    /**
+     * Render empty section placeholder
+     * @returns {string} HTML string
+     */
+    function renderEmptySection() {
+      return `<div class="kh-jumpstart-empty">✅ No accounts need attention</div>`;
+    }
+    
+    /**
+     * Toggle expand/collapse for a section
+     * EDGE CASE 1: Empty sections (count=0) are not expandable
+     * @param {string} sectionId - Section identifier
+     */
+    function toggleJumpStartSection(sectionId) {
+      const sectionEl = document.querySelector(`[data-section-id="${sectionId}"]`);
+      if (!sectionEl) return;
+      
+      // EDGE CASE 1: Don't allow toggle on empty sections
+      const count = parseInt(sectionEl.dataset.count || '0');
+      if (count === 0) {
+        console.log(`[toggleJumpStartSection] Section ${sectionId} is empty, not expandable`);
+        return;
+      }
+      
+      const isExpanded = sectionEl.classList.contains('expanded');
+      
+      if (isExpanded) {
+        sectionEl.classList.remove('expanded');
+        khState.expandedSections[sectionId] = false;
+      } else {
+        sectionEl.classList.add('expanded');
+        khState.expandedSections[sectionId] = true;
+      }
+    }
+    
+    /**
+     * Explicitly expand a section (used by "Show All" button)
+     * EDGE CASE 6: For 7+ account sections, clicking "Show All" expands
+     * @param {string} sectionId - Section identifier
+     */
+    function expandJumpStartSection(sectionId) {
+      const sectionEl = document.querySelector(`[data-section-id="${sectionId}"]`);
+      if (!sectionEl) return;
+      
+      sectionEl.classList.add('expanded');
+      khState.expandedSections[sectionId] = true;
+      console.log(`[expandJumpStartSection] Expanded section ${sectionId}`);
+    }
+    
+    /**
+     * Silent isolation - same as executeAutoIsolate but returns promise, no chat message
+     * Used by Dig In to isolate first, then show a single combined message
+     * @param {Array} rids - Array of RID strings to isolate
+     * @returns {Promise<Object>} - Resolves with {success, checkedCount, isolatedRIDs, ...}
+     */
+    function executeAutoIsolateSilent(rids) {
+      return new Promise((resolve, reject) => {
+        // Validate input
+        if (!rids || rids.length === 0) {
+          resolve({ success: false, error: 'No RIDs to isolate' });
+          return;
+        }
+        
+        // Get AM context for the server call
+        const amName = khState.currentAMContext ? khState.currentAMContext.fullName : '';
+        const isLayering = khState.isolatedRIDs && khState.isolatedRIDs.length > 0;
+        
+        console.log(`[executeAutoIsolateSilent] ${isLayering ? 'LAYERING' : 'FRESH'}: ${rids.length} RIDs`);
+        
+        // Choose appropriate server function based on whether we're layering
+        const serverFunction = isLayering ? 'layerSmartSelectFilter' : 'checkAndFilterSmartSelect';
+        
+        // Build the server call dynamically
+        if (isLayering) {
+          // Layering: pass new RIDs, existing RIDs, and AM name
+          google.script.run
+            .withSuccessHandler((result) => {
+              // Store isolated RIDs for future layering
+              if (result.success) {
+                khState.isolatedRIDs = result.isolatedRIDs || rids;
+              }
+              resolve(result);
+            })
+            .withFailureHandler((error) => {
+              reject(error);
+            })
+            .layerSmartSelectFilter(rids, khState.isolatedRIDs, amName);
+        } else {
+          // Fresh isolation: just RIDs and AM name
+          google.script.run
+            .withSuccessHandler((result) => {
+              // Store isolated RIDs for future layering
+              if (result.success) {
+                khState.isolatedRIDs = result.isolatedRIDs || rids;
+              }
+              resolve(result);
+            })
+            .withFailureHandler((error) => {
+              reject(error);
+            })
+            .checkAndFilterSmartSelect(rids, amName);
+        }
+      });
+    }
+    
+    /**
+     * Isolate accounts in Smart Select (Jump Start action)
+     * Uses existing executeAutoIsolate which handles its own messaging
+     * @param {string} sectionId - Section identifier (e.g., 'termPending')
+     */
+    function jumpStartIsolate(sectionId) {
+      // Validate section exists in cached data
+      if (!khState.jumpStartData?.sections?.[sectionId]) {
+        console.error('[jumpStartIsolate] Section not found:', sectionId);
+        addKHMessage('error', 'Section data not loaded. Try refreshing.');
+        return;
+      }
+      
+      const section = khState.jumpStartData.sections[sectionId];
+      const rids = section.accounts.map(a => a.rid);
+      
+      // Handle empty section
+      if (rids.length === 0) {
+        addKHMessage('assistant', `No accounts to isolate in **${section.title}**.`);
+        return;
+      }
+      
+      console.log(`[jumpStartIsolate] Isolating ${rids.length} RIDs from ${sectionId}`);
+      
+      // Store pending action (for state tracking)
+      khState.pendingSmartSelectAction = { rids };
+      
+      // Delegate to existing executeAutoIsolate - it handles:
+      // - Loading state
+      // - Server call
+      // - Success/error messaging
+      // - Focus20 + Reset button setup
+      executeAutoIsolate(rids, sectionId);  // Pass sectionId as dataIndicator for tracking
+    }
+    
+    /**
+     * Dig In - Isolate silently, then show ONE combined message with strategic summary
+     * @param {string} sectionId - Section identifier
+     */
+    function jumpStartDigIn(sectionId) {
+      // Validate section exists in cached data
+      if (!khState.jumpStartData?.sections?.[sectionId]) {
+        console.error('[jumpStartDigIn] Section not found:', sectionId);
+        addKHMessage('error', 'Section data not loaded. Try refreshing.');
+        return;
+      }
+      
+      const section = khState.jumpStartData.sections[sectionId];
+      const rids = section.accounts.map(a => a.rid);
+      
+      // Handle empty section
+      if (rids.length === 0) {
+        addKHMessage('assistant', `No accounts in **${section.title}** to analyze.`);
+        return;
+      }
+      
+      console.log(`[jumpStartDigIn] Digging into ${rids.length} accounts from ${sectionId}`);
+      
+      // Show loading state
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      // Use silent isolation - no automatic message
+      executeAutoIsolateSilent(rids)
+        .then((result) => {
+          // Remove loading indicator
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (result.success) {
+            // Build the ONE combined message with strategic summary
+            const summary = generateDigInSummary(section, result.checkedCount, sectionId);
+            
+            // Set up Focus20 action for the button
+            khState.pendingFunctionAction = {
+              functionName: 'moveTrueAccountsToFocus20',
+              label: 'Add to Focus20'
+            };
+            
+            // Enable Reset button
+            khState.showResetButton = true;
+            
+            // Output single combined message with action buttons
+            addKHMessage('assistant', summary, true);
+            
+          } else if (result.wrongTab) {
+            // User is on wrong AM tab
+            addKHMessage('assistant', 
+              `**Heads up:** You're not on the correct tab.\n\n` +
+              `Expected: **${result.expectedTab}**\n` +
+              `Current: **${result.currentTab || 'unknown'}**\n\n` +
+              `Please navigate to the correct tab and try again.`
+            );
+          } else if (result.noIntersection) {
+            // Layering resulted in no matches
+            addKHMessage('assistant', 
+              `**No matching accounts found.**\n\n` +
+              `None of the ${section.title} accounts overlap with your current filter.\n\n` +
+              `Click **Reset** to clear filters and try again.`
+            );
+            khState.showResetButton = true;
+            khState.pendingFunctionAction = null;
+            addKHMessage('assistant', '', true);  // Show reset button
+          } else {
+            // Generic error
+            addKHMessage('error', result.error || 'Could not isolate accounts. Please try again.');
+          }
+        })
+        .catch((error) => {
+          // Handle promise rejection
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', 'Error: ' + (error.message || 'Unknown error'));
+        });
+    }
+    
+    /**
+     * Generate strategic summary message for Dig In based on section type
+     * @param {Object} section - Section data with accounts array
+     * @param {number} isolatedCount - Number of accounts actually isolated
+     * @param {string} sectionId - Section identifier for strategic focus
+     * @returns {string} Formatted markdown summary
+     */
+    function generateDigInSummary(section, isolatedCount, sectionId) {
+      // Header with isolation confirmation
+      let summary = `🔍 **Digging into ${section.title}** (${isolatedCount} accounts)\n\n`;
+      summary += `✅ Sheet filtered to these accounts\n\n`;
+      
+      // Strategic summary varies by section type
+      summary += getStrategicSummary(sectionId, section) + '\n\n';
+      
+      // Account list (top 5 with details)
+      summary += `**Accounts:**\n`;
+      section.accounts.slice(0, 5).forEach(acc => {
+        const emoji = acc.emoji || '';
+        const name = truncateAccountName(acc.name, 25);
+        summary += `• ${emoji} **${name}** (${acc.rid})`;
+        
+        // Add context based on section type
+        if (sectionId === 'noEngagement60' && acc.daysSince) {
+          summary += ` — ${acc.daysSince}d since contact`;
+        } else if (sectionId === 'noBookings30' && acc.reason) {
+          summary += ` — ${acc.reason}`;
+        } else if (sectionId === 'highPIRevenue') {
+          if (acc.piShare) summary += ` — PI: ${acc.piShare}`;
+          if (acc.revenue) summary += `, Rev: ${acc.revenue}`;
+        }
+        summary += '\n';
+      });
+      
+      // Show overflow count
+      if (section.accounts.length > 5) {
+        summary += `• _...and ${section.accounts.length - 5} more_\n`;
+      }
+      
+      // CTA for next action
+      summary += `\n**Layer another filter or:**`;
+      
+      return summary;
+    }
+    
+    /**
+     * Get strategic summary content based on section type
+     * @param {string} sectionId - Section identifier
+     * @param {Object} section - Section data
+     * @returns {string} Strategic guidance text
+     */
+    function getStrategicSummary(sectionId, section) {
+      const count = section.accounts.length;
+      
+      switch (sectionId) {
+        case 'termPending':
+          return `${section.priorityDot} **Renewal Urgency**\n` +
+            `These ${count} accounts have terms pending/expired. Priority actions:\n` +
+            `• Review each contract status in column K (Term End Date)\n` +
+            `• Check for competitive threats before outreach\n` +
+            `• Prepare renewal proposals with any applicable upsells\n` +
+            `• _Consider escalating accounts with > $1K monthly revenue_`;
+            
+        case 'contractsExpiring':
+          return `${section.priorityDot} **Expiration Timeline**\n` +
+            `These ${count} accounts are approaching contract end. Strategy:\n` +
+            `• Prioritize by revenue and churn risk\n` +
+            `• Document competitive intel from recent conversations\n` +
+            `• Identify upsell opportunities (PI, Experiences, etc.)\n` +
+            `• _30-day window is ideal for renewal conversations_`;
+            
+        case 'noEngagement60':
+          return `${section.priorityDot} **Re-engagement Priority**\n` +
+            `These ${count} accounts haven't been contacted in 60+ days:\n` +
+            `• Check last engagement date in column L\n` +
+            `• Review recent performance metrics for conversation starters\n` +
+            `• Watch for churn signals (declining covers, disco issues)\n` +
+            `• _Quick check-in calls can prevent silent churn_`;
+            
+        case 'noBookings30':
+          return `${section.priorityDot} **Booking Investigation**\n` +
+            `These ${count} accounts have booking issues to investigate:\n` +
+            `• Check availability settings and inventory\n` +
+            `• Review seasonal patterns vs. anomalies\n` +
+            `• Look for operational issues (closed days, staffing)\n` +
+            `• _0-Fullbook often indicates setup problems, not demand issues_`;
+            
+        case 'highPIRevenue':
+          return `${section.priorityDot} **Revenue Optimization**\n` +
+            `These ${count} accounts have strong PI traction (>30% share, >$1.2K rev):\n` +
+            `• Review PI campaign performance in DISTRO\n` +
+            `• Identify optimization opportunities (bid adjustments, targeting)\n` +
+            `• Consider upsell to higher PI tiers or Experiences\n` +
+            `• _These are your high-ROI accounts — nurture the relationship_`;
+            
+        default:
+          return `${section.priorityDot} **${section.title}**\n` +
+            `${count} accounts flagged for review.`;
+      }
+    }
+    
+    /**
+     * Glean - Copy comprehensive prompt to clipboard and open Glean
+     * @param {string} sectionId - Section identifier
+     */
+    function jumpStartGlean(sectionId) {
+      // Validate section exists
+      if (!khState.jumpStartData?.sections?.[sectionId]) {
+        console.error('[jumpStartGlean] Section not found:', sectionId);
+        addKHMessage('error', 'Section data not loaded. Try refreshing.');
+        return;
+      }
+      
+      const section = khState.jumpStartData.sections[sectionId];
+      const amName = khState.jumpStartData.amName || 'Account Manager';
+      
+      // Handle empty section
+      if (section.accounts.length === 0) {
+        addKHMessage('assistant', `No accounts in **${section.title}** to analyze with Glean.`);
+        return;
+      }
+      
+      console.log(`[jumpStartGlean] Generating Glean prompt for ${section.accounts.length} accounts`);
+      
+      // Get the button for visual feedback
+      const gleanBtn = document.getElementById(`gleanBtn-${sectionId}`);
+      const originalText = gleanBtn ? gleanBtn.innerHTML : '';
+      
+      // Generate the comprehensive Glean prompt
+      const prompt = generateGleanPrompt(section, amName, sectionId);
+      
+      // Copy to clipboard and open Glean
+      navigator.clipboard.writeText(prompt)
+        .then(() => {
+          // EDGE CASE 9: Visual feedback on button
+          if (gleanBtn) {
+            gleanBtn.innerHTML = '✓ Copied';
+            gleanBtn.classList.add('copied');
+            
+            // Reset button text after 2 seconds
+            setTimeout(() => {
+              gleanBtn.innerHTML = originalText;
+              gleanBtn.classList.remove('copied');
+            }, 2000);
+          }
+          
+          // Open Glean in new tab
+          window.open('https://app.glean.com/', '_blank');
+          
+          // Show confirmation with preview of the prompt
+          const confirmationMsg = 
+            `🧠 **Glean Analysis Ready**\n\n` +
+            `Copied to clipboard! Paste into Glean to analyze these accounts.\n\n` +
+            `\`\`\`\n` +
+            `### CONTEXT\n` +
+            `You are analyzing ${section.accounts.length} OpenTable restaurant accounts for ${amName}.\n` +
+            `These accounts were flagged as: ${section.title}\n\n` +
+            `### ACCOUNTS TO ANALYZE\n` +
+            section.accounts.slice(0, 3).map(a => `${a.emoji || '•'} ${a.name}`).join('\n') +
+            (section.accounts.length > 3 ? `\n... and ${section.accounts.length - 3} more` : '') +
+            `\n\`\`\``;
+          
+          addKHMessage('assistant', confirmationMsg);
+        })
+        .catch((err) => {
+          console.error('[jumpStartGlean] Clipboard error:', err);
+          addKHMessage('error', 'Could not copy to clipboard. Please try again.');
+        });
+    }
+    
+    /**
+     * Generate comprehensive Glean prompt with section-specific focus
+     * @param {Object} section - Section data with accounts array
+     * @param {string} amName - AM's full name
+     * @param {string} sectionId - Section identifier for customization
+     * @returns {string} Formatted prompt for Glean
+     */
+    function generateGleanPrompt(section, amName, sectionId) {
+      // Build the comprehensive prompt
+      let prompt = `### CONTEXT\n`;
+      prompt += `You are analyzing ${section.accounts.length} OpenTable restaurant accounts for ${amName}.\n`;
+      prompt += `These accounts were flagged as: ${section.title}\n\n`;
+      
+      // Section-specific focus area
+      prompt += `### FOCUS AREA\n`;
+      prompt += getGleanFocus(sectionId) + '\n\n';
+      
+      // Account list with details
+      prompt += `### ACCOUNTS TO ANALYZE\n`;
+      section.accounts.forEach(acc => {
+        const emoji = acc.emoji || '•';
+        prompt += `${emoji} ${acc.name}`;
+        if (acc.reason) prompt += ` — ${acc.reason}`;
+        if (acc.piShare) prompt += ` — PI: ${acc.piShare}`;
+        if (acc.revenue) prompt += `, Rev: ${acc.revenue}`;
+        if (acc.daysSince) prompt += ` — ${acc.daysSince}d since contact`;
+        prompt += '\n';
+      });
+      
+      // RIDs for system lookup
+      const ridList = section.accounts.map(a => a.rid).join(', ');
+      prompt += `\nRIDs for system lookup: ${ridList}\n\n`;
+      
+      // Standard analysis request
+      prompt += `### ANALYSIS REQUEST\n`;
+      prompt += `Using all available company knowledge, CRM data, and integrated systems:\n\n`;
+      prompt += `1. **Account Health Summary** — Recent activity and red flags per account\n`;
+      prompt += `2. **Pattern Recognition** — Common themes across these accounts\n`;
+      prompt += `3. **Engagement History** — Recent communications per account\n`;
+      prompt += `4. **Recommended Actions** — Specific next steps per account\n`;
+      prompt += `5. **Prioritization** — Rank by urgency and impact\n\n`;
+      
+      // Output format guidance
+      prompt += `### OUTPUT FORMAT\n`;
+      prompt += `Clear headers per account, bullet points for scanning, flag urgent items with ⚠️`;
+      
+      return prompt;
+    }
+    
+    /**
+     * Get section-specific focus text for Glean prompt
+     * @param {string} sectionId - Section identifier
+     * @returns {string} Focus area description
+     */
+    function getGleanFocus(sectionId) {
+      switch (sectionId) {
+        case 'termPending':
+          return `Focus on renewal barriers and save strategies. Look for:\n` +
+            `• Previous renewal conversations and outcomes\n` +
+            `• Competitive mentions or threats\n` +
+            `• Contract negotiation history\n` +
+            `• Any escalations or at-risk flags`;
+            
+        case 'contractsExpiring':
+          return `Focus on competitive intel and renewal conversations. Look for:\n` +
+            `• Recent performance discussions\n` +
+            `• Pricing negotiations or objections\n` +
+            `• Feature requests or complaints\n` +
+            `• Relationship health indicators`;
+            
+        case 'noEngagement60':
+          return `Focus on re-engagement opportunities and churn signals. Look for:\n` +
+            `• Last meaningful interaction and outcome\n` +
+            `• Any support tickets or issues\n` +
+            `• Performance trends before silence\n` +
+            `• Similar accounts that churned`;
+            
+        case 'noBookings30':
+          return `Focus on operational issues and booking barriers. Look for:\n` +
+            `• Technical support tickets\n` +
+            `• Availability or inventory discussions\n` +
+            `• Seasonal pattern context\n` +
+            `• Similar accounts with booking issues`;
+            
+        case 'highPIRevenue':
+          return `Focus on PI optimization and upsell opportunities. Look for:\n` +
+            `• PI campaign performance history\n` +
+            `• Budget discussions or changes\n` +
+            `• Competitor PI activity\n` +
+            `• Expansion or tier upgrade potential`;
+            
+        default:
+          return `Analyze these accounts for patterns, risks, and recommended actions.`;
       }
     }
 
@@ -3010,10 +4135,29 @@ If you have any other questions about the team data I'd be happy to dive in with
       </div>
     </div>
     <div class="kh-messages" id="khMessages">
+      <!-- Daily Jump Start Accordion -->
+      <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
+        <div class="kh-jumpstart-header">
+          <div class="kh-jumpstart-title">
+            <span>🌅</span> DAILY JUMP START
+          </div>
+          <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
+            🔄
+          </button>
+        </div>
+        <div id="khJumpStartContent">
+          <!-- Sections will be injected here -->
+        </div>
+      </div>
+
       <div class="kh-welcome" id="khWelcome">
         <div class="kh-welcome-icon">✦</div>
         <h5>Let's Get Down To Buckets</h5>
         <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
+        
+        <button class="kh-jumpstart-trigger" onclick="startMyDay()">
+          <span>🌅</span> Start My Day
+        </button>
         <div class="kh-section-label">InTouch Help</div>
         <div class="kh-suggestions">
           <button class="kh-suggestion kh-top-prompt">What can you do?</button>

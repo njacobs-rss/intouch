@@ -171,6 +171,297 @@ const VALUE_TO_METRIC = {
 };
 
 /**
+ * GLOSSARY - Static dictionary for instant definition lookups
+ * Catches "what is X" questions before they hit Gemini
+ * Keys should be lowercase, normalized versions of terms
+ */
+const GLOSSARY = {
+  // ============================================
+  // METRICS (15 entries)
+  // ============================================
+  'yield': { 
+    term: 'Rev Yield', 
+    definition: 'Revenue per seated cover, calculated as Total Revenue ÷ Fullbook Covers. Higher yield indicates better revenue efficiency. Compare against system type averages to identify outliers.',
+    related: ['revenue', 'covers', 'fullbook']
+  },
+  'rev yield': { 
+    term: 'Rev Yield', 
+    definition: 'Revenue per seated cover, calculated as Total Revenue ÷ Fullbook Covers. Higher yield indicates better revenue efficiency. Compare against system type averages to identify outliers.',
+    related: ['revenue', 'covers', 'fullbook']
+  },
+  'contract alerts': { 
+    term: 'Contract Alerts', 
+    definition: 'Flags accounts needing renewal attention based on term end date proximity. Shows time remaining until contract expires. Found in the Dates & Activity section.',
+    related: ['term end', 'renewal', 'term pending']
+  },
+  'active pi': { 
+    term: 'Active PI', 
+    definition: 'Premium Inventory campaigns currently running on the account. Shows the campaign name if active, blank if none. PI generates additional revenue through promoted slots.',
+    related: ['pi', 'premium inventory', 'revenue']
+  },
+  'active xp': { 
+    term: 'Active XP', 
+    definition: 'Experiences currently published and bookable on the account. Experiences are special dining events (wine dinners, tasting menus, etc.) that drive incremental covers.',
+    related: ['xp', 'experiences']
+  },
+  'check avg': { 
+    term: 'Check Avg', 
+    definition: 'Average check size per cover over the last 30 days. Higher check averages typically correlate with higher quality tiers and better yield potential.',
+    related: ['revenue', 'quality']
+  },
+  'last engaged': { 
+    term: 'Last Engaged Date', 
+    definition: 'Most recent date the AM had meaningful contact with this account (meeting, call, or significant email). Used to track coverage gaps.',
+    related: ['engagement', 'meetings', 'l90']
+  },
+  'last engaged date': { 
+    term: 'Last Engaged Date', 
+    definition: 'Most recent date the AM had meaningful contact with this account (meeting, call, or significant email). Used to track coverage gaps.',
+    related: ['engagement', 'meetings', 'l90']
+  },
+  'l90': { 
+    term: 'L90 Total Meetings', 
+    definition: 'Count of meetings logged in the last 90 days. Target varies by account tier, but 0 meetings in 90 days typically indicates a coverage gap.',
+    related: ['meetings', 'engagement', 'last engaged']
+  },
+  'l90 meetings': { 
+    term: 'L90 Total Meetings', 
+    definition: 'Count of meetings logged in the last 90 days. Target varies by account tier, but 0 meetings in 90 days typically indicates a coverage gap.',
+    related: ['meetings', 'engagement', 'last engaged']
+  },
+  'customer since': { 
+    term: 'Customer Since', 
+    definition: 'Date the restaurant first became an OpenTable customer. Long-tenured accounts may have legacy pricing or system configurations worth reviewing.',
+    related: ['tenure', 'dates']
+  },
+  'cvr': { 
+    term: 'CVR (Covers)', 
+    definition: 'Seated covers - the count of diners who actually showed up for their reservation. Different from reservations made (which includes no-shows).',
+    related: ['covers', 'seated', 'bookings']
+  },
+  'network covers': { 
+    term: 'Network Covers', 
+    definition: 'Total covers from OpenTable platform bookings. Network = Direct + Discovery. Does not include RestRef, Phone/Walk-in, or Third Party.',
+    related: ['network', 'direct', 'discovery']
+  },
+  'fullbook covers': { 
+    term: 'Fullbook Covers', 
+    definition: 'Total seated covers from ALL sources: Network + RestRef + Phone/Walk-in + Third Party. This is the complete picture of restaurant traffic.',
+    related: ['fullbook', 'covers', 'total']
+  },
+  'revenue total': { 
+    term: 'Revenue Total', 
+    definition: 'Combined revenue from subscription fees and cover fees. Found in the Revenue section. Compare 12-month average to last month for trend analysis.',
+    related: ['revenue', 'subs', 'yield']
+  },
+  'rev share': { 
+    term: 'PI Rev Share %', 
+    definition: 'Percentage of Premium Inventory revenue shared with the restaurant (vs retained by OT). Standard is typically 50/50 split.',
+    related: ['pi', 'revenue', 'premium inventory']
+  },
+  'pos match': { 
+    term: 'POS Match %', 
+    definition: 'Percentage of reservations that successfully matched to POS transactions. Higher match rates indicate better integration health.',
+    related: ['pos', 'integration']
+  },
+
+  // ============================================
+  // BOOKING CHANNELS (5 entries)
+  // ============================================
+  'direct': { 
+    term: 'Direct', 
+    definition: 'Bookings where the diner navigated directly to the restaurant\'s OpenTable profile (via OT app or website). The diner knew the restaurant name and searched for it specifically.',
+    related: ['network', 'discovery']
+  },
+  'discovery': { 
+    term: 'Discovery', 
+    definition: 'Bookings where the diner found the restaurant through OpenTable marketplace search/browse (e.g., "Italian near me"). These are incremental covers OT brings to the restaurant.',
+    related: ['network', 'direct', 'disco']
+  },
+  'restref': { 
+    term: 'RestRef', 
+    definition: 'Restaurant Referral - bookings made through the restaurant\'s own website using the embedded OpenTable widget. The diner came through the restaurant\'s site, not OT.',
+    related: ['widget', 'website']
+  },
+  'phone walkin': { 
+    term: 'Phone/Walk-in', 
+    definition: 'Manual reservation entries for offline bookings - phone calls, walk-ins, or other non-digital channels. Entered by host staff directly into the system.',
+    related: ['manual', 'fullbook']
+  },
+  'third party': { 
+    term: 'Third Party', 
+    definition: 'Bookings from external platforms like Yelp, Google Reserve, or other booking partners. Included in Fullbook but not in Network calculations.',
+    related: ['yelp', 'google', 'fullbook']
+  },
+
+  // ============================================
+  // FEATURES (8 entries)
+  // ============================================
+  'bizinsights': { 
+    term: 'BizInsights', 
+    definition: 'Automated Google Slides deck generator for partner presentations and QBRs. Creates professional visualizations of account performance, trends, and opportunities.',
+    related: ['qbr', 'slides', 'presentation']
+  },
+  'biz insights': { 
+    term: 'BizInsights', 
+    definition: 'Automated Google Slides deck generator for partner presentations and QBRs. Creates professional visualizations of account performance, trends, and opportunities.',
+    related: ['qbr', 'slides', 'presentation']
+  },
+  'ai brief': { 
+    term: 'AI Brief', 
+    definition: 'Quick account summary with AI-generated talking points for partner conversations. Includes health snapshot, key metrics, risk indicators, and suggested discussion topics.',
+    related: ['meeting prep', 'summary']
+  },
+  'meeting prep': { 
+    term: 'Meeting Prep', 
+    definition: 'AI Panel feature that generates structured talking points before partner calls. Pulls recent activity, contract status, and opportunities into a pre-call checklist.',
+    related: ['ai brief', 'qbr']
+  },
+  'pricing simulator': { 
+    term: 'Pricing Simulator', 
+    definition: 'Tool to model pricing scenarios and their impact on partner bills. Useful for demonstrating AYCE vs standard pricing or Freemium impact before proposing changes.',
+    related: ['pricing', 'ayce', 'freemium']
+  },
+  'bucket summary': { 
+    term: 'Bucket Summary', 
+    definition: 'Portfolio-level metrics showing your complete account roster. Includes system mix, status breakdown, aggregate revenue, and coverage metrics across all assigned accounts.',
+    related: ['portfolio', 'summary']
+  },
+  'smart select': { 
+    term: 'Smart Select', 
+    definition: 'Column D checkbox system for bulk account selection. Check boxes to select accounts, then use +/X buttons to add/remove from Focus20 or perform other bulk actions.',
+    related: ['checkbox', 'bulk', 'focus20']
+  },
+  'iq': { 
+    term: 'iQ', 
+    definition: 'Account health indicator in Column H. Checkmark (✔) = healthy. Red number = count of health flags (hover to see details). Higher numbers = more urgent attention needed.',
+    related: ['health', 'flags', 'alerts']
+  },
+
+  // ============================================
+  // PRICING/STATUS (10 entries)
+  // ============================================
+  'freemium': { 
+    term: 'Freemium', 
+    definition: 'Pricing model with zero cover fees for RestRef and Direct bookings - partner only pays for Discovery covers. Use for "Fairness Play" when partner objects to paying for their own website traffic.',
+    related: ['pricing', 'fairness play', 'exclusive']
+  },
+  'ayce': { 
+    term: 'AYCE', 
+    definition: 'All-You-Can-Eat flat monthly fee envelope. Partner pays fixed amount regardless of cover volume. Use for "Stability Play" when partner needs predictable budgeting.',
+    related: ['pricing', 'stability play', 'flat fee']
+  },
+  'free google': { 
+    term: 'Free Google', 
+    definition: 'Pricing model with zero cover fees on Google-attributed bookings. Addresses partner objection about "paying twice" for Google traffic they\'re already advertising.',
+    related: ['pricing', 'fairness play', 'google']
+  },
+  'term pending': { 
+    term: 'Term Pending', 
+    definition: 'Account status indicating contract is in final period before renewal decision. Requires proactive outreach - don\'t wait for auto-renewal or last-minute save attempts.',
+    related: ['status', 'renewal', 'contract']
+  },
+  'active': { 
+    term: 'Active (Status)', 
+    definition: 'Account is in good standing with current contract. Normal operating state - focus on optimization and growth opportunities.',
+    related: ['status']
+  },
+  'inactive': { 
+    term: 'Inactive', 
+    definition: 'Account is not currently operational (seasonal closure, temporary pause, etc.). May still have contract obligations. Different from Terminated.',
+    related: ['status', 'seasonal']
+  },
+  'canceling': { 
+    term: 'Canceling', 
+    definition: 'Account has submitted cancellation request but contract hasn\'t ended yet. Save opportunity window - understand reasons and address if possible.',
+    related: ['status', 'churn', 'save']
+  },
+  'terminated': { 
+    term: 'Terminated', 
+    definition: 'Account has ended their OpenTable relationship. Contract is complete. May be winback opportunity depending on termination reason.',
+    related: ['status', 'churn', 'winback']
+  },
+  'standard pricing': { 
+    term: 'Standard Pricing', 
+    definition: 'Default cover fee structure - partner pays per-cover fees on all booking channels based on their rate card. No special pricing arrangements.',
+    related: ['pricing', 'cover fee']
+  },
+  'exclusive pricing': { 
+    term: 'Exclusive Pricing', 
+    definition: 'Special pricing arrangement (Freemium, AYCE, Free Google, or custom). Shows in System Stats section. Check this before discussing pricing changes.',
+    related: ['pricing', 'freemium', 'ayce']
+  },
+
+  // ============================================
+  // SYSTEM TYPES (5 entries)
+  // ============================================
+  'core': { 
+    term: 'Core', 
+    definition: 'Modern cloud-based reservation system. Self-service friendly, accessible from any device. Standard feature set suitable for most restaurants.',
+    related: ['system type', 'pro', 'basic']
+  },
+  'pro': { 
+    term: 'Pro', 
+    definition: 'Premium system tier with advanced features: table management, guest profiles, marketing tools, integrations. Higher touch, higher value accounts.',
+    related: ['system type', 'core', 'features']
+  },
+  'basic': { 
+    term: 'Basic', 
+    definition: 'Entry-level system with minimal features. Often upgrade candidates if showing growth or operational needs.',
+    related: ['system type', 'core', 'upgrade']
+  },
+  'connect': { 
+    term: 'Connect', 
+    definition: 'Booking channel integration without full reservation system. Restaurant uses another platform but accepts OT bookings.',
+    related: ['system type', 'integration']
+  },
+  'erb': { 
+    term: 'ERB/ERG (GuestBridge)', 
+    definition: 'Legacy reservation system (Electronic Reservation Book). Older technology, often tied to specific hardware. May be migration candidate to Core/Pro.',
+    related: ['system type', 'legacy', 'guestbridge']
+  },
+  'erg': { 
+    term: 'ERB/ERG (GuestBridge)', 
+    definition: 'Legacy reservation system (Electronic Reservation Book). Older technology, often tied to specific hardware. May be migration candidate to Core/Pro.',
+    related: ['system type', 'legacy', 'guestbridge']
+  },
+  'guestbridge': { 
+    term: 'ERB/ERG (GuestBridge)', 
+    definition: 'Legacy reservation system (Electronic Reservation Book). Older technology, often tied to specific hardware. May be migration candidate to Core/Pro.',
+    related: ['system type', 'legacy', 'erb']
+  },
+
+  // ============================================
+  // STRATEGIC CONCEPTS (5 entries)
+  // ============================================
+  'fairness play': { 
+    term: 'Fairness Play', 
+    definition: 'Strategic pricing approach for partners who feel fee structure is unfair (e.g., "paying for my own website traffic"). Levers: Freemium or Free Google.',
+    related: ['pricing', 'freemium', 'strategy']
+  },
+  'stability play': { 
+    term: 'Stability Play', 
+    definition: 'Strategic pricing approach for partners who need budget predictability (e.g., "can\'t forecast variable costs"). Lever: AYCE flat monthly envelope.',
+    related: ['pricing', 'ayce', 'strategy']
+  },
+  'operational relief': { 
+    term: 'Operational Relief', 
+    definition: 'Strategic approach when partner says "too expensive" but system usage is weak. Fix system adoption BEFORE touching price - the real issue is value realization.',
+    related: ['strategy', 'system', 'adoption']
+  },
+  'three layer framework': { 
+    term: 'Three-Layer Framework', 
+    definition: 'Strategic decision model: Layer 1 (TIME) - renewal lifecycle phase, Layer 2 (SYSTEM) - is system working for them?, Layer 3 (ECONOMICS) - only after system is addressed.',
+    related: ['strategy', 'renewal', 'framework']
+  },
+  'renewal lifecycle': { 
+    term: 'Renewal Lifecycle', 
+    definition: 'Four phases: 90+ days (Discover & Qualify), 60-90 days (Build Value Story), 30-60 days (Run & Close), 0-30 days post (Land & Setup). Each phase has specific actions.',
+    related: ['renewal', 'phases', 'term end']
+  }
+};
+
+/**
  * METRIC TO CATEGORY MAPPING - Quick lookup for which category contains a metric
  */
 const METRIC_TO_CATEGORY = {};
@@ -219,6 +510,39 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/what.*(is|are).*(reset|reset button)/i, /explain.*(reset|reset button)/i, /what.*reset.*do/i],
       response: `The **RESET** button (above Column E) does THREE things:\n\n1. Clears all filters\n2. Restores default column selections\n3. Clears all Smart Select checkboxes\n\n**Use RESET** instead of standard Google Sheets filters. Standard filters break InTouch because headers are in Row 2, not Row 1.`
+    },
+    // --- New feature patterns added for local response expansion ---
+    {
+      patterns: [/what.*(is|are).*bizinsights/i, /explain.*bizinsights/i, /biz.*insights.*do/i, /how.*create.*deck/i, /how.*make.*presentation/i],
+      response: `**BizInsights** generates Google Slides presentations for partner QBRs.\n\n**To use:**\n1. Select an account row\n2. Open the sidebar → BizInsights tab\n3. Click "Generate Deck"\n\n**Includes:**\n- Account performance summary\n- Booking trends & charts\n- Revenue analysis\n- Comparison benchmarks\n\nPerfect for quarterly business reviews and partner presentations.`
+    },
+    {
+      patterns: [/what.*(is|are).*ai.*brief/i, /ai.*brief.*do/i, /generate.*brief/i, /get.*brief/i],
+      response: `**AI Brief** provides quick account summaries with AI-generated talking points.\n\n**To use:**\n1. Select an account row\n2. Click "AI Brief" button in sidebar\n\n**Includes:**\n- Account health snapshot\n- Key metrics and trends\n- Risk indicators\n- Suggested talking points\n\nGreat for pre-call prep when you need context fast.`
+    },
+    {
+      patterns: [/what.*(is|are).*bucket.*summary/i, /bucket.*summary.*do/i, /portfolio.*summary/i, /my.*bucket/i],
+      response: `**Bucket Summary** shows your complete portfolio at a glance.\n\n**Includes:**\n- Total account count\n- System type breakdown (Core/Pro/Basic)\n- Status mix (Active/Term Pending/etc.)\n- Aggregate revenue metrics\n- Coverage indicators\n\nAsk me "summarize my bucket" to see your current portfolio snapshot.`
+    },
+    {
+      patterns: [/what.*(is|are).*admin.*function/i, /admin.*menu/i, /admin.*functions.*do/i],
+      response: `**Admin Functions** menu provides power-user operations:\n\n**Available options:**\n- Focus20 management (add/remove accounts)\n- Refresh data connections\n- Clear filters and selections\n- Run manual data updates\n\n**Access:** Look for "Admin Functions" in the Google Sheets menu bar.\n\nMost common use: Fallback Focus20 management when +/X buttons don't respond.`
+    },
+    {
+      patterns: [/what.*(is|are).*sidebar/i, /sidebar.*do/i, /how.*open.*sidebar/i, /where.*sidebar/i],
+      response: `**The Sidebar** is your main control panel in InTouch.\n\n**To open:** Click "InTouch" in the menu bar → "Open Sidebar"\n\n**Three tabs:**\n1. **Overview** - Quick actions, AI Brief, Bucket Summary\n2. **BizInsights** - Generate presentation decks\n3. **Knowledge Hub** - This chat! Ask questions, get help\n\nThe sidebar stays open while you work in the sheet.`
+    },
+    {
+      patterns: [/what.*(is|are).*dynamic.*notes/i, /dynamic.*notes.*do/i, /sticky.*notes/i, /how.*notes.*work/i],
+      response: `**Dynamic Notes** (iQ Sticky Notes) are auto-generated alerts based on account data.\n\n**How they work:**\n- Rules engine scans account metrics\n- Flags issues like: churn risk, coverage gaps, opportunities\n- Displays as hover-text on iQ column\n\n**To refresh:** Ask me to refresh notes, or use sidebar button.\n\nNotes pull from Salesforce and sheet data - may need refresh if data changed.`
+    },
+    {
+      patterns: [/what.*(is|are).*meeting.*prep/i, /meeting.*prep.*do/i, /prep.*meeting/i, /before.*meeting/i],
+      response: `**Meeting Prep** generates structured talking points before partner calls.\n\n**Pulls together:**\n- Recent account activity\n- Contract status & timeline\n- Open opportunities/issues\n- Suggested discussion topics\n\n**To use:** Generate an AI Brief, which includes meeting prep context.\n\nPro tip: Review before any partner call to go in prepared.`
+    },
+    {
+      patterns: [/what.*(is|are).*pricing.*simulator/i, /pricing.*simulator.*do/i, /simulate.*pricing/i, /model.*pricing/i],
+      response: `**Pricing Simulator** models pricing scenarios and partner bill impact.\n\n**Use cases:**\n- Compare AYCE vs standard pricing\n- Model Freemium impact\n- Show partner potential savings/costs\n\n**Helpful for:**\n- Renewal negotiations\n- Pricing objection handling\n- Demonstrating value before proposing changes\n\nAccess through the sidebar or Admin menu.`
     }
   ],
   
@@ -235,6 +559,47 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/pos\s*type/i, /what.*pos.*type/i, /show.*pos.*type/i, /what.*about.*pos\s*type/i],
       response: `**POS Type** shows the Point of Sale system each restaurant uses (e.g., Toast, Square, Aloha, etc.).\n\nThis is found in the **System Stats** section. Would you like me to add this column to your view?\n\n[COLUMN_ACTION:SYSTEM_STATS:POS Type]`
+    },
+    // --- New metric patterns added for local response expansion ---
+    {
+      patterns: [/what.*(is|are|does).*yield/i, /explain.*yield/i, /yield.*mean/i, /rev.*yield/i],
+      response: `**Rev Yield** = Revenue per seated cover (Total Revenue ÷ Fullbook Covers).\n\n- **Higher yield** = better revenue efficiency\n- Compare against **Avg Yield** for the system type to identify outliers\n- Low yield on high-cover account = pricing or mix opportunity\n\nFound in the **Revenue** section. Would you like me to show this column?\n\n[COLUMN_ACTION:REVENUE:Rev Yield - Total Last Month]`
+    },
+    {
+      patterns: [/what.*(is|are).*contract.*alert/i, /contract.*alert.*mean/i, /explain.*contract.*alert/i],
+      response: `**Contract Alerts** flags accounts based on term end date proximity:\n\n- Shows days/months until contract expires\n- Accounts within 90 days need proactive outreach\n- Use this to prioritize renewal conversations\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Contract Alerts]`
+    },
+    {
+      patterns: [/what.*(is|are).*active.*pi/i, /active.*pi.*mean/i, /premium.*inventory.*active/i, /running.*pi/i],
+      response: `**Active PI** shows Premium Inventory campaigns currently running:\n\n- Shows campaign name if active (e.g., "Boost", "Featured")\n- Blank = no current PI campaign\n- PI generates incremental revenue through promoted slots\n\nFound in the **System Stats** section. Would you like me to show this column?\n\n[COLUMN_ACTION:SYSTEM_STATS:Active PI]`
+    },
+    {
+      patterns: [/what.*(is|are).*active.*xp/i, /what.*experiences.*running/i, /active.*xp.*mean/i, /running.*xp/i, /running.*experiences/i],
+      response: `**Active XP** shows Experiences currently published:\n\n- Shows experience name if active\n- Blank = no published experiences\n- XP drives incremental covers through special events (wine dinners, tasting menus, etc.)\n\nFound in the **System Stats** section. Would you like me to show this column?\n\n[COLUMN_ACTION:SYSTEM_STATS:Active XP]`
+    },
+    {
+      patterns: [/what.*(is|are).*check.*avg/i, /check.*avg.*mean/i, /average.*check/i, /explain.*check.*avg/i],
+      response: `**Check Avg** = Average check size per cover (last 30 days).\n\n- Higher check averages typically correlate with higher quality tiers\n- Useful for identifying upsell/PI opportunities\n- Compare across similar cuisine types for context\n\nFound in the **Revenue** section. Would you like me to show this column?\n\n[COLUMN_ACTION:REVENUE:Check Avg. Last 30]`
+    },
+    {
+      patterns: [/what.*(is|are).*last.*engaged/i, /last.*engaged.*mean/i, /explain.*engagement.*date/i, /when.*last.*contact/i],
+      response: `**Last Engaged Date** = Most recent meaningful AM contact:\n\n- Includes meetings, calls, significant emails\n- Blank or old date = potential coverage gap\n- Target: No account should go 90+ days without engagement\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Last Engaged Date]`
+    },
+    {
+      patterns: [/what.*(is|are).*l90/i, /l90.*meetings?.*mean/i, /meetings?.*last.*90/i, /90.*day.*meetings/i],
+      response: `**L90 Total Meetings** = Count of meetings logged in last 90 days.\n\n- Target varies by account tier\n- **0 meetings** in 90 days = coverage gap flag\n- Use to identify accounts needing outreach\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:L90 Total Meetings]`
+    },
+    {
+      patterns: [/what.*(is|are).*customer.*since/i, /customer.*since.*mean/i, /how.*long.*customer/i, /tenure/i],
+      response: `**Customer Since** = Date restaurant first became an OT customer.\n\n- Long-tenured accounts may have legacy pricing or configurations\n- Newer accounts may need more onboarding support\n- Useful context for renewal conversations\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Customer Since]`
+    },
+    {
+      patterns: [/what.*(is|are).*term.*end/i, /term.*end.*date/i, /when.*contract.*end/i, /contract.*expir/i],
+      response: `**Current Term End Date** = When the current contract expires.\n\n- Key for renewal lifecycle planning\n- 90+ days out: Discovery phase\n- 60-90 days: Build value story\n- 30-60 days: Run & close\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Current Term End Date]`
+    },
+    {
+      patterns: [/what.*(is|are).*fullbook/i, /fullbook.*mean/i, /total.*covers/i, /all.*covers/i],
+      response: `**Fullbook** = Total seated covers from ALL sources:\n\n**Formula:** Network + RestRef + Phone/Walk-in + Third Party\n\n- **Network** = Direct + Discovery (OT platform)\n- **RestRef** = Restaurant website widget\n- **Phone/Walk-in** = Manual entries\n- **Third Party** = Other booking platforms\n\n⚠️ Never add Google separately - it's already included in Direct/Discovery.`
     }
   ],
   
@@ -335,6 +700,63 @@ const SCRIPTED_RESPONSES = {
     {
       patterns: [/what.*is.*system.*type/i, /system.*type.*mean/i, /define.*system.*type/i, /erg.*vs.*core/i, /core.*vs.*erg/i],
       response: `**System Types:**\n\n- **ERG (ERB/GuestBridge)** = Legacy system, typically higher touch\n- **Core** = Modern system, more self-service\n\nSystem type affects expected yield and how you approach the account. You can filter by System Type in the Location section.`
+    },
+    // --- New FAQ patterns added for local response expansion ---
+    {
+      patterns: [/what.*is.*direct/i, /direct.*bookings?.*mean/i, /define.*direct/i, /direct.*channel/i],
+      response: `**Direct** = Bookings where the diner navigated directly to the restaurant's OpenTable profile.\n\nThe diner knew the restaurant and searched for it specifically via:\n- OT app\n- OT website\n- Direct link\n\nDirect is part of **Network** (Network = Direct + Discovery). Google attribution can overlay Direct bookings.`
+    },
+    {
+      patterns: [/what.*is.*phone.*walk/i, /phone.*walk.*mean/i, /manual.*booking/i, /walk.?in.*booking/i],
+      response: `**Phone/Walk-in** = Manual reservation entries for offline bookings.\n\nEntered by host staff directly into the system for:\n- Phone call reservations\n- Walk-in guests\n- Other non-digital channels\n\nIncluded in **Fullbook** but NOT in **Network** calculations.`
+    },
+    {
+      patterns: [/what.*is.*third.*party/i, /third.*party.*mean/i, /other.*booking.*platform/i],
+      response: `**Third Party** = Bookings from external platforms.\n\nIncludes:\n- Yelp reservations\n- Google Reserve\n- Other booking partners\n\nIncluded in **Fullbook** but NOT in **Network**. Partner may have separate agreements with these platforms.`
+    },
+    {
+      patterns: [/what.*is.*erb/i, /what.*is.*erg/i, /guestbridge/i, /legacy.*system/i],
+      response: `**ERB/ERG (GuestBridge)** = Legacy reservation system.\n\nCharacteristics:\n- Older technology, often hardware-dependent\n- May be tied to specific device at host stand\n- Typically higher-touch support needs\n- Often migration candidate to Core/Pro\n\nCheck **System Type** column to identify ERG accounts.`
+    },
+    {
+      patterns: [/what.*is.*core/i, /core.*system.*mean/i, /define.*core/i],
+      response: `**Core** = Modern cloud-based reservation system.\n\nCharacteristics:\n- Self-service friendly\n- Accessible from any device\n- Standard feature set\n- Suitable for most restaurants\n\nCore accounts are generally lower-touch than Pro but may have upgrade opportunities.`
+    },
+    {
+      patterns: [/what.*is.*pro/i, /pro.*system.*mean/i, /define.*pro/i, /pro.*vs.*core/i],
+      response: `**Pro** = Premium system tier with advanced features.\n\nIncludes:\n- Advanced table management\n- Guest profiles & CRM\n- Marketing tools\n- POS integrations\n- Priority support\n\nPro accounts are higher value, higher touch. Look for under-adoption if paying for Pro but using like Basic.`
+    },
+    {
+      patterns: [/what.*is.*basic/i, /basic.*system.*mean/i, /define.*basic/i],
+      response: `**Basic** = Entry-level system with minimal features.\n\nCharacteristics:\n- Core reservation functionality only\n- Limited integrations\n- Lower monthly cost\n- Often upgrade candidates\n\nIf Basic account shows growth or operational needs, consider system upgrade conversation.`
+    },
+    {
+      patterns: [/what.*is.*connect/i, /connect.*mean/i, /define.*connect/i],
+      response: `**Connect** = Booking channel integration without full reservation system.\n\nHow it works:\n- Restaurant uses another platform for reservations\n- But accepts OpenTable bookings through integration\n- Limited OT feature access\n\nConnect accounts have different engagement patterns than full system users.`
+    },
+    {
+      patterns: [/direct.*vs.*discovery/i, /discovery.*vs.*direct/i, /difference.*direct.*discovery/i],
+      response: `**Direct vs Discovery:**\n\n**Direct** = Diner knew the restaurant, searched for it specifically\n- Shows brand loyalty / repeat guests\n- Lower acquisition cost to restaurant\n\n**Discovery** = Diner found restaurant via OT search/browse\n- Incremental covers OT brings\n- Demonstrates OT marketplace value\n\nBoth are part of **Network** (Network = Direct + Discovery).`
+    },
+    {
+      patterns: [/google.*attribution/i, /google.*booking/i, /where.*google.*fit/i, /google.*covers/i],
+      response: `**Google Attribution:**\n\nGoogle is an **overlay** on Direct/Discovery, NOT a separate channel.\n\n- Google-attributed covers are already counted in Direct or Discovery\n- Never add Google separately to Fullbook calculations\n- "Free Google" pricing = zero cover fees on Google-attributed bookings\n\n⚠️ Common mistake: Double-counting Google covers.`
+    },
+    {
+      patterns: [/what.*is.*status/i, /account.*status.*mean/i, /status.*types/i],
+      response: `**Account Status Values:**\n\n- **Active** = Good standing, normal operations\n- **Term Pending** = Final contract period, renewal needed\n- **Inactive** = Temporarily paused (seasonal, etc.)\n- **Canceling** = Submitted cancellation, save opportunity\n- **Terminated** = Ended relationship, potential winback\n\nFound in **Account + Status Info** section.`
+    },
+    {
+      patterns: [/what.*is.*pricing/i, /pricing.*options/i, /types.*pricing/i, /pricing.*models/i],
+      response: `**Pricing Models:**\n\n**Standard** = Per-cover fees on all channels\n\n**Exclusive Pricing options:**\n- **Freemium** = Zero fees on Direct/RestRef, pay Discovery only\n- **AYCE** = Flat monthly fee regardless of volume\n- **Free Google** = Zero fees on Google-attributed covers\n\nCheck **Exclusive Pricing** column in System Stats to see current arrangement.`
+    },
+    {
+      patterns: [/what.*is.*0.*fullbook/i, /0.*fullbook.*mean/i, /zero.*fullbook/i, /no.*fullbook/i],
+      response: `**0-Fullbook** = Complete booking stoppage.\n\n⚠️ **URGENT** - This is the primary churn indicator:\n- Restaurant has zero reservations across ALL channels\n- May indicate closed, technical issue, or serious problem\n- Requires immediate investigation\n\nDifferent from 0-Network (which could mean RestRef/phone-only operation).`
+    },
+    {
+      patterns: [/what.*is.*0.*network/i, /0.*network.*mean/i, /zero.*network/i, /no.*network/i],
+      response: `**0-Network** = No OpenTable platform bookings.\n\nCould indicate:\n- RestRef-only operation (using website widget only)\n- Phone/walk-in dependent\n- Technical/availability issues\n- Need to investigate OT visibility\n\nLess urgent than 0-Fullbook, but still needs attention.`
     }
   ],
   
@@ -2467,6 +2889,26 @@ function tryScriptedResponse(query) {
   if (!query) return null;
   const normalizedQuery = query.toLowerCase().trim();
   
+  // 0. Check GLOSSARY for definition lookups (instant answers, no API)
+  const defineMatch = normalizedQuery.match(/(?:what(?:'s| is| does| are)?|define|explain|meaning of|tell me about)\s+(.+?)(?:\?|$)/i);
+  if (defineMatch) {
+    const searchTerm = defineMatch[1].toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    // Direct key match first
+    let entry = GLOSSARY[searchTerm];
+    // Fuzzy match: check if term appears in any glossary key or term name
+    if (!entry) {
+      entry = Object.values(GLOSSARY).find(e => 
+        e.term.toLowerCase().includes(searchTerm) || 
+        searchTerm.includes(e.term.toLowerCase().split(' ')[0]) ||
+        e.related?.some(r => searchTerm.includes(r) || r.includes(searchTerm))
+      );
+    }
+    if (entry) {
+      console.log('[tryScriptedResponse] Matched GLOSSARY term: ' + entry.term);
+      return { success: true, answer: `**${entry.term}:** ${entry.definition}`, source: 'glossary' };
+    }
+  }
+  
   // 1. Check troubleshooting patterns (highest priority)
   for (const item of SCRIPTED_RESPONSES.troubleshooting) {
     for (const pattern of item.patterns) {
@@ -2659,6 +3101,148 @@ function tryScriptedResponse(query) {
   }
   
   // No match - fall through to Gemini
+  return null;
+}
+
+/**
+ * Try template-based responses for simple count/list questions
+ * Uses injected data to answer locally without Gemini API call
+ * @param {string} query - The user's question
+ * @param {Object} data - The injected AM data object
+ * @returns {Object|null} Response object if matched, null to fall through to Gemini
+ */
+function tryDataTemplateResponse(query, data) {
+  if (!query || !data || !data.success) return null;
+  
+  const normalizedQuery = query.toLowerCase().trim();
+  const amName = data.amName || 'This AM';
+  const firstName = amName.split(' ')[0];
+  const totalAccounts = data.totalAccounts || 0;
+  
+  // Helper to format percentage
+  const pct = (count) => totalAccounts > 0 ? ((count / totalAccounts) * 100).toFixed(1) : '0.0';
+  
+  // ============================================
+  // SYSTEM TYPE COUNTS: "how many core/pro/basic"
+  // ============================================
+  const systemTypeMatch = normalizedQuery.match(/how many\s+(core|pro|basic|connect|erb|erg)\s*(?:accounts?)?/i);
+  if (systemTypeMatch && data.systemMix) {
+    const typeKey = systemTypeMatch[1].toLowerCase();
+    // Map variations to standard keys
+    const keyMap = { 'erb': 'ERB', 'erg': 'ERB', 'core': 'Core', 'pro': 'Pro', 'basic': 'Basic', 'connect': 'Connect' };
+    const standardKey = keyMap[typeKey] || typeKey.charAt(0).toUpperCase() + typeKey.slice(1);
+    
+    // Search systemMix for the count
+    const systemEntry = data.systemMix.find ? 
+      data.systemMix.find(s => s.value && s.value.toLowerCase().includes(typeKey)) :
+      null;
+    
+    if (systemEntry) {
+      const count = systemEntry.count || 0;
+      return {
+        answer: `${firstName} has **${count} ${standardKey} accounts** (${pct(count)}% of ${totalAccounts} total accounts).\n\nWant me to filter the view to show just these accounts?`
+      };
+    }
+  }
+  
+  // ============================================
+  // CONTRACT STATUS COUNTS: "how many term pending/expired"
+  // ============================================
+  const contractMatch = normalizedQuery.match(/how many\s+(term pending|term expired|expired|pending)\s*(?:accounts?)?/i);
+  if (contractMatch) {
+    const statusKey = contractMatch[1].toLowerCase();
+    
+    if (statusKey.includes('pending') && data.termPending) {
+      const count = data.termPending.count || 0;
+      return {
+        answer: `${firstName} has **${count} Term Pending accounts** (${pct(count)}% of ${totalAccounts} total).\n\nThese accounts are in their final contract period and need renewal attention.\n\nWant me to check these in Smart Select so you can add them to Focus20?`
+      };
+    }
+    
+    if (statusKey.includes('expired') && data.termExpired) {
+      const count = data.termExpired.count || 0;
+      return {
+        answer: `${firstName} has **${count} Term Expired accounts** (${pct(count)}% of ${totalAccounts} total).\n\n⚠️ These contracts have passed their end date and need immediate attention.\n\nWant me to check these in Smart Select?`
+      };
+    }
+  }
+  
+  // ============================================
+  // PRICING COUNTS: "how many freemium/ayce"
+  // ============================================
+  const pricingMatch = normalizedQuery.match(/how many\s+(freemium|ayce|free google|standard pricing)\s*(?:accounts?)?/i);
+  if (pricingMatch && data.exclusivePricing) {
+    const pricingKey = pricingMatch[1].toLowerCase();
+    
+    const pricingEntry = data.exclusivePricing.find ? 
+      data.exclusivePricing.find(p => p.value && p.value.toLowerCase().includes(pricingKey.split(' ')[0])) :
+      null;
+    
+    if (pricingEntry) {
+      const count = pricingEntry.count || 0;
+      const pricingName = pricingEntry.value || pricingKey;
+      return {
+        answer: `${firstName} has **${count} accounts on ${pricingName}** (${pct(count)}% of ${totalAccounts} total).\n\nWant me to filter the view to show these accounts?`
+      };
+    }
+  }
+  
+  // ============================================
+  // QUALITY TIER COUNTS: "how many platinum/gold/silver"
+  // ============================================
+  const qualityMatch = normalizedQuery.match(/how many\s+(platinum|gold|silver|bronze)\s*(?:accounts?)?/i);
+  if (qualityMatch && data.qualityTiers) {
+    const tierKey = qualityMatch[1].toLowerCase();
+    
+    const tierEntry = data.qualityTiers.find ? 
+      data.qualityTiers.find(t => t.value && t.value.toLowerCase().includes(tierKey)) :
+      null;
+    
+    if (tierEntry) {
+      const count = tierEntry.count || 0;
+      const tierName = tierEntry.value || tierKey.charAt(0).toUpperCase() + tierKey.slice(1);
+      return {
+        answer: `${firstName} has **${count} ${tierName} tier accounts** (${pct(count)}% of ${totalAccounts} total).\n\nWant me to filter the view to show these accounts?`
+      };
+    }
+  }
+  
+  // ============================================
+  // TOTAL COUNT: "how many accounts do i have"
+  // ============================================
+  const totalMatch = normalizedQuery.match(/how many\s+(accounts?|restaurants?|partners?)\s*(?:do|does|have|total)?/i);
+  if (totalMatch && totalAccounts > 0) {
+    // Avoid catching "how many X accounts" which is handled above
+    if (!normalizedQuery.match(/how many\s+(core|pro|basic|term|freemium|ayce|platinum|gold|silver|bronze)/i)) {
+      return {
+        answer: `${firstName} has **${totalAccounts} total accounts** in their portfolio.\n\nWant me to break this down by system type, contract status, or another category?`
+      };
+    }
+  }
+  
+  // ============================================
+  // FEATURE ADOPTION: "how many with PI/XP"
+  // ============================================
+  const featureMatch = normalizedQuery.match(/how many\s+(?:accounts?\s+)?(?:have|with|running|using)\s+(pi|premium inventory|xp|experiences|private dining)/i);
+  if (featureMatch) {
+    const featureKey = featureMatch[1].toLowerCase();
+    
+    if ((featureKey === 'pi' || featureKey === 'premium inventory') && data.activePI !== undefined) {
+      const count = data.activePI || 0;
+      return {
+        answer: `${firstName} has **${count} accounts with active Premium Inventory** (${pct(count)}% of ${totalAccounts} total).\n\nPI generates incremental revenue through promoted slots.\n\nWant me to filter to show accounts WITH PI, or find opportunities WITHOUT PI?`
+      };
+    }
+    
+    if ((featureKey === 'xp' || featureKey === 'experiences') && data.activeXP !== undefined) {
+      const count = data.activeXP || 0;
+      return {
+        answer: `${firstName} has **${count} accounts with active Experiences** (${pct(count)}% of ${totalAccounts} total).\n\nXP drives incremental covers through special events.\n\nWant me to filter to show these accounts?`
+      };
+    }
+  }
+  
+  // No template match - fall through to Gemini
   return null;
 }
 
@@ -3011,8 +3595,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       };
     }
     
-    // Log the user prompt for analysis
-    logUserPrompt(userQuery, 'chat');
+    // Note: Prompt logging moved to each return point for accurate routing analytics
     
     // STEP 1: Try scripted responses first (fast path - no API call)
     // Skip scripted for follow-up conversations (has history) to maintain context
@@ -3020,9 +3603,36 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       const scriptedResult = tryScriptedResponse(userQuery);
       if (scriptedResult) {
         console.log('[askInTouchGuide] Using scripted response (no API call)');
+        // Log with routing source for analytics
+        logUserPrompt(userQuery, 'chat', scriptedResult.source || 'scripted');
         scriptedResult.requestId = requestId;
         scriptedResult.durationMs = new Date() - startTime;
         return scriptedResult;
+      }
+    }
+    
+    // STEP 1.5: Check response cache for non-data questions (saves API calls on repeated questions)
+    const normalizedQueryForCache = userQuery.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 40);
+    const responseCacheKey = 'qa_' + normalizedQueryForCache;
+    const responseCache = CacheService.getScriptCache();
+    
+    // Only use cache for non-data, non-conversation questions
+    if (!conversationHistory || conversationHistory === 'null' || conversationHistory === '[]') {
+      if (!isAccountDataQuestion(userQuery)) {
+        const cachedResponse = responseCache.get(responseCacheKey);
+        if (cachedResponse) {
+          console.log('[askInTouchGuide] Using cached response (no API call)');
+          // Log with routing source for analytics
+          logUserPrompt(userQuery, 'chat', 'cached');
+          return {
+            success: true,
+            answer: cachedResponse,
+            source: 'cached',
+            isScripted: false,
+            requestId: requestId,
+            durationMs: new Date() - startTime
+          };
+        }
       }
     }
     
@@ -3059,6 +3669,8 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
         } else if (!amContext.isAMTab && !amContext.isTeamView) {
           // User is on a non-AM tab (STATCORE, Focus20, etc.) asking account questions
           console.log('[askInTouchGuide] User not on AM tab, returning navigation prompt');
+          // Log with routing source for analytics
+          logUserPrompt(userQuery, 'chat', 'no-am-tab');
           return {
             success: true,
             answer: `I'd love to help with that, but I need to see your account data first!\n\n**Please navigate to your AM tab** (look for tabs with AM names like "John Smith" or "Jane Doe"), then click the button below to re-run your question.\n\n💡 **Tip:** You can also ask about a specific AM by name, like "Show me Sarah's bucket summary"`,
@@ -3094,6 +3706,30 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       if (!rankingData.success) {
         console.log('[askInTouchGuide] Failed to get rankings: ' + rankingData.error);
         rankingData = null;
+      }
+    }
+    
+    // STEP 2c: Try template-based responses for simple count questions (no Gemini needed)
+    // This handles "how many X" questions when we have data
+    if (injectedData && injectedData.success) {
+      const templateResult = tryDataTemplateResponse(userQuery, injectedData);
+      if (templateResult) {
+        console.log('[askInTouchGuide] Using data-template response (no API call)');
+        // Log with routing source for analytics
+        logUserPrompt(userQuery, 'chat', 'data-template');
+        return {
+          success: true,
+          answer: templateResult.answer,
+          source: 'data-template',
+          isScripted: false,
+          requestId: requestId,
+          durationMs: new Date() - startTime,
+          dataInjected: true,
+          dataSource: {
+            amName: injectedData.amName,
+            totalAccounts: injectedData.totalAccounts
+          }
+        };
       }
     }
     
@@ -3304,6 +3940,21 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
     const durationMs = new Date() - startTime;
     console.log('Answer generated (' + answer.length + ' chars) in ' + durationMs + 'ms');
     
+    // Cache the response for non-data questions (saves API calls on repeated questions)
+    // Only cache if: no data was injected AND response is reasonable size
+    if (!(injectedData && injectedData.success) && answer && answer.length < 10000) {
+      try {
+        responseCache.put(responseCacheKey, answer, 3600); // Cache for 1 hour
+        console.log('[askInTouchGuide] Cached response for key: ' + responseCacheKey);
+      } catch (cacheErr) {
+        console.log('[askInTouchGuide] Failed to cache response: ' + cacheErr.message);
+      }
+    }
+    
+    // Log with routing source for analytics
+    const routingSource = (injectedData && injectedData.success) ? 'data-injected' : 'gemini';
+    logUserPrompt(userQuery, 'chat', routingSource);
+    
     return {
       success: true,
       answer: answer,
@@ -3319,6 +3970,9 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
     
   } catch (error) {
     console.log('INTOUCH GUIDE ERROR [' + requestId + ']: ' + error.message);
+    
+    // Log errors for analytics
+    logUserPrompt(userQuery, 'chat', 'error');
     
     return {
       success: false,

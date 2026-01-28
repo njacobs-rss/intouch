@@ -243,21 +243,23 @@ function logApiUsage(usageData, queryType) {
  * Logs user prompts to the central 'Prompt_Log' sheet
  * @param {string} promptText - The user's question/prompt
  * @param {string} queryType - Type of query (e.g., 'chat', 'scripted')
+ * @param {string} routingSource - How the query was handled: 'scripted', 'glossary', 'cached', 'gemini', 'data-template'
  */
-function logUserPrompt(promptText, queryType) {
+function logUserPrompt(promptText, queryType, routingSource) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const userEmail = Session.getActiveUser().getEmail();
     const fileName = ss.getName();
     
     const sheet = getCentralLogSheet_('PROMPT_LOG');
-    // ['User', 'Timestamp', 'Worksheet Name', 'Prompt Text', 'Query Type']
+    // ['User', 'Timestamp', 'Worksheet Name', 'Prompt Text', 'Query Type', 'Routing Source']
     sheet.appendRow([
       userEmail,
       new Date(),
       fileName,
       promptText,
-      queryType || 'chat'
+      queryType || 'chat',
+      routingSource || 'unknown'
     ]);
     
   } catch (err) {

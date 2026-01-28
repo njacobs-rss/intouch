@@ -56,253 +56,256 @@
     .tab-content.active { display: block; }
 
     /* =========================================
-       BUCKET IQ TAB - GOLD THEME
+       BUCKET IQ TAB - OPENTABLE THEME
        ========================================= */
     #tab-bucket-iq {
       display: none;
       flex-direction: column;
       height: calc(100vh - 45px);
       padding: 0;
-      background: #fffbeb;
+      background: #ffffff;
     }
     #tab-bucket-iq.active { display: flex; }
 
-    .bucket-iq-header {
-      padding: 12px 14px;
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      border-bottom: 1px solid #fcd34d;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .bucket-iq-header h4 {
-      margin: 0;
-      font-size: 14px;
-      font-weight: 700;
-      color: #78350f;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .bucket-iq-controls {
-      display: flex;
-      gap: 6px;
-    }
-    .bucket-iq-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 1px solid #d97706;
-      background: #fff;
-      color: #d97706;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .bucket-iq-btn:hover {
-      background: #fef3c7;
-    }
-
-    /* Messages area - gold tinted */
+    /* Messages area - clean white */
     #tab-bucket-iq .kh-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 12px;
-      background: #fffbeb;
+      padding: 16px;
+      background: #ffffff;
+      position: relative; /* For floating new chat button */
     }
 
-    /* Input area */
-    .bucket-iq-input-area {
-      padding: 12px;
-      border-top: 1px solid #fde68a;
-      background: #fefce8;
-      flex-shrink: 0;
-    }
-    .bucket-iq-input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #fcd34d;
-      border-radius: 8px;
-      font-size: 13px;
-      font-family: inherit;
-      resize: none;
-      min-height: 48px;
-      margin-bottom: 8px;
-      background: #fff;
-    }
-    .bucket-iq-input:focus {
-      outline: none;
-      border-color: #d97706;
-      box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.1);
-    }
-
-    .bucket-iq-input-buttons {
+    /* Floating New Chat Button */
+    .bucket-iq-new-chat {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1px solid #d8d9db;
+      color: #64748b;
       display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-    .bucket-iq-send {
-      padding: 8px 20px;
-      background: #d97706;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .bucket-iq-send:hover { background: #b45309; }
-    .bucket-iq-send:disabled { background: #fbbf24; opacity: 0.6; cursor: not-allowed; }
-
-    .bucket-iq-stop {
-      padding: 8px 16px;
-      background: #fef3c7;
-      color: #b45309;
-      border: 1px solid #d97706;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .bucket-iq-stop:hover { background: #fde68a; }
-
-    /* Assistant messages - gold accent */
-    #tab-bucket-iq .kh-message.assistant {
-      background: #fff;
-      border: 1px solid #fde68a;
-    }
-    #tab-bucket-iq .kh-message.assistant strong { color: #b45309; }
-
-    /* User messages - gold theme */
-    #tab-bucket-iq .kh-message.user {
-      background: #d97706;
-    }
-
-    /* Suggestion buttons - gold theme */
-    #tab-bucket-iq .kh-suggestion {
-      background: #fff;
-      border: 1px solid #fcd34d;
-      color: #78350f;
-    }
-    #tab-bucket-iq .kh-suggestion:hover {
-      border-color: #d97706;
-      color: #b45309;
-      background: #fef3c7;
-    }
-
-    /* Action buttons - gold theme */
-    #tab-bucket-iq .kh-action-btn.primary {
-      background: #d97706;
-    }
-    #tab-bucket-iq .kh-action-btn.primary:hover {
-      background: #b45309;
-    }
-
-    /* Jump start trigger - gold theme */
-    #tab-bucket-iq .kh-jumpstart-trigger {
-      background: #d97706;
-      border-color: #b45309;
-    }
-    #tab-bucket-iq .kh-jumpstart-trigger:hover {
-      background: #b45309;
-    }
-
-    /* Welcome section - gold theme */
-    #tab-bucket-iq .kh-welcome {
-      color: #78350f;
-    }
-    #tab-bucket-iq .kh-welcome h5 {
-      color: #78350f;
-    }
-    #tab-bucket-iq .kh-section-label {
-      color: #92400e;
-    }
-
-    /* Help modal styles */
-    .help-modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 2200;
-      display: none;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 10;
     }
-    .help-modal-overlay.open { display: flex; }
+    .bucket-iq-new-chat:hover {
+      background: #f1f2f4;
+      color: #2d333f;
+      border-color: #2d333f;
+    }
+
+    /* Input area - modern chat style */
+    .bucket-iq-input-area {
+      padding: 12px 16px;
+      border-top: 1px solid #f1f2f4;
+      background: #ffffff;
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    /* Help Button */
+    .bucket-iq-help {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1px solid #d8d9db;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      margin-bottom: 4px; /* Align with input */
+    }
+    .bucket-iq-help:hover {
+      border-color: #da3743;
+      color: #da3743;
+      background: #fff0f1;
+    }
+    .bucket-iq-help span {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* Input Wrapper - Pill Shape */
+    .bucket-iq-input-wrapper {
+      flex: 1;
+      background: #f1f2f4;
+      border-radius: 24px;
+      padding: 6px 8px 6px 16px;
+      display: flex;
+      align-items: center;
+      transition: box-shadow 0.2s;
+    }
+    .bucket-iq-input-wrapper:focus-within {
+      box-shadow: 0 0 0 2px rgba(218, 55, 67, 0.1);
+      background: #ffffff;
+      border: 1px solid #d8d9db;
+    }
+
+    .bucket-iq-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      min-height: 24px;
+      max-height: 100px;
+      padding: 4px 0;
+      outline: none;
+      color: #2d333f;
+    }
+    .bucket-iq-input::placeholder {
+      color: #64748b;
+    }
+
+    /* Send/Stop Buttons */
+    .bucket-iq-send, .bucket-iq-stop {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: #da3743;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+    .bucket-iq-send:hover, .bucket-iq-stop:hover {
+      background: #da3743;
+      color: white;
+      transform: scale(1.05);
+    }
+    .bucket-iq-send:disabled {
+      color: #94a3b8;
+      cursor: not-allowed;
+      background: transparent;
+      transform: none;
+    }
+
+    /* Assistant messages - OpenTable style */
+    #tab-bucket-iq .kh-message.assistant {
+      background: #f1f2f4;
+      border: none;
+      color: #2d333f;
+      border-radius: 18px 18px 18px 4px;
+      padding: 12px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    #tab-bucket-iq .kh-message.assistant strong { color: #da3743; }
+
+    /* User messages - OpenTable Red */
+    #tab-bucket-iq .kh-message.user {
+      background: #da3743;
+      color: white;
+      border-radius: 18px 18px 4px 18px;
+      padding: 12px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* Suggestion buttons - OpenTable style */
+    #tab-bucket-iq .kh-suggestion {
+      background: #ffffff;
+      border: 1px solid #d8d9db;
+      color: #2d333f;
+      border-radius: 20px;
+      padding: 8px 14px;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    #tab-bucket-iq .kh-suggestion:hover {
+      border-color: #da3743;
+      color: #da3743;
+      background: #fff0f1;
+    }
+
+    /* Action buttons - OpenTable style */
+    #tab-bucket-iq .kh-action-btn.primary {
+      background: #da3743;
+      color: white;
+      border-radius: 8px;
+    }
+    #tab-bucket-iq .kh-action-btn.primary:hover {
+      background: #b91c2b;
+    }
+
+    /* Jump start trigger - OpenTable style */
+    #tab-bucket-iq .kh-jumpstart-trigger {
+      background: #da3743;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 24px;
+      box-shadow: 0 4px 12px rgba(218, 55, 67, 0.25);
+    }
+    #tab-bucket-iq .kh-jumpstart-trigger:hover {
+      background: #b91c2b;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(218, 55, 67, 0.3);
+    }
+
+    /* Welcome section - OpenTable style */
+    #tab-bucket-iq .kh-welcome {
+      color: #2d333f;
+    }
+    #tab-bucket-iq .kh-welcome h5 {
+      color: #2d333f;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    #tab-bucket-iq .kh-section-label {
+      color: #64748b;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    #tab-bucket-iq .kh-welcome-icon {
+      color: #da3743;
+    }
+
+    /* Help modal styles - OpenTable style */
     .help-modal {
-      background: #fffbeb;
-      border-radius: 12px;
-      width: calc(100% - 32px);
-      max-width: 360px;
-      max-height: calc(100vh - 100px);
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      border: 1px solid #fde68a;
+      background: #ffffff;
+      border: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
     .help-modal-header {
-      padding: 14px 16px;
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      border-bottom: 1px solid #fcd34d;
-      font-weight: 600;
-      font-size: 13px;
-      color: #78350f;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background: #ffffff;
+      border-bottom: 1px solid #f1f2f4;
+      color: #2d333f;
+      padding: 16px 20px;
     }
     .help-modal-close {
-      background: none;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      color: #92400e;
-      padding: 0;
-      line-height: 1;
+      color: #64748b;
     }
-    .help-modal-body {
-      padding: 16px;
-      overflow-y: auto;
-      max-height: 400px;
-    }
-    .help-section {
-      margin-bottom: 16px;
-    }
-    .help-section:last-child {
-      margin-bottom: 0;
+    .help-modal-close:hover {
+      color: #da3743;
     }
     .help-section h5 {
-      margin: 0 0 8px 0;
-      font-size: 12px;
-      color: #78350f;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid #fde68a;
-      padding-bottom: 4px;
-    }
-    .help-section ul {
-      margin: 0;
-      padding: 0;
-      list-style: none;
+      color: #da3743;
+      border-bottom: 1px solid #f1f2f4;
     }
     .help-section li {
-      font-size: 11px;
-      color: #78350f;
-      padding: 6px 0;
-      border-bottom: 1px dashed #fde68a;
-    }
-    .help-section li:last-child {
-      border-bottom: none;
+      color: #2d333f;
+      border-bottom: 1px solid #f1f2f4;
     }
     .help-section li strong {
-      color: #b45309;
+      color: #2d333f;
     }
 
     /* =========================================
@@ -1175,17 +1178,15 @@
 
   <!-- Bucket iQ Tab - AI Chat Interface -->
   <div id="tab-bucket-iq" class="tab-content active">
-    <!-- Gold header bar with controls -->
-    <div class="bucket-iq-header">
-      <h4>Bucket iQ</h4>
-      <div class="bucket-iq-controls">
-        <button class="bucket-iq-btn" id="khClear" title="New Chat">+</button>
-        <button class="bucket-iq-btn help-btn" id="helpBtn" title="Help">?</button>
-      </div>
-    </div>
-    
-    <!-- Messages area -->
+    <!-- Messages Area -->
     <div class="kh-messages" id="khMessages">
+      <!-- New Chat Button (Floating) -->
+      <button class="bucket-iq-new-chat" id="khClear" title="Start New Chat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+
       <!-- Daily Jump Start Accordion -->
       <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
         <div class="kh-jumpstart-header">
@@ -1229,12 +1230,30 @@
       </div>
     </div>
     
-    <!-- Input area with stop button -->
+    <!-- Input Area (Bottom, Pinned) -->
     <div class="bucket-iq-input-area">
-      <textarea class="bucket-iq-input" id="khInput" placeholder="Ask about your bucket..." rows="2"></textarea>
-      <div class="bucket-iq-input-buttons">
-        <button class="bucket-iq-stop" id="khStop" title="Stop" style="display:none;">Stop</button>
-        <button class="bucket-iq-send" id="khSend" title="Send">Send</button>
+      <!-- Help Button (Subtle, Left aligned) -->
+      <button class="bucket-iq-help" id="helpBtn" title="Help & Guide">
+        <span>?</span>
+      </button>
+      
+      <!-- Input Wrapper (Pill shape) -->
+      <div class="bucket-iq-input-wrapper">
+        <textarea class="bucket-iq-input" id="khInput" placeholder="Ask InTouch..." rows="1"></textarea>
+        
+        <!-- Send Button (Icon, Right aligned in wrapper) -->
+        <button class="bucket-iq-send" id="khSend" title="Send">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+          </svg>
+        </button>
+        
+        <!-- Stop Button (Icon, replaces Send when loading) -->
+        <button class="bucket-iq-stop" id="khStop" title="Stop Generation" style="display:none;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -1925,6 +1944,13 @@
       // Clear messages and show welcome screen
       if (khEls.messages) {
         khEls.messages.innerHTML = `
+          <!-- New Chat Button (Floating) -->
+          <button class="bucket-iq-new-chat" id="khClear" title="Start New Chat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+
           <!-- Daily Jump Start Accordion -->
           <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
             <div class="kh-jumpstart-header">
@@ -1977,6 +2003,13 @@
             }
           });
         });
+
+        // Re-wire New Chat button (since it was re-created in innerHTML)
+        const newChatBtn = document.getElementById('khClear');
+        if (newChatBtn) {
+          newChatBtn.addEventListener('click', clearKHChat);
+          khEls.clearBtn = newChatBtn; // Update reference
+        }
       }
       
       // Update welcome reference

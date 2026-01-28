@@ -837,16 +837,22 @@ function flattenList_(list) { if (!list || !Array.isArray(list)) return ""; retu
 function _readSheetDataSmart_(ss, sheetName, config, targetRid) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return null;
-  const headers = sheet.getRange(config.headerRow, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(config.headerRow, 1, 1, lastCol).getValues()[0];
   const normalize = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
   
   const keyIdx = headers.findIndex(h => normalize(h).includes(normalize(config.keyCol)));
   if (keyIdx === -1) return null;
 
-  const data = sheet.getRange(config.headerRow + 1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
-  const row = data.find(r => String(r[keyIdx]).trim() == String(targetRid).trim());
+  // 🟢 OPTIMIZATION: Use TextFinder to avoid reading full sheet
+  const searchRange = sheet.getRange(config.headerRow + 1, keyIdx + 1, sheet.getLastRow() - config.headerRow, 1);
+  const finder = searchRange.createTextFinder(String(targetRid)).matchEntireCell(true);
+  const found = finder.findNext();
   
-  if (!row) return null;
+  if (!found) return null;
+  
+  const rowIdx = found.getRow();
+  const row = sheet.getRange(rowIdx, 1, 1, lastCol).getValues()[0];
   
   const result = {};
   config.extract.forEach(field => {
@@ -855,6 +861,9 @@ function _readSheetDataSmart_(ss, sheetName, config, targetRid) {
         let val = row[idx];
         if (val instanceof Date) val = val.toDateString();
         result[field] = val;
+    } else {
+        // 🟢 GUARDRAIL: Explicitly signal missing data to prevent hallucination
+        result[field] = "[DATA MISSING]";
     }
   });
   return result;

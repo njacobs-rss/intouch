@@ -2338,7 +2338,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
     // STEP 3: Call Gemini with optional data injection
     console.log('[askInTouchGuide] Calling Gemini API');
     const apiKey = getGeminiApiKey_();
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=' + apiKey;
     
     // Build conversation contents
     const contents = [];
@@ -2391,7 +2391,8 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
       contents: contents,
       generationConfig: {
         maxOutputTokens: 3000,  // Increased for large account lists (92+ RIDs with names)
-        temperature: 0.3,  // Lower for factual accuracy
+        temperature: 0,  // Strict determinism
+        response_mime_type: "application/json",
         topP: 0.9
       }
     };
@@ -4620,7 +4621,7 @@ function pingGeminiApi() {
     const apiKey = getGeminiApiKey_();
     console.log('API Key retrieved: ' + apiKey.substring(0, 8) + '...[REDACTED]');
     
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=' + apiKey;
     
     const payload = {
       contents: [{
@@ -4661,7 +4662,7 @@ function pingGeminiApi() {
       success: true,
       response: reply.trim(),
       durationMs: new Date() - startTime,
-      model: 'gemini-2.0-flash'
+      model: 'gemini-3-pro-preview'
     };
     
   } catch (error) {

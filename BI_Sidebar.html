@@ -109,6 +109,39 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    
+    /* Data Loaded Banner (shows timestamp + refresh button) */
+    .kh-data-loaded-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: #f0fdf4;
+      border-bottom: 1px solid #bbf7d0;
+      font-size: 11px;
+      color: #166534;
+    }
+    .kh-loaded-text {
+      font-weight: 500;
+    }
+    .kh-refresh-btn {
+      background: transparent;
+      border: 1px solid #86efac;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #166534;
+      transition: all 0.2s;
+    }
+    .kh-refresh-btn:hover {
+      background: #dcfce7;
+      border-color: #22c55e;
+    }
+    .kh-refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
     /* Messages area - clean white */
     #tab-bucket-iq .kh-messages {
@@ -1480,6 +1513,11 @@
     <div class="kh-data-loading-banner" id="khDataBanner" style="display:none;">
       <span class="kh-banner-spinner"></span>
       <span class="kh-banner-text">Loading your portfolio data...</span>
+    </div>
+    <!-- Data Loaded Banner (shows timestamp + refresh) -->
+    <div class="kh-data-loaded-banner" id="khDataLoadedBanner" style="display:none;">
+      <span class="kh-loaded-text">Data as of <span id="khDataTimestamp">--:--</span></span>
+      <button class="kh-refresh-btn" onclick="refreshAMData()" title="Refresh data">↻</button>
     </div>
     <!-- Messages Area -->
     <div class="kh-messages" id="khMessages">

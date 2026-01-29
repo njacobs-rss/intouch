@@ -948,7 +948,13 @@
       border-bottom: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start; /* Align to top so refresh button stays up if content grows */
+    }
+
+    .kh-jumpstart-title-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
     
     .kh-jumpstart-title {
@@ -970,7 +976,8 @@
       border-radius: 4px;
       border-left: 2px solid #22c55e;
       display: none;  /* Hidden until data loads */
-      flex-shrink: 0;
+      align-self: flex-start; /* Align to left in the column wrapper */
+      margin-top: 2px;
     }
     
     .kh-jumpstart-refresh {
@@ -1479,10 +1486,12 @@
       <!-- Daily Jump Start Accordion -->
       <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
         <div class="kh-jumpstart-header">
-          <div class="kh-jumpstart-title">
-            <span>🌅</span> DAILY JUMP START
+          <div class="kh-jumpstart-title-wrapper">
+            <div class="kh-jumpstart-title">
+              <span>🌅</span> DAILY JUMP START
+            </div>
+            <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
           </div>
-          <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
           <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
             🔄
           </button>
@@ -2307,10 +2316,12 @@
           <!-- Daily Jump Start Accordion -->
           <div class="kh-jumpstart" id="khJumpStart" style="display:none;">
             <div class="kh-jumpstart-header">
-              <div class="kh-jumpstart-title">
-                <span>🌅</span> DAILY JUMP START
+              <div class="kh-jumpstart-title-wrapper">
+                <div class="kh-jumpstart-title">
+                  <span>🌅</span> DAILY JUMP START
+                </div>
+                <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
               </div>
-              <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
               <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
                 🔄
               </button>

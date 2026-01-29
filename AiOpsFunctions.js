@@ -1406,6 +1406,24 @@ function getDetailedAMData(amName) {
       return { success: false, error: 'No AM name provided' };
     }
     
+    // Check server-side cache first (10 min TTL)
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'AMData_' + amName.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    try {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        console.log(`[${functionName}] Cache HIT for ${amName}`);
+        const cachedResult = JSON.parse(cached);
+        cachedResult.fromCache = true;
+        return cachedResult;
+      }
+    } catch (cacheErr) {
+      console.log(`[${functionName}] Cache read error: ${cacheErr.message}`);
+    }
+    
+    console.log(`[${functionName}] Cache MISS - fetching fresh data`);
+    
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const statSheet = ss.getSheetByName('STATCORE');
     const distroSheet = ss.getSheetByName('DISTRO');
@@ -1848,6 +1866,20 @@ function getDetailedAMData(amName) {
     };
     
     console.log(`[${functionName}] Found ${result.totalAccounts} accounts in ${result.durationMs}ms`);
+    
+    // Cache result (10 min = 600 seconds) with size safety check
+    try {
+      const jsonStr = JSON.stringify(result);
+      if (jsonStr.length < 95000) {
+        cache.put(cacheKey, jsonStr, 600);
+        console.log(`[${functionName}] Cached ${jsonStr.length} bytes for ${amName}`);
+      } else {
+        console.log(`[${functionName}] Skipped cache - payload too large: ${jsonStr.length} bytes`);
+      }
+    } catch (cacheErr) {
+      console.log(`[${functionName}] Cache PUT failed: ${cacheErr.message}`);
+    }
+    
     return result;
     
   } catch (e) {

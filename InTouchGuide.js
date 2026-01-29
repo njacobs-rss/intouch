@@ -36,6 +36,71 @@ const CACHE_CONFIG = {
   MIN_TOKENS: 4096  // Gemini 3 Pro minimum for caching
 };
 
+// =============================================================
+// GEMINI MODEL CONFIGURATION
+// =============================================================
+// Flash is 3-5x faster for simple queries; Pro for complex analysis
+// =============================================================
+
+const GEMINI_MODELS = {
+  pro: 'gemini-3-pro-preview',
+  flash: 'gemini-2.0-flash'
+};
+
+/**
+ * Classify query complexity to route to appropriate model
+ * @param {string} query - The user's question
+ * @param {boolean} hasData - Whether data will be injected
+ * @returns {string} 'flash' or 'pro'
+ */
+function classifyQueryComplexity(query, hasData) {
+  const normalizedQuery = query.toLowerCase().trim();
+  
+  // Simple patterns - definitions, how-to, basic lookups
+  const simplePatterns = [
+    /^what (is|are|does)\b/i,           // Definitions: "what is PI"
+    /^how (do|can|to)\b/i,              // How-to: "how do I filter"
+    /^where (is|can|do)\b/i,            // Location: "where is the sidebar"
+    /^explain\b/i,                       // Explanations
+    /^define\b/i,                        // Definitions
+    /^tell me (about|what)\b/i,         // Info requests
+    /^show me how\b/i                   // Tutorials
+  ];
+  
+  // Complex indicators - require reasoning, analysis, or strategy
+  const complexIndicators = [
+    /\b(analyze|compare|prioritize|recommend|strategy|suggest)\b/i,
+    /\b(why|should|best|worst|optimal)\b/i,
+    /\b(trend|pattern|insight|opportunity)\b/i,
+    /\b(risk|issue|problem|concern)\b/i,
+    /\b(focus20|renewal|churn|retention)\b/i,
+    /\bsummarize (my|the) (bucket|portfolio)\b/i
+  ];
+  
+  // If data is injected, likely needs Pro for analysis
+  if (hasData) {
+    // But simple count questions with data can still use Flash
+    const simpleDataPatterns = [
+      /^how many\b/i,
+      /^count\b/i,
+      /^list (my|the|all)\b/i
+    ];
+    const isSimpleData = simpleDataPatterns.some(p => p.test(normalizedQuery));
+    if (!isSimpleData) {
+      return 'pro'; // Data + complex question = Pro
+    }
+  }
+  
+  const isSimple = simplePatterns.some(p => p.test(normalizedQuery));
+  const isComplex = complexIndicators.some(p => p.test(normalizedQuery));
+  
+  // Default to Pro if unclear or complex
+  if (isComplex) return 'pro';
+  if (isSimple && !hasData) return 'flash';
+  
+  return 'pro'; // Conservative default
+}
+
 /**
  * TEST FUNCTION: Verify InTouchGuide.js is loading correctly
  * Run this from Apps Script editor to confirm the new file works
@@ -3629,6 +3694,13 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
   const startTime = new Date();
   const requestId = Utilities.getUuid().substring(0, 8);
   
+  // Helper for structured performance logging
+  const logPerf = (path, model = 'none') => {
+    const durationMs = new Date() - startTime;
+    const querySnippet = userQuery.substring(0, 50).replace(/\n/g, ' ');
+    console.log(`[PERF] "${querySnippet}${userQuery.length > 50 ? '...' : ''}" | path=${path} | model=${model} | duration=${durationMs}ms`);
+  };
+  
   console.log('=== INTOUCH GUIDE REQUEST [' + requestId + '] ===');
   console.log('Query: ' + userQuery);
   
@@ -3657,6 +3729,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
         console.log('[askInTouchGuide] Using scripted response (no API call)');
         // Log with routing source for analytics
         logUserPrompt(userQuery, 'chat', scriptedResult.source || 'scripted');
+        logPerf('scripted');
         scriptedResult.requestId = requestId;
         scriptedResult.durationMs = new Date() - startTime;
         return scriptedResult;
@@ -3676,6 +3749,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
           console.log('[askInTouchGuide] Using cached response (no API call)');
           // Log with routing source for analytics
           logUserPrompt(userQuery, 'chat', 'cached');
+          logPerf('cached');
           return {
             success: true,
             answer: cachedResponse,
@@ -3723,6 +3797,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
           console.log('[askInTouchGuide] User not on AM tab, returning navigation prompt');
           // Log with routing source for analytics
           logUserPrompt(userQuery, 'chat', 'no-am-tab');
+          logPerf('no-am-tab');
           return {
             success: true,
             answer: `I'd love to help with that, but I need to see your account data first!\n\n**Please navigate to your AM tab** (look for tabs with AM names like "John Smith" or "Jane Doe"), then click the button below to re-run your question.\n\n💡 **Tip:** You can also ask about a specific AM by name, like "Show me Sarah's bucket summary"`,
@@ -3776,6 +3851,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
         console.log('[askInTouchGuide] Using data-template response (no API call)');
         // Log with routing source for analytics
         logUserPrompt(userQuery, 'chat', 'data-template');
+        logPerf('data-template');
         return {
           success: true,
           answer: templateResult.answer,
@@ -3793,12 +3869,18 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
     }
     
     // STEP 3: Call Gemini with context caching for cost optimization
-    console.log('[askInTouchGuide] Calling Gemini API');
-    const apiKey = getGeminiApiKey_();
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=' + apiKey;
+    // Select model based on query complexity
+    const hasDataContext = !!(injectedData && injectedData.success);
+    const selectedModel = classifyQueryComplexity(userQuery, hasDataContext);
+    const modelName = GEMINI_MODELS[selectedModel];
     
-    // Get or create cached system instruction (50% cost savings)
-    const cacheName = getOrCreateSystemCache_();
+    console.log(`[askInTouchGuide] Calling Gemini API | model=${selectedModel} (${modelName})`);
+    const apiKey = getGeminiApiKey_();
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + apiKey;
+    
+    // Get or create cached system instruction (50% cost savings) - only for Pro model
+    // Flash doesn't support context caching, so we send full instruction
+    const cacheName = selectedModel === 'pro' ? getOrCreateSystemCache_() : null;
     
     // Build conversation contents
     const contents = [];
@@ -4012,7 +4094,8 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
     
     // Log with routing source for analytics
     const routingSource = (injectedData && injectedData.success) ? 'data-injected' : 'gemini';
-    logUserPrompt(userQuery, 'chat', routingSource);
+    logUserPrompt(userQuery, 'chat', routingSource + '-' + selectedModel);
+    logPerf(routingSource, modelName);
     
     return {
       success: true,
@@ -4032,6 +4115,7 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
     
     // Log errors for analytics
     logUserPrompt(userQuery, 'chat', 'error');
+    logPerf('error');
     
     return {
       success: false,

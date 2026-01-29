@@ -2260,7 +2260,9 @@
       expandedSections: {},         // Tracks which sections are expanded {termPending: true, ...}
       // Pre-fetched AM data for faster chat responses
       cachedAMData: null,           // Cached portfolio data from getDetailedAMData()
-      cachedAMDataExpiry: 0         // Timestamp when cached data expires
+      cachedAMDataExpiry: 0,        // Timestamp when cached data expires
+      cachedAMDataTime: null,       // Date object when data was fetched (for display)
+      currentAMName: null           // Current AM name for refresh functionality
     };
     
     // Confirmation phrases that trigger pending column action
@@ -5116,16 +5118,23 @@ If you have any other questions about the team data I'd be happy to dive in with
     function prefetchAMData(amName) {
       console.log('[prefetchAMData] Pre-fetching data for:', amName);
       
+      // Store AM name for refresh functionality
+      khState.currentAMName = amName;
+      
       google.script.run
         .withSuccessHandler((data) => {
           if (data && data.success) {
             khState.cachedAMData = data;
-            khState.cachedAMDataExpiry = Date.now() + 300000; // 5 min expiry
+            khState.cachedAMDataExpiry = Date.now() + 1800000; // 30 min expiry
+            khState.cachedAMDataTime = new Date(); // Track when data was fetched
             console.log('[prefetchAMData] Cached', data.totalAccounts, 'accounts for', amName);
+            
+            // Show "Data Loaded" banner with timestamp
+            showDataLoadedBanner();
           } else {
             console.log('[prefetchAMData] No data returned or error');
           }
-          // Hide banner
+          // Hide loading banner
           const banner = document.getElementById('khDataBanner');
           if (banner) banner.style.display = 'none';
         })
@@ -5133,6 +5142,72 @@ If you have any other questions about the team data I'd be happy to dive in with
           console.log('[prefetchAMData] Error:', error.message);
           const banner = document.getElementById('khDataBanner');
           if (banner) banner.style.display = 'none';
+        })
+        .getDetailedAMData(amName);
+    }
+    
+    /**
+     * Show the "Data Loaded" banner with timestamp
+     */
+    function showDataLoadedBanner() {
+      const loadedBanner = document.getElementById('khDataLoadedBanner');
+      const timestampEl = document.getElementById('khDataTimestamp');
+      
+      if (loadedBanner && timestampEl && khState.cachedAMDataTime) {
+        const time = khState.cachedAMDataTime;
+        const hours = time.getHours().toString().padStart(2, '0');
+        const mins = time.getMinutes().toString().padStart(2, '0');
+        timestampEl.textContent = `${hours}:${mins}`;
+        loadedBanner.style.display = 'flex';
+      }
+    }
+    
+    /**
+     * Refresh AM data - clears cache and re-fetches
+     * Called by the refresh button in the "Data Loaded" banner
+     */
+    function refreshAMData() {
+      const amName = khState.currentAMName || (khState.currentAMContext && khState.currentAMContext.fullName);
+      
+      if (!amName) {
+        console.log('[refreshAMData] No AM name available');
+        return;
+      }
+      
+      // Clear cached data
+      khState.cachedAMData = null;
+      khState.cachedAMDataExpiry = 0;
+      khState.cachedAMDataTime = null;
+      
+      // Hide "Data Loaded" banner, show loading banner
+      const loadedBanner = document.getElementById('khDataLoadedBanner');
+      const loadingBanner = document.getElementById('khDataBanner');
+      if (loadedBanner) loadedBanner.style.display = 'none';
+      if (loadingBanner) loadingBanner.style.display = 'flex';
+      
+      // Disable refresh button during fetch
+      const refreshBtn = document.querySelector('.kh-refresh-btn');
+      if (refreshBtn) refreshBtn.disabled = true;
+      
+      console.log('[refreshAMData] Refreshing data for:', amName);
+      
+      // Re-fetch data
+      google.script.run
+        .withSuccessHandler((data) => {
+          if (data && data.success) {
+            khState.cachedAMData = data;
+            khState.cachedAMDataExpiry = Date.now() + 1800000; // 30 min expiry
+            khState.cachedAMDataTime = new Date();
+            console.log('[refreshAMData] Refreshed', data.totalAccounts, 'accounts');
+            showDataLoadedBanner();
+          }
+          if (loadingBanner) loadingBanner.style.display = 'none';
+          if (refreshBtn) refreshBtn.disabled = false;
+        })
+        .withFailureHandler((error) => {
+          console.log('[refreshAMData] Error:', error.message);
+          if (loadingBanner) loadingBanner.style.display = 'none';
+          if (refreshBtn) refreshBtn.disabled = false;
         })
         .getDetailedAMData(amName);
     }

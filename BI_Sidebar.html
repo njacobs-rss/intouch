@@ -933,7 +933,7 @@
        DAILY JUMP START
        ========================================= */
     .kh-jumpstart {
-      margin: 12px 10px;
+      margin: 12px 4px;  /* Minimal horizontal margin */
       border: 1px solid #e2e8f0;
       border-radius: 8px;
       background: #fff;
@@ -959,6 +959,17 @@
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    
+    .kh-jumpstart-am-indicator {
+      font-size: 10px;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border-left: 2px solid #22c55e;
+      display: none;  /* Hidden until data loads */
+      flex-shrink: 0;
     }
     
     .kh-jumpstart-refresh {
@@ -1483,6 +1494,7 @@
           <div class="kh-jumpstart-title">
             <span>🌅</span> DAILY JUMP START
           </div>
+          <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
           <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
             🔄
           </button>
@@ -2308,6 +2320,7 @@
               <div class="kh-jumpstart-title">
                 <span>🌅</span> DAILY JUMP START
               </div>
+              <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
               <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
                 🔄
               </button>
@@ -2522,6 +2535,13 @@
         return;
       }
       
+      // Update AM indicator in header
+      const amIndicator = document.getElementById('khJumpStartAM');
+      if (amIndicator && data.amName) {
+        amIndicator.textContent = `📊 ${data.amName} (${data.totalAccounts} accounts)`;
+        amIndicator.style.display = 'inline-block';
+      }
+      
       // Define section order (priority: high → medium → opportunity)
       const sectionOrder = ['termPending', 'contractsExpiring', 'noEngagement60', 'noBookings30', 'nonOTSystem', 'highPIRevenue'];
       
@@ -2532,45 +2552,38 @@
         const section = data.sections[sectionId];
         if (!section) return;
         
-        totalAccounts += section.count;
         const count = section.count;
         
+        // Skip sections with zero results - don't display them at all
+        if (count === 0) return;
+        
+        totalAccounts += count;
+        
         // EDGE CASE 6: Threshold behavior
-        // 0 accounts: empty state, not expandable
         // 1-6 accounts: auto-expanded with list + buttons
         // 7+ accounts: collapsed by default, "Show All" button
-        const isEmpty = count === 0;
         const isLargeSection = count > 6;
         
         // Determine expansion state
         let expanded = '';
-        if (!isEmpty) {
-          if (khState.expandedSections[sectionId] === undefined) {
-            // First render: auto-expand 1-6, collapse 7+
-            khState.expandedSections[sectionId] = !isLargeSection;
-          }
-          expanded = khState.expandedSections[sectionId] ? 'expanded' : '';
+        if (khState.expandedSections[sectionId] === undefined) {
+          // First render: auto-expand 1-6, collapse 7+
+          khState.expandedSections[sectionId] = !isLargeSection;
         }
+        expanded = khState.expandedSections[sectionId] ? 'expanded' : '';
         
-        // EDGE CASE 1: Empty sections are not expandable
-        const headerClickHandler = isEmpty 
-          ? '' 
-          : `onclick="toggleJumpStartSection('${sectionId}')"`;
-        
-        const emptyClass = isEmpty ? 'empty' : '';
-        const chevronClass = isEmpty ? 'hidden' : '';
         const sectionTooltip = sectionTooltips[sectionId] || '';
         
         html += `
-          <div class="kh-jumpstart-section ${expanded} ${emptyClass}" data-section-id="${sectionId}" data-count="${count}">
-            <div class="kh-jumpstart-section-header" ${headerClickHandler}>
-              <span class="kh-jumpstart-chevron ${chevronClass}">▶</span>
+          <div class="kh-jumpstart-section ${expanded}" data-section-id="${sectionId}" data-count="${count}">
+            <div class="kh-jumpstart-section-header" onclick="toggleJumpStartSection('${sectionId}')">
+              <span class="kh-jumpstart-chevron">▶</span>
               <span class="kh-jumpstart-dot">${section.priorityDot}</span>
               <span class="kh-jumpstart-name" onmouseenter="showCustomTooltip(this, '${sectionTooltip}')" onmouseleave="hideCustomTooltip()">${section.title}</span>
-              <span class="kh-jumpstart-badge ${section.priority === 'high' && count > 0 ? 'urgent' : ''}">${count}</span>
+              <span class="kh-jumpstart-badge ${section.priority === 'high' ? 'urgent' : ''}">${count}</span>
             </div>
             <div class="kh-jumpstart-content">
-              ${isEmpty ? renderEmptySection() : renderSectionContent(section, isLargeSection)}
+              ${renderSectionContent(section, isLargeSection)}
             </div>
           </div>
         `;

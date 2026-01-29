@@ -937,7 +937,8 @@
       border: 1px solid #e2e8f0;
       border-radius: 8px;
       background: #fff;
-      overflow: hidden;
+      overflow: visible; /* Changed from hidden to allow full expansion */
+      height: auto;      /* Ensure container grows with content */
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     
@@ -1056,7 +1057,9 @@
     /* Account List - scrollable when many accounts */
     .kh-jumpstart-list {
       margin-bottom: 10px;
-      /* removed max-height and overflow to allow full expansion */
+      height: auto;
+      max-height: none;
+      overflow: visible;
     }
     
     .kh-jumpstart-row {

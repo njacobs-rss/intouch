@@ -3198,20 +3198,8 @@
           // Open Glean in new tab
           window.open('https://app.glean.com/', '_blank');
           
-          // Show confirmation with preview of the prompt
-          const confirmationMsg = 
-            `🧠 **Glean Analysis Ready**\n\n` +
-            `Copied to clipboard! Paste into Glean to analyze these accounts.\n\n` +
-            `\`\`\`\n` +
-            `### CONTEXT\n` +
-            `You are analyzing ${section.accounts.length} OpenTable restaurant accounts for ${amName}.\n` +
-            `These accounts were flagged as: ${section.title}\n\n` +
-            `### ACCOUNTS TO ANALYZE\n` +
-            section.accounts.slice(0, 3).map(a => `${a.emoji || '•'} ${a.name}`).join('\n') +
-            (section.accounts.length > 3 ? `\n... and ${section.accounts.length - 3} more` : '') +
-            `\n\`\`\``;
-          
-          addKHMessage('assistant', confirmationMsg);
+          // Silent operation - visual feedback is already on the button ("✓ Copied")
+          console.log(`[jumpStartGlean] Prompt copied to clipboard, opening Glean for ${section.accounts.length} accounts`);
         })
         .catch((err) => {
           console.error('[jumpStartGlean] Clipboard error:', err);
@@ -3220,106 +3208,457 @@
     }
     
     /**
-     * Generate comprehensive Glean prompt with section-specific focus
+     * Get Salesforce fields to query based on section type
+     * @param {string} sectionId - Section identifier
+     * @returns {Array} Array of SF field names/descriptions
+     */
+    function getSalesforceFields(sectionId) {
+      const baseFields = [
+        'Account Name, Hidden ID, Finance Systems ID',
+        'Owner, Account Manager, Account Executive',
+        'CQ Account Tier, Customer Type, Account Status',
+        'Primary Product, Restaurant Product Type',
+        'Vitality Score, Reputation Score, Visibility Score',
+        'Churn Probability, Churn Probability Month, Churn Probability Reason',
+        'Days since last activity, Engagement Status',
+        'Active_Contract__r (contract ID + name)',
+        'Current Payment Status, Collections Status'
+      ];
+      
+      const sectionFields = {
+        termPending: [
+          ...baseFields,
+          'Most_Recent_Termination_Case__r (case status)',
+          'Most_Recent_Collections_Notice__r',
+          'System_of_Record__r (competitor lookup)',
+          'Business Status (open, permanently closed)',
+          'Related Opportunities — Stage, Close Date'
+        ],
+        
+        contractsExpiring: [
+          ...baseFields,
+          'Auto Renewal, Auto Renewal Term, Auto Renewal Changed Date',
+          'Account on Month to Month Renewal',
+          'Customer Since, Customer For',
+          'Related Opportunities — Renewal pipeline',
+          'Related Cases — open issues'
+        ],
+        
+        noEngagement60: [
+          ...baseFields,
+          'Days since last activity (critical — confirm 60+)',
+          'Contact: Last Activity, Most Recent Activity Type, Number of Tasks Associated',
+          'Related Cases — filed during silence period',
+          'Slack threads — internal discussions about this account'
+        ],
+        
+        noBookings30: [
+          ...baseFields,
+          'Primary Product, Contracted Primary Product',
+          'System_of_Record__r (are they OT primary?)',
+          'Restaurant Status, Business Status',
+          'Related Cases — technical/integration issues',
+          'Jira — any related bugs or feature requests'
+        ],
+        
+        nonOTSystem: [
+          ...baseFields,
+          'System_of_Record__r (Competitor lookup — critical)',
+          'Customer Type (Listing Only = competitor primary)',
+          'Intended System of Record (at sale) on Opportunities',
+          'System Change Type on Opportunities',
+          'Vitality Score (low = limited OT engagement)'
+        ],
+        
+        highPIRevenue: [
+          ...baseFields,
+          'Chase Status, Chase - Tier',
+          'Current Charges',
+          'Related Campaigns — membership and performance',
+          'Related Opportunities — upsell, tier upgrade',
+          'Prospect Tier on Opportunities'
+        ]
+      };
+      
+      return sectionFields[sectionId] || baseFields;
+    }
+    
+    /**
+     * Get additional (non-SF) data sources to search based on section type
+     * @param {string} sectionId - Section identifier
+     * @returns {Array} Array of data source descriptions
+     */
+    function getAdditionalSources(sectionId) {
+      const baseSources = [
+        'Slack — internal threads mentioning restaurant name',
+        'Gmail — your email correspondence',
+        'Google Calendar — meetings and QBRs'
+      ];
+      
+      const sectionSources = {
+        termPending: [
+          ...baseSources,
+          'Slack — escalation threads, save discussions',
+          'Zoom transcripts — recent calls about retention',
+          'Drive/Confluence — save playbooks, retention strategies'
+        ],
+        
+        contractsExpiring: [
+          ...baseSources,
+          'Slack — renewal discussions',
+          'Drive — renewal strategy docs, QBR materials',
+          'Zoom transcripts — recent account reviews'
+        ],
+        
+        noEngagement60: [
+          ...baseSources,
+          'Gmail — last inbound email from restaurant',
+          'Calendar — scheduled meetings that may have been missed',
+          'Slack — any internal flags or concerns'
+        ],
+        
+        noBookings30: [
+          ...baseSources,
+          'Jira — technical issues, integration bugs',
+          'Confluence — troubleshooting guides, integration docs',
+          'Slack — #support or technical channels'
+        ],
+        
+        nonOTSystem: [
+          ...baseSources,
+          'Slack — competitive intel, migration discussions',
+          'Drive/Confluence — competitive playbooks',
+          'Zoom transcripts — discovery calls about their workflow'
+        ],
+        
+        highPIRevenue: [
+          ...baseSources,
+          'Drive — campaign performance docs',
+          'Slack — marketing/PI discussions',
+          'Confluence — PI program documentation'
+        ]
+      };
+      
+      return sectionSources[sectionId] || baseSources;
+    }
+    
+    /**
+     * Get relevant timeframe for analysis based on section type
+     * @param {string} sectionId - Section identifier
+     * @returns {string} Timeframe description
+     */
+    function getRelevantTimeframe(sectionId) {
+      const timeframes = {
+        termPending: 'the past 6 months (emphasize last 30 days)',
+        contractsExpiring: 'the past 90 days',
+        noEngagement60: '90 days before silence began + any activity since',
+        noBookings30: 'the past 60 days',
+        nonOTSystem: 'the past 6 months',
+        highPIRevenue: 'the past 90 days'
+      };
+      return timeframes[sectionId] || 'the past 30 days';
+    }
+    
+    /**
+     * Generate comprehensive Glean prompt with section-specific focus (V4)
+     * Includes data source guidance, Salesforce field mappings, timeframes, and structured output
      * @param {Object} section - Section data with accounts array
      * @param {string} amName - AM's full name
      * @param {string} sectionId - Section identifier for customization
      * @returns {string} Formatted prompt for Glean
      */
     function generateGleanPrompt(section, amName, sectionId) {
-      // Build the comprehensive prompt
-      let prompt = `### CONTEXT\n`;
-      prompt += `You are analyzing ${section.accounts.length} OpenTable restaurant accounts for ${amName}.\n`;
-      prompt += `These accounts were flagged as: ${section.title}\n\n`;
+      const timeframe = getRelevantTimeframe(sectionId);
+      const sfFields = getSalesforceFields(sectionId);
+      const additionalSources = getAdditionalSources(sectionId);
       
-      // Section-specific focus area
-      prompt += `### FOCUS AREA\n`;
-      prompt += getGleanFocus(sectionId) + '\n\n';
+      let prompt = `## OBJECTIVE\n`;
+      prompt += `Analyze ${section.accounts.length} restaurant accounts for [[Account Manager: ${amName}]] flagged as "${section.title}" and provide actionable next steps.\n\n`;
       
-      // Account list with details
-      prompt += `### ACCOUNTS TO ANALYZE\n`;
-      section.accounts.forEach(acc => {
-        const emoji = acc.emoji || '•';
-        prompt += `${emoji} ${acc.name}`;
-        if (acc.reason) prompt += ` — ${acc.reason}`;
-        if (acc.piShare) prompt += ` — PI: ${acc.piShare}`;
-        if (acc.revenue) prompt += `, Rev: ${acc.revenue}`;
-        if (acc.daysSince) prompt += ` — ${acc.daysSince}d since contact`;
-        prompt += '\n';
+      // Data sources - calibrated to what actually works
+      prompt += `## DATA SOURCES TO SEARCH\n\n`;
+      prompt += `**Salesforce (Primary):**\n`;
+      prompt += `• Accounts, Contacts, Opportunities, Cases, Campaigns\n`;
+      prompt += `• Note: Tasks only available as aggregates on Contacts; Contracts only via Active_Contract__r lookup\n\n`;
+      prompt += `**Additional Sources:**\n`;
+      additionalSources.forEach(source => {
+        prompt += `• ${source}\n`;
       });
+      prompt += `\n`;
       
-      // RIDs for system lookup
-      const ridList = section.accounts.map(a => a.rid).join(', ');
-      prompt += `\nRIDs for system lookup: ${ridList}\n\n`;
+      // Timeframe
+      prompt += `## TIMEFRAME\n`;
+      prompt += `Focus on activity from ${timeframe}.\n\n`;
       
-      // Standard analysis request
-      prompt += `### ANALYSIS REQUEST\n`;
-      prompt += `Using all available company knowledge, CRM data, and integrated systems:\n\n`;
-      prompt += `1. **Account Health Summary** — Recent activity and red flags per account\n`;
-      prompt += `2. **Pattern Recognition** — Common themes across these accounts\n`;
-      prompt += `3. **Engagement History** — Recent communications per account\n`;
-      prompt += `4. **Recommended Actions** — Specific next steps per account\n`;
-      prompt += `5. **Prioritization** — Rank by urgency and impact\n\n`;
+      // Salesforce fields with REAL names
+      prompt += `## SALESFORCE FIELDS TO QUERY\n`;
+      sfFields.forEach(field => {
+        prompt += `• ${field}\n`;
+      });
+      prompt += `\n`;
       
-      // Output format guidance
-      prompt += `### OUTPUT FORMAT\n`;
-      prompt += `Clear headers per account, bullet points for scanning, flag urgent items with ⚠️`;
+      // Focus area
+      prompt += `## FOCUS AREA\n`;
+      prompt += getGleanFocusV4(sectionId) + '\n\n';
+      
+      // Account list with correct ID fields
+      prompt += `## ACCOUNTS TO ANALYZE\n`;
+      prompt += `| Restaurant | Hidden ID | Finance Systems ID | Key Signal |\n`;
+      prompt += `|------------|-----------|-------------------|------------|\n`;
+      section.accounts.forEach(acc => {
+        // Build key signal from available fields
+        let signal = '—';
+        if (acc.reason) {
+          signal = acc.reason;
+        } else if (acc.daysSince) {
+          signal = `${acc.daysSince}d since activity`;
+        } else if (acc.daysUntil) {
+          signal = `${acc.daysUntil}d until expiration`;
+        } else if (acc.piShare && acc.revenue) {
+          signal = `PI: ${acc.piShare}, Rev: ${acc.revenue}`;
+        } else if (acc.sorType) {
+          signal = `SOR: ${acc.sorType}`;
+        }
+        prompt += `| ${acc.name} | ${acc.rid} | FS${acc.rid} | ${signal} |\n`;
+      });
+      prompt += `\n`;
+      
+      // Search guidance
+      prompt += `## SEARCH GUIDANCE\n`;
+      prompt += `For each account:\n`;
+      prompt += `1. Search Salesforce by **Account Name** or **Hidden ID**\n`;
+      prompt += `2. Pull related Contacts (check RID field), Opportunities (check Account RID)\n`;
+      prompt += `3. Check for Cases, especially Most_Recent_Termination_Case__r\n`;
+      prompt += `4. Search Slack for threads mentioning the restaurant name\n`;
+      prompt += `5. Search Gmail/Calendar for recent correspondence\n\n`;
+      
+      // Output format
+      prompt += `## OUTPUT FORMAT\n`;
+      prompt += `For each account:\n\n`;
+      prompt += `**[Restaurant Name]** (Hidden ID: XXX | Finance Systems ID: FSXXX)\n`;
+      prompt += `• **Owner**: [Owner] | **AM**: [Account Manager] | **AE**: [Account Executive]\n`;
+      prompt += `• **Segment**: [CQ Account Tier] | [Customer Type] | [Restaurant Product Type]\n`;
+      prompt += `• **Health**: Vitality: X | Reputation: X | Visibility: X\n`;
+      prompt += `• **Risk**: Churn Probability: X% — [Churn Probability Reason if available]\n`;
+      prompt += `• **Engagement**: [Days since last activity] days | Status: [Engagement Status]\n`;
+      prompt += `• **Contract**: [Active_Contract__r name] | Auto Renewal: [Yes/No] | M2M: [Yes/No]\n`;
+      prompt += `• **Billing**: [Current Payment Status] | Collections: [Yes/No]\n`;
+      prompt += `• **Recent Comms**: [Slack threads, emails, meetings found]\n`;
+      prompt += `• **Open Items**: [Cases, Opportunities]\n`;
+      prompt += `• **⚠️ Risk Signals**: [Flag urgent items]\n`;
+      prompt += `• **Recommended Action**: [Specific next step with timeframe]\n\n`;
+      prompt += `End with **Priority Ranking** (1-${section.accounts.length}) by Churn Probability and business impact.\n`;
       
       return prompt;
     }
     
     /**
-     * Get section-specific focus text for Glean prompt
+     * Get section-specific focus text for Glean prompt (V4)
+     * Includes objective, SF search, Slack search, other sources, and red flags
      * @param {string} sectionId - Section identifier
      * @returns {string} Focus area description
      */
-    function getGleanFocus(sectionId) {
-      switch (sectionId) {
-        case 'termPending':
-          return `Focus on renewal barriers and save strategies. Look for:\n` +
-            `• Previous renewal conversations and outcomes\n` +
-            `• Competitive mentions or threats\n` +
-            `• Contract negotiation history\n` +
-            `• Any escalations or at-risk flags`;
-            
-        case 'contractsExpiring':
-          return `Focus on competitive intel and renewal conversations. Look for:\n` +
-            `• Recent performance discussions\n` +
-            `• Pricing negotiations or objections\n` +
-            `• Feature requests or complaints\n` +
-            `• Relationship health indicators`;
-            
-        case 'noEngagement60':
-          return `Focus on re-engagement opportunities and churn signals. Look for:\n` +
-            `• Last meaningful interaction and outcome\n` +
-            `• Any support tickets or issues\n` +
-            `• Performance trends before silence\n` +
-            `• Similar accounts that churned`;
-            
-        case 'noBookings30':
-          return `Focus on operational issues and booking barriers. Look for:\n` +
-            `• Technical support tickets\n` +
-            `• Availability or inventory discussions\n` +
-            `• Seasonal pattern context\n` +
-            `• Similar accounts with booking issues`;
-            
-        case 'nonOTSystem':
-          return `Focus on competitive dynamics and system integration. Look for:\n` +
-            `• Discussions about their primary reservation system\n` +
-            `• Pain points with current workflow\n` +
-            `• Integration challenges mentioned\n` +
-            `• Willingness to consolidate systems`;
-            
-        case 'highPIRevenue':
-          return `Focus on PI optimization and upsell opportunities. Look for:\n` +
-            `• PI campaign performance history\n` +
-            `• Budget discussions or changes\n` +
-            `• Competitor PI activity\n` +
-            `• Expansion or tier upgrade potential`;
-            
-        default:
-          return `Analyze these accounts for patterns, risks, and recommended actions.`;
-      }
+    function getGleanFocusV4(sectionId) {
+      const focusTemplates = {
+        termPending: {
+          objective: `Identify save opportunities for accounts pending termination.`,
+          sfSearch: [
+            `Check Churn Probability and Churn Probability Reason fields`,
+            `Pull Most_Recent_Termination_Case__r — status, type, priority`,
+            `Check Current Payment Status, Collections Status, Most_Recent_Collections_Notice__r`,
+            `Look at System_of_Record__r — are they on a competitor?`,
+            `Check Business Status — open vs permanently closed`,
+            `Pull Days since last activity — when was last contact?`
+          ],
+          slackSearch: [
+            `Search for threads mentioning this restaurant name`,
+            `Look for escalation discussions or save attempts`,
+            `Check for competitor mentions (Resy, Yelp, SevenRooms, Tock)`
+          ],
+          otherSearch: [
+            `Gmail — threads with "cancel", "terminate", or competitor names`,
+            `Drive/Confluence — save playbooks for similar situations`,
+            `Zoom — recent call transcripts`
+          ],
+          redFlags: [
+            `Churn Probability > 0.5`,
+            `Days since last activity > 60`,
+            `Current Payment Status = "Past Due" or "Send to Collections"`,
+            `System_of_Record__r shows competitor`,
+            `Business Status = "permanently closed" or "possibly closed"`
+          ]
+        },
+        
+        contractsExpiring: {
+          objective: `Prepare renewal strategy for accounts with expiring contracts.`,
+          sfSearch: [
+            `Pull Active_Contract__r — ID and name`,
+            `Check Auto Renewal, Auto Renewal Term, Account on Month to Month Renewal`,
+            `Look for open Renewal Opportunities — Stage, Close Date, Amount`,
+            `Check Days since last activity and Engagement Status`,
+            `Pull CQ Account Tier for pricing context`,
+            `Check Current Payment Status — billing issues block renewals`
+          ],
+          slackSearch: [
+            `Search for renewal discussions mentioning this account`,
+            `Look for pricing or negotiation threads`,
+            `Check for competitive threat mentions`
+          ],
+          otherSearch: [
+            `Gmail — recent correspondence about contract or renewal`,
+            `Calendar — upcoming meetings scheduled`,
+            `Drive — QBR materials, account plans`
+          ],
+          redFlags: [
+            `No Renewal Opportunity exists`,
+            `Auto Renewal = false with no recent engagement`,
+            `Days since last activity > 30`,
+            `Churn Probability increasing`,
+            `Open Cases with no resolution`
+          ]
+        },
+        
+        noEngagement60: {
+          objective: `Diagnose engagement gaps and identify re-activation paths.`,
+          sfSearch: [
+            `Confirm Days since last activity > 60`,
+            `Check Engagement Status — expect "No Engagement"`,
+            `Pull Contact: Last Activity, Most Recent Activity Type, Number of Tasks Associated`,
+            `Look for Cases filed during silence period`,
+            `Check Churn Probability trend`
+          ],
+          slackSearch: [
+            `Search for any internal discussion about this account`,
+            `Look for flags or concerns raised by team members`,
+            `Check if ownership changed recently`
+          ],
+          otherSearch: [
+            `Gmail — last inbound email from restaurant`,
+            `Calendar — scheduled meetings that didn't happen`,
+            `Zoom — any recent call transcripts`
+          ],
+          redFlags: [
+            `Days since last activity > 90`,
+            `Contact: Number of Tasks Associated is high but no response`,
+            `Owner or Account Manager changed recently`,
+            `No Slack or email activity found`
+          ]
+        },
+        
+        noBookings30: {
+          objective: `Identify booking blockers and operational issues.`,
+          sfSearch: [
+            `Check Primary Product and Restaurant Product Type`,
+            `Pull System_of_Record__r — are they OT primary?`,
+            `Look at Restaurant Status and Business Status`,
+            `Search for Cases — technical or integration issues`,
+            `Check Customer Type — Listing Only indicates limited integration`
+          ],
+          slackSearch: [
+            `Search #support or technical channels for this account`,
+            `Look for integration or availability issues`,
+            `Check for discussions about booking problems`
+          ],
+          otherSearch: [
+            `Jira — bugs or feature requests mentioning this RID/account`,
+            `Confluence — integration guides, troubleshooting docs`,
+            `Gmail — technical support threads`
+          ],
+          redFlags: [
+            `System_of_Record__r shows competitor as primary`,
+            `Customer Type = "Listing Only"`,
+            `Open Case tagged technical/integration`,
+            `Restaurant Status = "Inactive"`,
+            `Very low Vitality Score`
+          ]
+        },
+        
+        nonOTSystem: {
+          objective: `Assess consolidation opportunity for accounts using competitor systems.`,
+          sfSearch: [
+            `Pull System_of_Record__r — which competitor? (critical)`,
+            `Check Customer Type — "Listing Only" confirms competitor primary`,
+            `Look at Primary Product vs Contracted Primary Product`,
+            `Search Opportunities for Intended System of Record (at sale), System Change Type`,
+            `Check Vitality Score — low indicates limited OT usage`
+          ],
+          slackSearch: [
+            `Search for competitive discussions about this account`,
+            `Look for migration or consolidation conversations`,
+            `Check for pain points mentioned with their current system`
+          ],
+          otherSearch: [
+            `Drive/Confluence — competitive playbooks`,
+            `Zoom — discovery call transcripts about their workflow`,
+            `Gmail — discussions about integration or migration`
+          ],
+          redFlags: [
+            `System_of_Record__r clearly shows competitor`,
+            `No migration Opportunity in pipeline`,
+            `Very low Vitality Score (< 30)`,
+            `Customer Type = "Listing Only" with no upgrade Opp`
+          ]
+        },
+        
+        highPIRevenue: {
+          objective: `Maximize PI ROI and identify upsell opportunities.`,
+          sfSearch: [
+            `Pull Chase Status, Chase - Tier`,
+            `Check Current Charges for spend level`,
+            `Search Campaigns for PI membership and performance metrics`,
+            `Look for Opportunities — upsell, tier upgrade`,
+            `Check CQ Account Tier — upgrade potential?`
+          ],
+          slackSearch: [
+            `Search for PI or marketing discussions about this account`,
+            `Look for budget or ROI conversations`,
+            `Check for campaign performance mentions`
+          ],
+          otherSearch: [
+            `Drive — campaign reports, performance analyses`,
+            `Confluence — PI program documentation`,
+            `Gmail — budget discussions`
+          ],
+          redFlags: [
+            `No upsell Opportunity despite high spend`,
+            `Declining Vitality or Visibility scores`,
+            `Chase Status changed to ineligible`,
+            `Campaign metrics showing declining performance`
+          ]
+        }
+      };
+      
+      const template = focusTemplates[sectionId] || {
+        objective: `Analyze accounts for patterns and recommended actions.`,
+        sfSearch: ['Standard Account and Contact fields'],
+        slackSearch: ['Threads mentioning restaurant name'],
+        otherSearch: ['Gmail, Calendar, Drive'],
+        redFlags: ['High Churn Probability', 'No recent engagement']
+      };
+      
+      let output = `**Objective:** ${template.objective}\n\n`;
+      
+      output += `**Salesforce Search:**\n`;
+      template.sfSearch.forEach(item => {
+        output += `• ${item}\n`;
+      });
+      
+      output += `\n**Slack Search:**\n`;
+      template.slackSearch.forEach(item => {
+        output += `• ${item}\n`;
+      });
+      
+      output += `\n**Other Sources:**\n`;
+      template.otherSearch.forEach(item => {
+        output += `• ${item}\n`;
+      });
+      
+      output += `\n**Red Flags to Surface:**\n`;
+      template.redFlags.forEach(flag => {
+        output += `• ⚠️ ${flag}\n`;
+      });
+      
+      return output;
     }
 
     function sendKHMessage() {
@@ -4293,8 +4632,10 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
           let message;
           if (isLayering) {
             message = `✅ **Layered filter applied** - now showing **${result.checkedCount}** account${result.checkedCount !== 1 ? 's' : ''} that match both criteria.\n\n`;
+            message += `What are you looking for across these accounts? I can help analyze patterns or identify specific issues.`;
           } else {
             message = `✅ **Isolated ${result.checkedCount}** account${result.checkedCount !== 1 ? 's' : ''} - your sheet is now filtered to show only these RIDs.\n\n`;
+            message += `Tell me what you're researching and I can help with your analysis.`;
           }
           
           if (result.notFoundCount > 0) {

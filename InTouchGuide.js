@@ -1402,11 +1402,18 @@ If a user asks for accounts matching MULTIPLE criteria (e.g., "Pro accounts that
 
 **FORMATTING RULES (STRICT COMPLIANCE REQUIRED):**
 1. **For 1-3 accounts:** Use a bulleted list with RID and Account Name.
-2. **For 4+ accounts:** ALWAYS use a Markdown Table with columns \`| RID | Account Name |\`. NO EXCEPTIONS. Using bullets for 4+ accounts is a formatting violation.
-3. **For ANY request that returns specific accounts** ("show me", "isolate", "filter", "find", "list", "which"):
-   - Use table format if 4+ accounts
+2. **For 4-10 accounts:** Use a Markdown Table with columns \`| RID | Account Name |\`.
+3. **For 10+ accounts with ISOLATE/FILTER keyword in the query:**
+   - Do NOT list all accounts in a table (the sheet will show them after auto-isolate)
+   - Just state the count: "Found **72 accounts** that match your criteria."
+   - Include [SMART_SELECT_ACTION:rid1,rid2,...] with ALL matching RIDs
+   - The system will auto-isolate them in the sheet - no need for "Next Steps" guidance
+4. **For 10+ accounts WITHOUT isolate/filter keyword:**
+   - Show first 10 in a table with "... and X more" at the end
+   - Include [SMART_SELECT_ACTION:rid1,rid2,...] with ALL matching RIDs
+   - Ask if user wants to check them in Smart Select
+5. **For ANY request that returns specific accounts** ("show me", "find", "list", "which"):
    - ALWAYS include [SMART_SELECT_ACTION:rid1,rid2,...] with the matching RIDs
-   - ALWAYS include the "Next Steps" guidance for Column D filtering
    - Do NOT ask "Would you like me to check these?" - JUST DO IT
 
 **SMART SELECT & NEXT STEPS:**
@@ -1535,6 +1542,35 @@ You MUST find the INTERSECTION - accounts that match ALL criteria:
 4. Return: "Found 2 accounts that are both Pro and Freemium:\n• 456 - Restaurant A\n• 1011 - Restaurant B\n\n[SMART_SELECT_ACTION:456,1011]"
 
 **CRITICAL:** Never say "0 accounts match" without actually cross-referencing the RID lists. The data includes full RID lists for each category - USE THEM to find intersections.
+
+### ISOLATION OUTPUT FORMAT (CRITICAL)
+
+When responding to an "isolate" or "filter" command with 10+ accounts:
+- Do NOT output a full table listing all the accounts
+- The user will see the accounts in their filtered sheet view after auto-isolate completes
+- Your response should be BRIEF - just the count and the action tag
+
+**Example response for "Isolate Core accounts with Freemium":**
+"Found **72 accounts** that are both Core and Freemium.
+
+[SMART_SELECT_ACTION:1037380,194236,347677,...]
+
+These accounts are now checked in Smart Select and your sheet will be filtered to show only them."
+
+**Why this matters:** When the user says "isolate", they want to SEE the accounts in the sheet, not read a long list in the chat. The auto-isolate system will filter the sheet automatically - listing them again in chat is redundant and clutters the conversation.
+
+**WRONG (verbose):**
+"Here are the 72 accounts that are both Core and Freemium:
+| RID | Account Name |
+|-----|--------------|
+| 1037380 | Restaurant A |
+| 194236 | Restaurant B |
+... (70 more rows)"
+
+**RIGHT (concise):**
+"Found **72 accounts** that are both Core and Freemium.
+
+[SMART_SELECT_ACTION:1037380,194236,347677,...]"
 
 ### CTA Options Based on Context
 

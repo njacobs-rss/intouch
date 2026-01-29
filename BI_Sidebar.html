@@ -114,7 +114,7 @@
     #tab-bucket-iq .kh-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 16px 12px;  /* Added horizontal padding so messages don't hug walls */
+      padding: 16px 4px;  /* Minimal horizontal padding - Jump Start extends near edges */
       background: #ffffff;
       min-height: 0;  /* CRITICAL: allows flex item to shrink and enable scrolling */
     }
@@ -1361,13 +1361,14 @@
       transform: none !important;
     }
     
-    /* Strategic Insights Panel */
+    /* Strategic Insights Panel - rendered outside accordion to avoid clipping */
     .kh-jumpstart-insights {
-      margin-top: 16px;
+      margin: 0 4px 12px 4px;  /* Match Jump Start horizontal margin, no top margin to connect */
       padding: 12px;
       background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-      border-radius: 8px;
+      border-radius: 0 0 8px 8px;  /* Round only bottom corners to connect to accordion */
       border: 1px solid #bae6fd;
+      border-top: 1px solid #e2e8f0;  /* Subtle separator from accordion */
     }
     
     .kh-jumpstart-insights-header {
@@ -1503,6 +1504,8 @@
           <!-- Sections will be injected here -->
         </div>
       </div>
+      <!-- Daily Insights rendered separately to avoid clipping -->
+      <div id="khJumpStartInsights"></div>
 
       <div class="kh-welcome" id="khWelcome">
         <div class="kh-welcome-icon">✦</div>
@@ -2329,6 +2332,8 @@
               <!-- Sections will be injected here -->
             </div>
           </div>
+          <!-- Daily Insights rendered separately to avoid clipping -->
+          <div id="khJumpStartInsights"></div>
 
           <div class="kh-welcome" id="khWelcome">
             <div class="kh-welcome-icon">✦</div>
@@ -2600,36 +2605,44 @@
         `;
       }
       
-      // Add Strategic Insights panel at the bottom
-      if (data.strategicInsights) {
-        const suggestions = data.strategicInsights.suggestions || [];
-        const prompts = data.strategicInsights.recommendedPrompts || [];
+      jumpStartContent.innerHTML = html;
+      
+      // Render Strategic Insights to separate container (outside accordion to avoid clipping)
+      const insightsContainer = document.getElementById('khJumpStartInsights');
+      if (insightsContainer) {
+        let insightsHtml = '';
         
-        if (suggestions.length > 0 || prompts.length > 0) {
-          html += `
-            <div class="kh-jumpstart-insights">
-              <div class="kh-jumpstart-insights-header">
-                <span class="kh-jumpstart-insights-icon">💡</span>
-                <span>Daily Insights</span>
+        if (data.strategicInsights) {
+          const suggestions = data.strategicInsights.suggestions || [];
+          const prompts = data.strategicInsights.recommendedPrompts || [];
+          
+          if (suggestions.length > 0 || prompts.length > 0) {
+            insightsHtml = `
+              <div class="kh-jumpstart-insights">
+                <div class="kh-jumpstart-insights-header">
+                  <span class="kh-jumpstart-insights-icon">💡</span>
+                  <span>Daily Insights</span>
+                </div>
+                ${suggestions.length > 0 ? `
+                  <div class="kh-jumpstart-strategic">
+                    <strong>Strategic Focus:</strong>
+                    ${suggestions.map(s => `<div class="kh-jumpstart-suggestion">• ${s}</div>`).join('')}
+                  </div>
+                ` : ''}
+                ${prompts.length > 0 ? `
+                  <div class="kh-jumpstart-prompts">
+                    <strong>Try asking:</strong>
+                    ${prompts.map(p => `<button class="kh-suggested-prompt" onclick="insertPrompt('${escapeHtml(p)}')">${p}</button>`).join('')}
+                  </div>
+                ` : ''}
               </div>
-              ${suggestions.length > 0 ? `
-                <div class="kh-jumpstart-strategic">
-                  <strong>Strategic Focus:</strong>
-                  ${suggestions.map(s => `<div class="kh-jumpstart-suggestion">• ${s}</div>`).join('')}
-                </div>
-              ` : ''}
-              ${prompts.length > 0 ? `
-                <div class="kh-jumpstart-prompts">
-                  <strong>Try asking:</strong>
-                  ${prompts.map(p => `<button class="kh-suggested-prompt" onclick="insertPrompt('${escapeHtml(p)}')">${p}</button>`).join('')}
-                </div>
-              ` : ''}
-            </div>
-          `;
+            `;
+          }
         }
+        
+        insightsContainer.innerHTML = insightsHtml;
       }
       
-      jumpStartContent.innerHTML = html;
       console.log(`[renderJumpStartAccordion] Rendered ${sectionOrder.length} sections, ${totalAccounts} total accounts`);
     }
     

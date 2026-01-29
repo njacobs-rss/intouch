@@ -2982,13 +2982,37 @@ function getStrategicSuggestions_(data, sections) {
   } else if (coreCount > 5) {
     suggestions.push(`${coreCount} accounts on CORE — check for IT constraints limiting adoption`);
   } else {
-    // Feature adoption suggestion
-    const activePI = data.activePI?.length || 0;
-    const activePIPct = total > 0 ? Math.round((activePI / total) * 100) : 0;
-    if (activePIPct < 30) {
-      suggestions.push(`Only ${activePIPct}% of accounts have Active PI — opportunity to pitch promoted inventory`);
+    // Cascading priority: most actionable insight first
+    const pfExcluded = data.partnerFeedExcluded?.count || 0;
+    const proCount = systemTypes.find(s => (s.name || '').toLowerCase().includes('pro'))?.count || 0;
+    const activeXP = data.activeXP?.count || 0;
+    const activePI = data.activePI?.count || 0;
+    const avgDisco = parseFloat(String(data.avgDisco || '0').replace('%', '')) || 0;
+    
+    if (pfExcluded > 0) {
+      // Priority 1: Partner Feed issues - most urgent visibility problem
+      suggestions.push(`${pfExcluded} account${pfExcluded > 1 ? 's' : ''} with PartnerFeed excluded — potential visibility issue affecting covers`);
+    } else if (proCount > 5 && activeXP < proCount * 0.3) {
+      // Priority 2: PRO underutilization - paying for features not used
+      const proWithoutXP = proCount - activeXP;
+      suggestions.push(`${proWithoutXP} PRO account${proWithoutXP > 1 ? 's' : ''} without Active XP — paying for features they're not using`);
     } else {
-      suggestions.push(`${activePIPct}% PI adoption rate — above average! Focus on high performers`);
+      const activeXPPct = total > 0 ? Math.round((activeXP / total) * 100) : 0;
+      const activePIPct = total > 0 ? Math.round((activePI / total) * 100) : 0;
+      
+      if (activeXPPct < 25) {
+        // Priority 3: XP adoption - concrete product pitch
+        suggestions.push(`Only ${activeXPPct}% of accounts have Active XP — pitch Experiences for incremental covers`);
+      } else if (avgDisco < 35) {
+        // Priority 4: Discovery growth opportunity
+        suggestions.push(`Portfolio at ${avgDisco.toFixed(0)}% Discovery — room to grow network channel with availability optimization`);
+      } else if (activePIPct < 30) {
+        // Priority 5: PI adoption (fixed - using .count)
+        suggestions.push(`Only ${activePIPct}% of accounts have Active PI — opportunity to pitch promoted inventory`);
+      } else {
+        // Healthy adoption - celebrate
+        suggestions.push(`${activePIPct}% PI adoption rate — above average! Focus on high performers`);
+      }
     }
   }
   
@@ -3035,7 +3059,7 @@ function getRecommendedPrompts_(data, sections) {
   }
   
   // Feature adoption prompt
-  const activePI = data.activePI?.length || 0;
+  const activePI = data.activePI?.count || 0;
   const total = data.totalAccounts || 0;
   if (activePI < total * 0.5) {
     prompts.push('Find PRO accounts without Active PI');

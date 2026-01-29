@@ -191,6 +191,23 @@ function getAccountListForSidebar() {
 }
 
 /**
+ * Global Account Search
+ * Scans STATCORE for accounts matching the query (RID or Name)
+ */
+function searchGlobalAccount(query) {
+  const accounts = getAccountListForSidebar(); // Reuses existing robust fetcher
+  if (!query) return { success: false, error: "No query provided" };
+  
+  const q = String(query).toLowerCase().trim();
+  const matches = accounts.filter(a => 
+    String(a.rid).includes(q) || 
+    String(a.name).toLowerCase().includes(q)
+  ).slice(0, 5); // Limit to top 5 matches
+  
+  return { success: true, matches: matches };
+}
+
+/**
  * 🔍 DIAGNOSTIC: Debug function to inspect STATCORE column headers
  * Call this from Apps Script editor to troubleshoot metro/macro column issues.
  * Usage: Run debugSTATCOREHeaders() and check the Logs (Ctrl+Enter)

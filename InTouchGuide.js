@@ -801,6 +801,10 @@ const SCRIPTED_RESPONSES = {
   // Keeping minimal scripted responses only for edge cases
   portfolio: [
     {
+      patterns: [/summarize.*my.*bucket/i, /^bucket.*summary$/i, /show.*my.*bucket/i, /analyze.*my.*portfolio/i],
+      response: `I'll generate your bucket summary right now.\n\n[BUCKET_SUMMARY_ACTION]`
+    },
+    {
       // Team-wide analysis request when NOT on an AM tab
       patterns: [
         /team.*(summary|analysis|portfolio)/i,
@@ -963,6 +967,11 @@ InTouch uses a fixed column structure with DYNAMIC columns that can be changed v
 - Access: InTouch✔ai → Open InTouch AI Panel → Bucket Summary tab
 - Portfolio snapshot: install base, contract status, product adoption
 - Great for 1:1 prep and self-assessment
+
+### Global Search
+- If a user asks about an account that is NOT in your current injected context:
+- 1. Do NOT say "I don't see that account."
+- 2. Instead, output the search action: [SEARCH_ACTION:AccountNameOrRID]
 
 ## CHANNEL HIERARCHY (CRITICAL MATH)
 

@@ -3448,7 +3448,7 @@
             }
             
             // Check for action tags and extract them
-            const { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction } = parseColumnAction(result.answer);
+            const { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction, bucketSummaryAction, searchAction } = parseColumnAction(result.answer);
             
             if (columnAction) {
               khState.pendingColumnAction = columnAction;
@@ -3468,6 +3468,41 @@
             }
             if (teamAnalysisAction) {
               khState.pendingTeamAnalysisAction = true;
+            }
+
+            if (bucketSummaryAction) {
+              // Trigger portfolio analysis
+              console.log('[sendKHMessage] Triggering Bucket Summary Action');
+              setTimeout(() => {
+                if (khState.currentAMContext && khState.currentAMContext.fullName) {
+                  selectAMForAnalysis(khState.currentAMContext.fullName);
+                } else {
+                  // Fallback if AM context is missing
+                  addKHMessage('assistant', "I need to know which Account Manager to analyze. Please select one:", true);
+                  google.script.run
+                    .withSuccessHandler(renderAMSelectionList)
+                    .getAvailableAMTabs();
+                }
+              }, 500);
+            }
+
+            if (searchAction) {
+              const loadingEl = addKHMessage('loading', '');
+              google.script.run
+                .withSuccessHandler(result => {
+                  if (loadingEl) loadingEl.remove();
+                  if (result.success && result.matches.length > 0) {
+                    const list = result.matches.map(a => `- **${a.name}** (RID: ${a.rid}) - ${a.metro}`).join('\n');
+                    addKHMessage('assistant', `I found these accounts in the database:\n\n${list}\n\nWhich one would you like to analyze?`);
+                  } else {
+                    addKHMessage('assistant', `I searched the entire database but couldn't find "${searchAction.query}". Please check the spelling or RID.`);
+                  }
+                })
+                .withFailureHandler(error => {
+                  if (loadingEl) loadingEl.remove();
+                  addKHMessage('error', 'Search failed: ' + error.message);
+                })
+                .searchGlobalAccount(searchAction.query);
             }
             
             // Store AM context if data was injected
@@ -3655,6 +3690,8 @@
       let functionAction = null;
       let smartSelectAction = null;
       let teamAnalysisAction = false;
+      let bucketSummaryAction = false;
+      let searchAction = null;
       
       // Match category-based column format: [COLUMN_ACTION:CATEGORY_KEY:Metric Name]
       const columnRegex = /\[COLUMN_ACTION:([A-Z_]+):([^\]]+)\]/g;
@@ -3734,7 +3771,22 @@
         teamAnalysisAction = true;
         console.log('[parseColumnAction] Found Team Analysis action');
       }
+
+      // Match Bucket Summary action: [BUCKET_SUMMARY_ACTION]
+      const bucketSummaryRegex = /\[BUCKET_SUMMARY_ACTION\]/g;
+      if (bucketSummaryRegex.test(answer)) {
+        bucketSummaryAction = true;
+        console.log('[parseColumnAction] Found Bucket Summary action');
+      }
       
+      // Match Search action: [SEARCH_ACTION:Query]
+      const searchRegex = /\[SEARCH_ACTION:([^\]]+)\]/g;
+      const searchMatch = searchRegex.exec(answer);
+      if (searchMatch) {
+        searchAction = { query: searchMatch[1].trim() };
+        console.log('[parseColumnAction] Found Search action:', searchAction);
+      }
+
       // Remove all action tags from the displayed answer
       const cleanedAnswer = answer
         .replace(/\[COLUMN_ACTION:[^\]]+\]/g, '')
@@ -3742,10 +3794,12 @@
         .replace(/\[SLACK_ACTION:[^\]]+\]/g, '')
         .replace(/\[SMART_SELECT_ACTION:[^\]]+\]/g, '')
         .replace(/\[TEAM_ANALYSIS_ACTION\]/g, '')
+        .replace(/\[BUCKET_SUMMARY_ACTION\]/g, '')
+        .replace(/\[SEARCH_ACTION:[^\]]+\]/g, '')
         .replace(/\[PORTFOLIO_ACTION:[^\]]*\]/g, '')  // Keep for backward compatibility
         .trim();
       
-      return { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction };
+      return { cleanedAnswer, columnAction, functionAction, slackAction, smartSelectAction, teamAnalysisAction, bucketSummaryAction, searchAction };
     }
     
     /**
@@ -3903,7 +3957,7 @@
                     <span>▶</span> ${label}
                   </button>
                   <button class="kh-action-btn secondary" onclick="executeReset()">
-                    <span>↺</span> Reset
+                    <span>↺</span> Reset Filters
                   </button>
                 </div>
               `;
@@ -4247,7 +4301,7 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
             message += `*Note: ${result.notFoundCount} RIDs were not found on this sheet.*\n\n`;
           }
           
-          message += `**You can layer in another metric or:**`;
+          // message += `**You can layer in another metric or:**`;
           
           // Set up Focus20 action for the button
           khState.pendingFunctionAction = {

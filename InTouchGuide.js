@@ -3576,9 +3576,11 @@ function formatRankingDataForInjection(data) {
  * Called from the frontend Knowledge Hub chat
  * @param {string} userQuery - The user's question
  * @param {string} conversationHistory - Optional JSON string of previous messages
+ * @param {boolean} shouldLog - Whether to log this interaction
+ * @param {Object} prefetchedData - Optional pre-fetched AM data from client cache
  * @returns {Object} Response object with success status and answer
  */
-function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
+function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedData) {
   const startTime = new Date();
   const requestId = Utilities.getUuid().substring(0, 8);
   
@@ -3689,14 +3691,21 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog) {
         }
       }
       
-      // Fetch data for the target AM
+      // Fetch data for the target AM (or use pre-fetched data if available)
       if (targetAMName) {
-        console.log(`[askInTouchGuide] Injecting data for: ${targetAMName}`);
-        injectedData = getDetailedAMData(targetAMName);
-        
-        if (!injectedData.success) {
-          console.log('[askInTouchGuide] Failed to get data: ' + injectedData.error);
-          injectedData = null;
+        // Check if we have valid pre-fetched data for this AM
+        if (prefetchedData && prefetchedData.success && prefetchedData.amName === targetAMName) {
+          console.log(`[askInTouchGuide] Using pre-fetched data for: ${targetAMName} (skipping fetch)`);
+          injectedData = prefetchedData;
+        } else {
+          // Fetch fresh data
+          console.log(`[askInTouchGuide] Fetching fresh data for: ${targetAMName}`);
+          injectedData = getDetailedAMData(targetAMName);
+          
+          if (!injectedData.success) {
+            console.log('[askInTouchGuide] Failed to get data: ' + injectedData.error);
+            injectedData = null;
+          }
         }
       } else if (amContext && amContext.isTeamView) {
         console.log('[askInTouchGuide] Team view detected - will mention team context');

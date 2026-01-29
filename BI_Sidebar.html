@@ -87,6 +87,29 @@
       transform: translateY(0);
     }
 
+    /* Data Loading Banner */
+    .kh-data-loading-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: linear-gradient(90deg, #eff6ff, #dbeafe);
+      border-bottom: 1px solid #bfdbfe;
+      font-size: 11px;
+      color: #1e40af;
+    }
+    .kh-banner-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid #93c5fd;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* Messages area - clean white */
     #tab-bucket-iq .kh-messages {
       flex: 1;
@@ -1339,6 +1362,11 @@
   <div id="tab-bucket-iq" class="tab-content active">
     <!-- Toast Notification -->
     <div class="kh-toast" id="khToast">RID copied to clipboard</div>
+    <!-- Data Loading Banner -->
+    <div class="kh-data-loading-banner" id="khDataBanner" style="display:none;">
+      <span class="kh-banner-spinner"></span>
+      <span class="kh-banner-text">Loading your portfolio data...</span>
+    </div>
     <!-- Messages Area -->
     <div class="kh-messages" id="khMessages">
       <!-- Daily Jump Start Accordion -->
@@ -2072,7 +2100,10 @@
       // Daily Jump Start state
       jumpStartData: null,          // Cached data from getJumpStartData()
       jumpStartLoading: false,      // Loading state for Jump Start
-      expandedSections: {}          // Tracks which sections are expanded {termPending: true, ...}
+      expandedSections: {},         // Tracks which sections are expanded {termPending: true, ...}
+      // Pre-fetched AM data for faster chat responses
+      cachedAMData: null,           // Cached portfolio data from getDetailedAMData()
+      cachedAMDataExpiry: 0         // Timestamp when cached data expires
     };
     
     // Confirmation phrases that trigger pending column action
@@ -3119,6 +3150,14 @@
         ? JSON.stringify(khState.conversationHistory) 
         : null;
 
+      // Check if we have valid cached AM data (not expired)
+      const cachedData = (khState.cachedAMData && Date.now() < khState.cachedAMDataExpiry) 
+        ? khState.cachedAMData 
+        : null;
+      if (cachedData) {
+        console.log('[sendKHMessage] Using pre-fetched data for:', cachedData.amName);
+      }
+
       // Call backend
       google.script.run
         .withSuccessHandler((result) => {
@@ -3230,7 +3269,7 @@
           }
           addKHMessage('error', 'Error: ' + error.message);
         })
-        .askInTouchGuide(query, historyJson, khState.shouldLogNextChat);
+        .askInTouchGuide(query, historyJson, khState.shouldLogNextChat, cachedData);
     }
     
     /**
@@ -4334,15 +4373,58 @@ If you have any other questions about the team data I'd be happy to dive in with
      * Called when the chat panel opens to detect current AM tab
      */
     function initAMContext() {
+      // Show loading banner
+      const banner = document.getElementById('khDataBanner');
+      if (banner) banner.style.display = 'flex';
+      
       google.script.run
         .withSuccessHandler((result) => {
           khState.currentAMContext = result;
           console.log('[initAMContext] AM Context:', result);
+          
+          // If on AM tab, pre-fetch portfolio data for faster chat responses
+          if (result.isAMTab && result.fullName) {
+            prefetchAMData(result.fullName);
+          } else {
+            // Not on AM tab, hide banner
+            if (banner) banner.style.display = 'none';
+          }
         })
         .withFailureHandler((error) => {
           console.log('[initAMContext] Error:', error.message);
+          const banner = document.getElementById('khDataBanner');
+          if (banner) banner.style.display = 'none';
         })
         .getActiveAMContext();
+    }
+    
+    /**
+     * Pre-fetch AM portfolio data in background for faster chat responses
+     * Called after initAMContext detects an AM tab
+     * @param {string} amName - The AM's full name
+     */
+    function prefetchAMData(amName) {
+      console.log('[prefetchAMData] Pre-fetching data for:', amName);
+      
+      google.script.run
+        .withSuccessHandler((data) => {
+          if (data && data.success) {
+            khState.cachedAMData = data;
+            khState.cachedAMDataExpiry = Date.now() + 300000; // 5 min expiry
+            console.log('[prefetchAMData] Cached', data.totalAccounts, 'accounts for', amName);
+          } else {
+            console.log('[prefetchAMData] No data returned or error');
+          }
+          // Hide banner
+          const banner = document.getElementById('khDataBanner');
+          if (banner) banner.style.display = 'none';
+        })
+        .withFailureHandler((error) => {
+          console.log('[prefetchAMData] Error:', error.message);
+          const banner = document.getElementById('khDataBanner');
+          if (banner) banner.style.display = 'none';
+        })
+        .getDetailedAMData(amName);
     }
 
     function submitKHFeedback(msgId, rating) {

@@ -114,7 +114,7 @@
     #tab-bucket-iq .kh-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 16px 0;
+      padding: 16px 12px;  /* Added horizontal padding so messages don't hug walls */
       background: #ffffff;
       min-height: 0;  /* CRITICAL: allows flex item to shrink and enable scrolling */
     }
@@ -248,7 +248,7 @@
       background: #da3743;
       color: white;
       border-radius: 18px 18px 4px 18px;
-      padding: 16px 24px !important;
+      padding: 10px 16px !important;  /* Tighter padding */
       font-size: 13px;
       line-height: 1.5;
       max-width: 90%; /* Keep user messages slightly constrained for distinction */
@@ -614,6 +614,7 @@
       background: #fee2e2;
       color: #991b1b;
       border: 1px solid #fca5a5;
+      padding: 6px 10px;  /* Tighter padding for error messages */
     }
     .kh-message.loading {
       background: #fff;
@@ -3178,6 +3179,14 @@
           }
 
           if (result.success) {
+            // Debug: Log data injection status
+            console.log('[sendKHMessage] Result data injection:', {
+              dataInjected: result.dataInjected,
+              dataSource: result.dataSource,
+              hasAmContext: !!result.amContext,
+              amContextName: result.amContext?.fullName || 'none'
+            });
+            
             // Reset log flag after successful chat (first message was logged)
             khState.shouldLogNextChat = false;
             
@@ -3220,6 +3229,17 @@
             const dataIndicator = result.dataInjected && result.dataSource 
               ? `<div class="kh-data-indicator">📊 ${result.dataSource.amName} (${result.dataSource.totalAccounts} accounts)</div>`
               : '';
+            
+            // Debug: Log dataIndicator construction
+            if (dataIndicator) {
+              console.log('[sendKHMessage] ✓ Data indicator WILL display:', dataIndicator);
+            } else {
+              console.log('[sendKHMessage] ✗ Data indicator NOT displaying because:', {
+                dataInjected: result.dataInjected,
+                hasDataSource: !!result.dataSource,
+                reason: !result.dataInjected ? 'dataInjected is false/undefined' : 'dataSource is null/undefined'
+              });
+            }
             
             // Extract and store any RIDs listed in the response for "add them" follow-ups
             const extractedRIDs = extractRIDsFromMessage(cleanedAnswer);
@@ -3602,6 +3622,13 @@
         
         // Data indicator shows which AM's data was loaded
         const indicatorHtml = dataIndicator || '';
+        
+        // Debug: Log indicator in addKHMessage
+        console.log('[addKHMessage] Indicator received:', {
+          hasIndicator: !!dataIndicator,
+          indicatorLength: dataIndicator?.length || 0,
+          indicatorHtml: indicatorHtml || '(empty)'
+        });
         
         let actionButtonsHtml = '';
         if (showActionButtons) {

@@ -1349,6 +1349,113 @@
       cursor: not-allowed;
       transform: none !important;
     }
+    
+    /* Strategic Insights Panel */
+    .kh-jumpstart-insights {
+      margin-top: 16px;
+      padding: 12px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-radius: 8px;
+      border: 1px solid #bae6fd;
+    }
+    
+    .kh-jumpstart-insights-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      color: #0369a1;
+      margin-bottom: 10px;
+    }
+    
+    .kh-jumpstart-insights-icon {
+      font-size: 14px;
+    }
+    
+    .kh-jumpstart-strategic {
+      margin-bottom: 12px;
+    }
+    
+    .kh-jumpstart-strategic strong {
+      display: block;
+      font-size: 11px;
+      color: #0c4a6e;
+      margin-bottom: 6px;
+    }
+    
+    .kh-jumpstart-suggestion {
+      font-size: 11px;
+      color: #334155;
+      padding: 4px 0;
+      line-height: 1.4;
+    }
+    
+    .kh-jumpstart-prompts strong {
+      display: block;
+      font-size: 11px;
+      color: #0c4a6e;
+      margin-bottom: 6px;
+    }
+    
+    .kh-suggested-prompt {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      background: white;
+      border: 1px solid #e0f2fe;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #0369a1;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .kh-suggested-prompt:hover {
+      background: #f0f9ff;
+      border-color: #7dd3fc;
+      transform: translateX(2px);
+    }
+    
+    .kh-suggested-prompt:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* Subsection styling for No Bookings flags */
+    .kh-jumpstart-subsection {
+      margin: 4px 0;
+      padding-left: 8px;
+      border-left: 2px solid #e2e8f0;
+    }
+    
+    .kh-jumpstart-subsection-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      font-size: 11px;
+      color: #64748b;
+      cursor: pointer;
+    }
+    
+    .kh-jumpstart-subsection-header:hover {
+      color: #334155;
+    }
+    
+    .kh-jumpstart-subsection-flag {
+      font-weight: 500;
+      color: #475569;
+    }
+    
+    .kh-jumpstart-subsection-count {
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      color: #64748b;
+    }
   </style>
 </head>
 <body>
@@ -2403,8 +2510,9 @@
       termPending: 'Accounts with status indicating termination or cancellation in progress',
       contractsExpiring: 'Accounts with contracts ending within the next 45 days',
       noEngagement60: 'Accounts with no logged engagement in the last 60+ days',
-      noBookings30: 'Accounts with booking issues like 0-Fullbook or no recent bookings',
-      highPIRevenue: 'Accounts with PI revenue share >30% AND total revenue >$1,200'
+      noBookings30: 'Accounts with No Bookings >30 Days flags (0-Fullbook, No Booking, etc.)',
+      nonOTSystem: 'Accounts using a non-OpenTable System of Record (Resy, SevenRooms, etc.)',
+      highPIRevenue: 'Accounts with PI Rev Share >30% AND Rev Yield - Total Last Month >$1,200'
     };
     
     function renderJumpStartAccordion(data) {
@@ -2415,7 +2523,7 @@
       }
       
       // Define section order (priority: high → medium → opportunity)
-      const sectionOrder = ['termPending', 'contractsExpiring', 'noEngagement60', 'noBookings30', 'highPIRevenue'];
+      const sectionOrder = ['termPending', 'contractsExpiring', 'noEngagement60', 'noBookings30', 'nonOTSystem', 'highPIRevenue'];
       
       let html = '';
       let totalAccounts = 0;
@@ -2479,8 +2587,61 @@
         `;
       }
       
+      // Add Strategic Insights panel at the bottom
+      if (data.strategicInsights) {
+        const suggestions = data.strategicInsights.suggestions || [];
+        const prompts = data.strategicInsights.recommendedPrompts || [];
+        
+        if (suggestions.length > 0 || prompts.length > 0) {
+          html += `
+            <div class="kh-jumpstart-insights">
+              <div class="kh-jumpstart-insights-header">
+                <span class="kh-jumpstart-insights-icon">💡</span>
+                <span>Daily Insights</span>
+              </div>
+              ${suggestions.length > 0 ? `
+                <div class="kh-jumpstart-strategic">
+                  <strong>Strategic Focus:</strong>
+                  ${suggestions.map(s => `<div class="kh-jumpstart-suggestion">• ${s}</div>`).join('')}
+                </div>
+              ` : ''}
+              ${prompts.length > 0 ? `
+                <div class="kh-jumpstart-prompts">
+                  <strong>Try asking:</strong>
+                  ${prompts.map(p => `<button class="kh-suggested-prompt" onclick="insertPrompt('${escapeHtml(p)}')">${p}</button>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }
+      }
+      
       jumpStartContent.innerHTML = html;
       console.log(`[renderJumpStartAccordion] Rendered ${sectionOrder.length} sections, ${totalAccounts} total accounts`);
+    }
+    
+    /**
+     * Insert a suggested prompt into the chat input and optionally send it
+     * @param {string} prompt - The prompt text to insert
+     */
+    function insertPrompt(prompt) {
+      if (khEls.input) {
+        khEls.input.value = prompt;
+        khEls.input.focus();
+        // Optionally auto-send - uncomment to send immediately
+        // sendKHMessage();
+      }
+    }
+    
+    /**
+     * Escape HTML special characters for safe insertion
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped text
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML.replace(/'/g, "\\'");
     }
     
     /**
@@ -2509,41 +2670,89 @@
       
       const count = section.accounts.length;
       
-      // Build account list
-      let listHtml = '<div class="kh-jumpstart-list">';
-      section.accounts.forEach((acc, idx) => {
-        const name = truncateAccountName(acc.name);
+      // Check if this section has subsections (e.g., noBookings30 with flag groups)
+      let listHtml = '';
+      
+      if (section.subsections && section.subsections.length > 0) {
+        // Render with subsection headers for each flag type
+        listHtml = '<div class="kh-jumpstart-list">';
         
-        // Render emoji tags inline with individual hover labels (using custom tooltip)
-        let emojiHtml = '';
-        if (acc.emojiTags && acc.emojiTags.length > 0) {
-          emojiHtml = acc.emojiTags
-            .map(tag => `<span class="kh-emoji-tag" onmouseenter="showCustomTooltip(this, '${tag.label}')" onmouseleave="hideCustomTooltip()">${tag.emoji}</span>`)
-            .join('');
-        } else if (acc.emoji) {
-          // Fallback to old format if emojiTags not available
-          emojiHtml = `<span class="kh-emoji-tag">${acc.emoji}</span>`;
-        }
+        section.subsections.forEach((subsection, subIdx) => {
+          // Add subsection header with flag name and count
+          listHtml += `
+            <div class="kh-jumpstart-subsection">
+              <div class="kh-jumpstart-subsection-header">
+                <span class="kh-jumpstart-subsection-flag">${subsection.flag}</span>
+                <span class="kh-jumpstart-subsection-count">${subsection.count}</span>
+              </div>
+          `;
+          
+          // Render accounts in this subsection (show first 3 per subsection)
+          const displayAccounts = subsection.accounts.slice(0, 3);
+          displayAccounts.forEach(acc => {
+            const name = truncateAccountName(acc.name);
+            const emojiHtml = acc.emoji ? `<span class="kh-emoji-tag">${acc.emoji}</span>` : '';
+            
+            listHtml += `
+              <div class="kh-jumpstart-row">
+                <span class="kh-jumpstart-emoji">${emojiHtml}</span>
+                <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
+              </div>
+            `;
+          });
+          
+          // Show "and X more" if there are more accounts in this subsection
+          if (subsection.accounts.length > 3) {
+            listHtml += `<div class="kh-jumpstart-row" style="font-size: 10px; color: #94a3b8; padding-left: 20px;">...and ${subsection.accounts.length - 3} more</div>`;
+          }
+          
+          listHtml += '</div>';  // Close subsection
+        });
         
-        // Build days label based on section type
-        let daysHtml = '';
-        if (section.id === 'contractsExpiring' && acc.daysUntil != null) {
-          daysHtml = `<span class="kh-days-label">${acc.daysUntil}D</span>`;
-        } else if (section.id === 'noEngagement60' && acc.daysSince != null) {
-          const daysDisplay = acc.daysSince === 999 ? '+90D' : `${acc.daysSince}D`;
-          const colorClass = getDaysColorClass(acc.daysSince);
-          daysHtml = `<span class="kh-days-label ${colorClass}">${daysDisplay}</span>`;
-        }
-        
-        listHtml += `
-          <div class="kh-jumpstart-row">
-            <span class="kh-jumpstart-emoji">${emojiHtml}</span>
-            <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
-            ${daysHtml}
-          </div>
-        `;
-      });
-      listHtml += '</div>';
+        listHtml += '</div>';  // Close list
+      } else {
+        // Standard rendering without subsections
+        listHtml = '<div class="kh-jumpstart-list">';
+        section.accounts.forEach((acc, idx) => {
+          const name = truncateAccountName(acc.name);
+          
+          // Render emoji tags inline with individual hover labels (using custom tooltip)
+          let emojiHtml = '';
+          if (acc.emojiTags && acc.emojiTags.length > 0) {
+            emojiHtml = acc.emojiTags
+              .map(tag => `<span class="kh-emoji-tag" onmouseenter="showCustomTooltip(this, '${tag.label}')" onmouseleave="hideCustomTooltip()">${tag.emoji}</span>`)
+              .join('');
+          } else if (acc.emoji) {
+            // Fallback to old format if emojiTags not available
+            emojiHtml = `<span class="kh-emoji-tag">${acc.emoji}</span>`;
+          }
+          
+          // Build days label based on section type
+          let daysHtml = '';
+          if (section.id === 'contractsExpiring' && acc.daysUntil != null) {
+            daysHtml = `<span class="kh-days-label">${acc.daysUntil}D</span>`;
+          } else if (section.id === 'noEngagement60' && acc.daysSince != null) {
+            const daysDisplay = acc.daysSince === 999 ? '+90D' : `${acc.daysSince}D`;
+            const colorClass = getDaysColorClass(acc.daysSince);
+            daysHtml = `<span class="kh-days-label ${colorClass}">${daysDisplay}</span>`;
+          }
+          
+          // Add SOR type for nonOTSystem section
+          let sorHtml = '';
+          if (section.id === 'nonOTSystem' && acc.sorType) {
+            sorHtml = `<span class="kh-days-label" style="background: #fef3c7; color: #92400e;">${acc.sorType}</span>`;
+          }
+          
+          listHtml += `
+            <div class="kh-jumpstart-row">
+              <span class="kh-jumpstart-emoji">${emojiHtml}</span>
+              <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
+              ${daysHtml}${sorHtml}
+            </div>
+          `;
+        });
+        listHtml += '</div>';
+      }
       
       // Build action buttons with hover tooltips (using custom tooltip)
       const actionsHtml = `
@@ -2833,6 +3042,8 @@
           summary += ` — ${acc.daysSince}d since contact`;
         } else if (sectionId === 'noBookings30' && acc.reason) {
           summary += ` — ${acc.reason}`;
+        } else if (sectionId === 'nonOTSystem' && acc.sorType) {
+          summary += ` — SOR: ${acc.sorType}`;
         } else if (sectionId === 'highPIRevenue') {
           if (acc.piShare) summary += ` — PI: ${acc.piShare}`;
           if (acc.revenue) summary += `, Rev: ${acc.revenue}`;
@@ -2892,6 +3103,14 @@
             `• Review seasonal patterns vs. anomalies\n` +
             `• Look for operational issues (closed days, staffing)\n` +
             `• _0-Fullbook often indicates setup problems, not demand issues_`;
+            
+        case 'nonOTSystem':
+          return `${section.priorityDot} **System of Record Risk**\n` +
+            `These ${count} accounts use a non-OpenTable system of record:\n` +
+            `• Identify the primary reservation system (Resy, SevenRooms, etc.)\n` +
+            `• Assess competitive exposure and switching risk\n` +
+            `• Look for integration friction points affecting OT usage\n` +
+            `• _Consider Operational Relief Play if system issues exist_`;
             
         case 'highPIRevenue':
           return `${section.priorityDot} **Revenue Optimization**\n` +
@@ -3059,6 +3278,13 @@
             `• Availability or inventory discussions\n` +
             `• Seasonal pattern context\n` +
             `• Similar accounts with booking issues`;
+            
+        case 'nonOTSystem':
+          return `Focus on competitive dynamics and system integration. Look for:\n` +
+            `• Discussions about their primary reservation system\n` +
+            `• Pain points with current workflow\n` +
+            `• Integration challenges mentioned\n` +
+            `• Willingness to consolidate systems`;
             
         case 'highPIRevenue':
           return `Focus on PI optimization and upsell opportunities. Look for:\n` +

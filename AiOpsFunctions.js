@@ -2554,8 +2554,11 @@ function getJumpStartData(amName) {
     // Get additional per-account data for highPIRevenue filter
     const highPIAccounts = filterHighPIRevenue_(amName);
     
-    // Get accounts with booking issues (0-Fullbook or similar)
-    const bookingIssueAccounts = filterBookingIssues_(data.noBookingReasons);
+    // Get accounts with booking issues (0-Fullbook or similar) - now returns {accounts, subsections}
+    const bookingIssuesData = filterBookingIssues_(data.noBookingReasons);
+    
+    // Get accounts with non-OpenTable System of Record
+    const nonOTAccounts = filterNonOTSystemOfRecord_(data.systemOfRecord);
     
     // Build sections
     const sections = {
@@ -2585,11 +2588,20 @@ function getJumpStartData(amName) {
       },
       noBookings30: {
         id: 'noBookings30',
-        title: 'Booking Issues',
+        title: 'No Bookings >30 Days',
         priority: 'medium',
         priorityDot: '🟡',
-        count: bookingIssueAccounts.length,
-        accounts: bookingIssueAccounts
+        count: bookingIssuesData.accounts.length,
+        accounts: bookingIssuesData.accounts,
+        subsections: bookingIssuesData.subsections  // Array of {flag, count, accounts}
+      },
+      nonOTSystem: {
+        id: 'nonOTSystem',
+        title: 'Non-OT System of Record',
+        priority: 'medium',
+        priorityDot: '🟡',
+        count: nonOTAccounts.length,
+        accounts: nonOTAccounts
       },
       highPIRevenue: {
         id: 'highPIRevenue',
@@ -2604,12 +2616,19 @@ function getJumpStartData(amName) {
     const duration = new Date() - startTime;
     console.log(`[${functionName}] Completed in ${duration}ms`);
     
+    // Generate strategic insights based on portfolio data
+    const strategicInsights = {
+      suggestions: getStrategicSuggestions_(data, sections),
+      recommendedPrompts: getRecommendedPrompts_(data, sections)
+    };
+    
     return {
       success: true,
       amName: amName,
       generatedAt: new Date().toISOString(),
       sections: sections,
       totalAccounts: data.totalAccounts,
+      strategicInsights: strategicInsights,
       durationMs: duration
     };
     
@@ -2679,36 +2698,59 @@ function formatAccountsForUI_(rids, data) {
  * @returns {Array} Formatted accounts with booking issues
  */
 function filterBookingIssues_(noBookingReasons) {
-  if (!noBookingReasons || !Array.isArray(noBookingReasons)) return [];
+  if (!noBookingReasons || !Array.isArray(noBookingReasons)) {
+    return { accounts: [], subsections: [] };
+  }
   
   // Keywords that indicate booking problems
   const issueKeywords = ['0-fullbook', 'no booking', 'inactive', 'zero', 'none'];
   
-  const accounts = [];
+  const allAccounts = [];
+  const subsections = [];
   const seen = new Set();
   
   noBookingReasons.forEach(category => {
     const categoryName = String(category.name || '').toLowerCase();
+    const displayName = category.name || 'Unknown Flag';
     
     // Check if this category indicates a booking issue
     const isIssue = issueKeywords.some(kw => categoryName.includes(kw));
     
-    if (isIssue && category.rids) {
+    if (isIssue && category.rids && category.rids.length > 0) {
+      const subsectionAccounts = [];
+      
       category.rids.forEach(acc => {
+        const account = {
+          rid: acc.rid,
+          name: acc.name || 'Unknown',
+          emoji: '📉',  // Booking issue indicator
+          reason: displayName
+        };
+        
+        subsectionAccounts.push(account);
+        
+        // Also add to allAccounts if not already seen
         if (!seen.has(acc.rid)) {
           seen.add(acc.rid);
-          accounts.push({
-            rid: acc.rid,
-            name: acc.name || 'Unknown',
-            emoji: '📉',  // Booking issue indicator
-            reason: category.name
-          });
+          allAccounts.push(account);
         }
+      });
+      
+      // Add subsection with this flag's accounts
+      subsections.push({
+        flag: displayName,
+        count: subsectionAccounts.length,
+        accounts: subsectionAccounts
       });
     }
   });
   
-  return accounts;
+  // Sort subsections by count (descending)
+  subsections.sort((a, b) => b.count - a.count);
+  
+  console.log(`[filterBookingIssues_] Found ${allAccounts.length} accounts across ${subsections.length} flag types`);
+  
+  return { accounts: allAccounts, subsections: subsections };
 }
 
 /**
@@ -2787,19 +2829,17 @@ function filterHighPIRevenue_(amName) {
       // Get PI revenue share (percentage)
       const piShare = parseFloat(String(dRow[d_piShareIdx] || '0').replace('%', '')) || 0;
       
-      // Get total revenue (subfees + yield)
-      const subfees = parseFloat(dRow[d_subfeesIdx]) || 0;
+      // Get Rev Yield - Total Last Month (the revenue metric for this filter)
       const yieldVal = parseFloat(dRow[d_yieldIdx]) || 0;
-      const totalRevenue = subfees + yieldVal;
       
-      // Apply filters: PI share > 30% AND total revenue > $1,200
-      if (piShare > 30 && totalRevenue > 1200) {
+      // Apply filters: PI share > 30% AND Rev Yield - Total Last Month > $1,200
+      if (piShare > 30 && yieldVal > 1200) {
         highPIAccounts.push({
           rid: rid,
           name: name,
           emoji: '💰',
           piShare: piShare.toFixed(1) + '%',
-          revenue: '$' + totalRevenue.toFixed(0)
+          revenue: '$' + yieldVal.toFixed(0)
         });
       }
     });
@@ -2811,4 +2851,149 @@ function filterHighPIRevenue_(amName) {
     console.error(`[${functionName}] Error: ${e.message}`);
     return [];
   }
+}
+
+/**
+ * Filter accounts with non-OpenTable System of Record
+ * Uses systemOfRecord from getDetailedAMData
+ * @param {Array} systemOfRecordData - Array of {name, count, rids} from data
+ * @returns {Array} Formatted accounts with non-OT SOR
+ */
+function filterNonOTSystemOfRecord_(systemOfRecordData) {
+  if (!systemOfRecordData || !Array.isArray(systemOfRecordData)) return [];
+  
+  // SOR values that indicate OpenTable (should be excluded)
+  const otKeywords = ['ot', 'opentable', 'open table'];
+  
+  const accounts = [];
+  const seen = new Set();
+  
+  systemOfRecordData.forEach(category => {
+    const categoryName = String(category.name || '').toLowerCase().trim();
+    
+    // Skip empty or OT-related categories
+    if (!categoryName) return;
+    const isOT = otKeywords.some(kw => categoryName === kw || categoryName.includes(kw));
+    if (isOT) return;
+    
+    // Add accounts from non-OT categories
+    if (category.rids && Array.isArray(category.rids)) {
+      category.rids.forEach(acc => {
+        const rid = acc.rid || acc;
+        if (seen.has(rid)) return;
+        seen.add(rid);
+        
+        accounts.push({
+          rid: rid,
+          name: acc.name || 'Unknown',
+          emoji: '⚠️',
+          sorType: category.name  // Show the SOR type (Resy, SevenRooms, etc.)
+        });
+      });
+    }
+  });
+  
+  console.log(`[filterNonOTSystemOfRecord_] Found ${accounts.length} non-OT SOR accounts`);
+  return accounts;
+}
+
+/**
+ * Generate strategic suggestions based on portfolio data
+ * Returns 3 contextual suggestions based on current portfolio state
+ * @param {Object} data - Full data object from getDetailedAMData
+ * @param {Object} sections - The built sections object
+ * @returns {Array} Array of 3 suggestion strings
+ */
+function getStrategicSuggestions_(data, sections) {
+  const suggestions = [];
+  const total = data.totalAccounts || 0;
+  
+  // Suggestion 1: Renewal phase focus
+  const termPendingCount = sections.termPending?.count || 0;
+  const contractsExpiringCount = sections.contractsExpiring?.count || 0;
+  const renewalTotal = termPendingCount + contractsExpiringCount;
+  
+  if (renewalTotal > 0) {
+    if (termPendingCount > 0) {
+      suggestions.push(`${termPendingCount} accounts in Term Pending status — run the Renewal Lifecycle checklist (Phase 3: Run & Close)`);
+    } else {
+      suggestions.push(`${contractsExpiringCount} contracts expiring soon — start building value stories (Phase 2)`);
+    }
+  } else {
+    suggestions.push('No immediate renewals — great time to focus on engagement and upsells');
+  }
+  
+  // Suggestion 2: System type opportunities
+  const systemTypes = data.systemTypes || [];
+  const basicCount = systemTypes.find(s => (s.name || '').toLowerCase().includes('basic'))?.count || 0;
+  const coreCount = systemTypes.find(s => (s.name || '').toLowerCase().includes('core'))?.count || 0;
+  
+  if (basicCount > 3) {
+    suggestions.push(`${basicCount} accounts on BASIC — consider Operational Relief Play to demonstrate PRO value`);
+  } else if (coreCount > 5) {
+    suggestions.push(`${coreCount} accounts on CORE — check for IT constraints limiting adoption`);
+  } else {
+    // Feature adoption suggestion
+    const activePI = data.activePI?.length || 0;
+    const activePIPct = total > 0 ? Math.round((activePI / total) * 100) : 0;
+    if (activePIPct < 30) {
+      suggestions.push(`Only ${activePIPct}% of accounts have Active PI — opportunity to pitch promoted inventory`);
+    } else {
+      suggestions.push(`${activePIPct}% PI adoption rate — above average! Focus on high performers`);
+    }
+  }
+  
+  // Suggestion 3: Engagement or risk-based
+  const noEngagementCount = sections.noEngagement60?.count || 0;
+  const noBookingsCount = sections.noBookings30?.count || 0;
+  
+  if (noEngagementCount > 5) {
+    suggestions.push(`${noEngagementCount} accounts with 60+ day engagement gap — prioritize quick check-ins to prevent silent churn`);
+  } else if (noBookingsCount > 3) {
+    suggestions.push(`${noBookingsCount} accounts with booking issues — investigate 0-Fullbook and availability settings`);
+  } else {
+    // Healthy portfolio suggestion
+    suggestions.push('Portfolio health looks good — consider proactive QBRs with top revenue accounts');
+  }
+  
+  return suggestions.slice(0, 3);  // Ensure max 3 suggestions
+}
+
+/**
+ * Generate recommended prompts based on portfolio data
+ * Returns 2-3 contextual prompts the user can click to explore
+ * @param {Object} data - Full data object from getDetailedAMData
+ * @param {Object} sections - The built sections object
+ * @returns {Array} Array of prompt strings
+ */
+function getRecommendedPrompts_(data, sections) {
+  const prompts = [];
+  
+  // Always include a high-value prompt
+  prompts.push('Which accounts have the highest revenue but declining disco?');
+  
+  // Context-specific prompts based on portfolio
+  const termPendingCount = sections.termPending?.count || 0;
+  const contractsExpiringCount = sections.contractsExpiring?.count || 0;
+  
+  if (termPendingCount > 0 || contractsExpiringCount > 0) {
+    prompts.push('Show me accounts approaching renewal in the next 30 days');
+  }
+  
+  const noEngagementCount = sections.noEngagement60?.count || 0;
+  if (noEngagementCount > 0) {
+    prompts.push('Which stale accounts have the highest revenue at risk?');
+  }
+  
+  // Feature adoption prompt
+  const activePI = data.activePI?.length || 0;
+  const total = data.totalAccounts || 0;
+  if (activePI < total * 0.5) {
+    prompts.push('Find PRO accounts without Active PI');
+  }
+  
+  // Pricing prompt
+  prompts.push('Which accounts might benefit from the Stability Play?');
+  
+  return prompts.slice(0, 3);  // Max 3 prompts
 }

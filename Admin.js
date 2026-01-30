@@ -527,14 +527,18 @@ function _scanSheetsForImportRange_() {
   const results = [];
   
   // Regex to extract IMPORTRANGE components
-  // Matches: =IMPORTRANGE("spreadsheet_id", "range") - handles multiple instances per formula
-  const importRangeRegex = /IMPORTRANGE\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)/gi;
+  // Matches: =IMPORTRANGE("spreadsheet_id", "range") or =IMPORTRANGE('spreadsheet_id', 'range')
+  // Handles straight quotes AND curly/smart quotes (U+201C, U+201D, U+2018, U+2019)
+  const importRangeRegex = /IMPORTRANGE\s*\(\s*["'""''"]([^"'""''"]+)["'""''"]\s*,\s*["'""''"]([^"'""''"]+)["'""''"]\s*\)/gi;
   
   console.log('[' + functionName + '] Scanning ' + sheets.length + ' sheets for IMPORTRANGE formulas...');
   
   for (var s = 0; s < sheets.length; s++) {
     var sheet = sheets[s];
     var sheetName = sheet.getName();
+    
+    // Debug: Log each sheet being scanned
+    console.log('[' + functionName + '] Scanning sheet: ' + sheetName);
     
     try {
       var lastRow = sheet.getLastRow();
@@ -544,11 +548,16 @@ function _scanSheetsForImportRange_() {
       
       var formulas = sheet.getRange(1, 1, lastRow, lastCol).getFormulas();
       
+      var sheetImportCount = 0;
       for (var row = 0; row < formulas.length; row++) {
         for (var col = 0; col < formulas[row].length; col++) {
           var formula = formulas[row][col];
           if (formula && formula.toUpperCase().indexOf('IMPORTRANGE') > -1) {
+            sheetImportCount++;
             var cellA1 = sheet.getRange(row + 1, col + 1).getA1Notation();
+            
+            // Debug: Log found IMPORTRANGE formula
+            console.log('[' + functionName + '] Found IMPORTRANGE in ' + sheetName + '!' + cellA1);
             
             // Reset regex lastIndex for each formula
             importRangeRegex.lastIndex = 0;
@@ -558,6 +567,7 @@ function _scanSheetsForImportRange_() {
             // Loop to capture ALL IMPORTRANGE calls in the formula
             while ((match = importRangeRegex.exec(formula)) !== null) {
               foundAny = true;
+              console.log('[' + functionName + '] Parsed: ID=' + match[1].substring(0, 20) + '..., Range=' + match[2]);
               results.push({
                 sheet: sheetName,
                 cell: cellA1,
@@ -569,7 +579,7 @@ function _scanSheetsForImportRange_() {
             
             // Fallback: if regex didn't match but IMPORTRANGE exists, log for review
             if (!foundAny) {
-              console.warn('[' + functionName + '] Could not parse IMPORTRANGE in ' + sheetName + '!' + cellA1 + ': ' + formula);
+              console.warn('[' + functionName + '] Could not parse IMPORTRANGE in ' + sheetName + '!' + cellA1 + ': ' + formula.substring(0, 200));
               results.push({
                 sheet: sheetName,
                 cell: cellA1,
@@ -580,6 +590,9 @@ function _scanSheetsForImportRange_() {
             }
           }
         }
+      }
+      if (sheetImportCount > 0) {
+        console.log('[' + functionName + '] Sheet "' + sheetName + '" had ' + sheetImportCount + ' cells with IMPORTRANGE');
       }
     } catch (e) {
       console.log('[' + functionName + '] Error scanning sheet "' + sheetName + '": ' + e.message);

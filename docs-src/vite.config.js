@@ -4,8 +4,9 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/Intouch/',
+  base: '/intouch/',
   build: {
-    outDir: 'dist'
+    outDir: '../docs',
+    emptyOutDir: true
   }
 })

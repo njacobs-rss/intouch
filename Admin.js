@@ -529,7 +529,8 @@ function _scanSheetsForImportRange_() {
   // Regex to extract IMPORTRANGE components
   // Matches: =IMPORTRANGE("spreadsheet_id", "range") or =IMPORTRANGE('spreadsheet_id', 'range')
   // Handles straight quotes AND curly/smart quotes (U+201C, U+201D, U+2018, U+2019)
-  const importRangeRegex = /IMPORTRANGE\s*\(\s*["'""''"]([^"'""''"]+)["'""''"]\s*,\s*["'""''"]([^"'""''"]+)["'""''"]\s*\)/gi;
+  // UPDATED: Explicit unicode support for smart quotes
+  const importRangeRegex = /IMPORTRANGE\s*\(\s*["'\u201C\u201D\u2018\u2019]([^"'\u201C\u201D\u2018\u2019]+)["'\u201C\u201D\u2018\u2019]\s*,\s*["'\u201C\u201D\u2018\u2019]([^"'\u201C\u201D\u2018\u2019]+)["'\u201C\u201D\u2018\u2019]\s*\)/gi;
   
   console.log('[' + functionName + '] Scanning ' + sheets.length + ' sheets for IMPORTRANGE formulas...');
   
@@ -578,14 +579,15 @@ function _scanSheetsForImportRange_() {
             }
             
             // Fallback: if regex didn't match but IMPORTRANGE exists, log for review
+            // This usually means it's a dynamic reference (concatenation) or cell reference
             if (!foundAny) {
-              console.warn('[' + functionName + '] Could not parse IMPORTRANGE in ' + sheetName + '!' + cellA1 + ': ' + formula.substring(0, 200));
+              console.warn('[' + functionName + '] Dynamic/Complex IMPORTRANGE in ' + sheetName + '!' + cellA1 + ': ' + formula.substring(0, 200));
               results.push({
                 sheet: sheetName,
                 cell: cellA1,
                 formula: formula,
-                extractedId: '[PARSE_ERROR]',
-                extractedRange: ''
+                extractedId: 'DYNAMIC_REFERENCE',
+                extractedRange: 'Dynamic/Calculated Range'
               });
             }
           }
@@ -916,8 +918,15 @@ function scanExternalResources() {
       
       if (!isInRegistry && irId) {
         seenImportIds[irId] = true;
-        var irName = _getSpreadsheetName_(irId);
-        var irStatus = irName === 'Inaccessible' ? 'Inaccessible' : 'Active';
+        
+        var irName, irStatus;
+        if (irId === 'DYNAMIC_REFERENCE') {
+          irName = 'Dynamic/Calculated Reference';
+          irStatus = 'Manual Review';
+        } else {
+          irName = _getSpreadsheetName_(irId);
+          irStatus = irName === 'Inaccessible' ? 'Inaccessible' : 'Active';
+        }
         
         allResources.push({
           type: 'IMPORTRANGE',

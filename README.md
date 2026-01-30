@@ -1,5 +1,7 @@
 # InTouch AI - User Guide
 
+> **📘 Developer Documentation**: For technical architecture, data pipelines, and system internals, see the **[Interactive Developer Docs](https://njacobs.github.io/Intouch/)**.
+
 Welcome to **InTouch AI**, your all-in-one tool for account management, meeting preparation, and portfolio insights. This guide will walk you through everything you can do with this tool.
 
 ---

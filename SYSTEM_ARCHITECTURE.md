@@ -18,6 +18,7 @@ A comprehensive visual guide to the InTouch system architecture, data flows, and
 10. [Sidebar Tabs Detail](#sidebar-tabs-detail)
 11. [Central Logging Architecture](#central-logging-architecture)
 12. [System Summary](#system-summary)
+13. [Strategic Framework](#strategic-framework)
 
 ---
 
@@ -46,7 +47,7 @@ A comprehensive visual guide to the InTouch system architecture, data flows, and
            │                 │                 │                 │                 │
            ▼                 ▼                 ▼                 ▼                 ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│  DATA PIPELINE ENGINE  (runMasterPipeline @ 1am nightly)                                 │
+│  DATA PIPELINE ENGINE  (scheduled overnight refresh)                                     │
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                          │
 │   STEP 1                    STEP 2                    STEP 3                    STEP 4   │
@@ -112,18 +113,41 @@ A comprehensive visual guide to the InTouch system architecture, data flows, and
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## System Summary
+
+InTouch is a **thick-client Google Apps Script system** designed for **RSS Account Managers and leaders** (internal user base). It feeds **approx. 15 local spreadsheets** across different regions.
+
+| Capability | Description |
+|------------|-------------|
+| **Data Sync** | Pulls 30k+ rows from external spreadsheets nightly. Uses batch processing (3-4k rows) with `flush()` for stability. |
+| **User Views** | Creates personalized AM tabs filtered from master STATCORE. Dynamic sticky notes generated from NOTE_CONFIG rules. |
+| **AI Integration** | Sidebar with Gemini-powered chat for portfolio insights. Smart routing: Scripted → Glossary → Cached → API. |
+| **Presentations** | Auto-generates Slides + Sheets with benchmark data. Template cloning with chart linking. |
+| **Fleet Ops** | Manages multiple InTouch files across regions. Central logging for monitoring and analytics. |
+
+### Key Performance Characteristics
+
+| Metric | Value |
+|--------|-------|
+| Scale | 30,000+ rows |
+| Memory Management | Batch + Flush pattern |
+| Logging | Pattern 6 (Refresh sheet) |
+| Cache Duration | 6 hours |
+| Nightly Trigger | 1am local time |
+| Max Execution | 6 minutes (GAS limit) |
+
 ---
 
 ## Data Pipeline Engine
 
-The nightly data pipeline runs at 1am and consists of 4 sequential steps:
+The nightly data pipeline runs via a scheduled trigger and consists of 4 sequential steps:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
 │                     NIGHTLY PIPELINE                                                     │
-│  runMasterPipeline() @ 1am                                                               │
+│  runMasterPipeline() (scheduled overnight refresh)                                       │
 │     │                                                                                    │
-│     ├─► updateSTATCORE()     → Pulls from external sheet, filters by AM                 │
+│     ├─► updateSTATCORE()     → Pulls from external sheet, filters by AM/Territory       │
 │     │      │                                                                             │
 │     │      └─► runSYSCOREUpdates() → Adds SYSCORE columns (Salesforce hyperlinks)       │
 │     │             │                                                                      │
@@ -142,6 +166,14 @@ The nightly data pipeline runs at 1am and consists of 4 sequential steps:
 | 2 | `runSYSCOREUpdates()` | External SYSCORE/SEND (A-P) | STATCORE AH-AT | 3000 rows |
 | 3 | `runDAGCOREUpdates()` | External DAGCORE/SEND (A-BB) | Local DISTRO | 4000 rows |
 | 4 | `updateAccountNotes()` | NOTE_CONFIG rules | AM Tab sticky notes | Per sheet |
+
+### Data Flow & Segmentation
+
+1.  **Eventcore & Taskcore** flow into **SYSCORE** (File ID: `1V4C9mIL...`).
+2.  **SYSCORE** feeds into the local **STATCORE** tab.
+3.  **Segmentation Logic (NA/INTL)**:
+    *   **Managed Accounts**: Routed to sheets based on **AM Name**.
+    *   **CQ Accounts**: Routed to sheets based on **Territory District Manager**.
 
 ---
 
@@ -244,20 +276,19 @@ Admin Functions
 ### Sticky Note Example (Hover on Notes Column)
 
 ```
-┌────────────────────────────────────┐
-│  STICKY NOTE                       │
-│  ┌──────────────────────────────┐  │
-│  │  Account: Joes Diner         │  │
-│  │  ─────────────────────────── │  │
-│  │  Status: Active | Pro | AYCE │  │
-│  │  Term End: 03/15/26 (45 days)│  │
-│  │  Revenue: $1,234/mo          │  │
-│  │  CVR: 450 | Discovery: 23%   │  │
-│  │  PI Status: Active           │  │
-│  │  ─────────────────────────── │  │
-│  │  Last Engagement: 01/15/26   │  │
-│  └──────────────────────────────┘  │
-└────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│  ⚠️ 0-Restref                                          │
+│  ❗️ 💳 Restricted                                      │
+│  ────────────────────────────────────────────────────  │
+│  🌐 GRP SIZE: [7 RIDs]                                 │
+│  🚀 Core @ $348/mo                                     │
+│  🤝 Partner Since: 05/21/00                            │
+│  🥇 [Top NOM]                                          │
+│  ────────────────────────────────────────────────────  │
+│  • NW: 2670 [46%]                                      │
+│  • Dir: [57%] Disc: [43%]                              │
+│  • Goog: 673.1 [25%]                                   │
+└────────────────────────────────────────────────────────┘
 ```
 
 ### Smart Select Trigger Flow
@@ -350,6 +381,82 @@ tagFocus20Status(true)
 
 ---
 
+## Dynamic Columns & Smart Select
+
+### Dynamic Columns (Fuzzy Header Matching)
+To prevent the system from breaking when users reorder columns, InTouch uses a **runtime header normalization** system.
+
+1. **Ingestion**: Reads the header row (Row 2) into memory.
+2. **Normalization**: `cleanKey()` strips spaces, special characters, and casing.
+   - Example: "Account Manager", "account_manager", "Account Manager (Lead)" → `accountmanager`
+3. **Mapping**: Builds an in-memory map of `key` → `columnIndex`.
+4. **Retrieval**: Code requests data by key (e.g., `data['accountmanager']`) instead of fixed index.
+
+### Dynamic Column Headers (User-Facing)
+
+AM tabs feature **configurable column headers** that allow users to customize their view without modifying the underlying data structure.
+
+**How It Works:**
+1. **Double-click** any column header in Row 2
+2. A **dropdown menu** appears with available metrics for that column section
+3. Select a new metric → Column updates immediately
+4. AI Chat can also change columns via `[COLUMN_ACTION:CATEGORY:Metric]` commands
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  AM TAB COLUMN LAYOUT (Row 2 Headers)                                                │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  FIXED COLUMNS                          DYNAMIC COLUMNS (Double-click to change)    │
+│  ─────────────────                      ────────────────────────────────────────     │
+│  D: Smart Select                        I: Location (Metro/Macro/Neighborhood)       │
+│  F: Parent Account                      J-K-L: Dates & Activity                      │
+│  H: iQ (Health Score)                   M-N-O: Status & System Info                  │
+│                                         P-Q-R: System Stats                          │
+│                                         S-T-U: Percentage Metrics                    │
+│                                         V-W-X: Revenue                               │
+│                                         Y-Z-AA: Seated Covers                        │
+│                                         AB-AC-AD: Pricing                            │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Column Section Options:**
+
+| Section | Columns | Available Metrics |
+|---------|---------|-------------------|
+| Location | I | Metro, Macro, Neighborhood |
+| Dates & Activity | J-K-L | Event Date, Event Type, Task Date, Task Type, L90 Total Meetings, Last Engaged Date, Current Term End Date, Focus20, Customer Since, Contract Alerts |
+| Status Info | M-N-O | Status, System Status, System Type, No Bookings >30 Days, System of Record |
+| System Stats | P-Q-R | POS Type, Active PI, Active XP, Exclusive Pricing, Private Dining, Payment Method, Rest. Quality, Special Programs |
+| Percentages | S-T-U | Disco % Current, Disco % MoM, CVR - Network YoY%, PI Rev Share %, POS Match % |
+| Revenue | V-W-X | Rev Yield - Total LM, Revenue - PI LM, Revenue - Subs LM, Check Avg. Last 30, Total Due, Past Due |
+| Covers | Y-Z-AA | CVR Last Month (Network/Discovery/Google/Direct/PI), CVRs 12m Avg |
+| Pricing | AB-AC-AD | GOOGLE / DIRECT CVRS, STANDARD COVER PRICE, STANDARD EXPOSURE CVRS, SUBFEES |
+
+**Implementation:** `setDynamicColumnHeader()` in `AiOpsFunctions.js` handles programmatic column changes. The `DYNAMIC_COLUMN_MAP` constant maps metric names to their valid column letters.
+
+### Smart Select / Focus 20
+A "shopping cart" system for accounts, allowing users to tag RIDs from any view for batch processing.
+
+```
+┌──────────────┐       ┌────────────────────┐       ┌──────────────────────┐
+│  USER ACTION │       │   EVENT HANDLER    │       │   CENTRAL DATABASE   │
+│              │       │                    │       │                      │
+│  Checks box  │──────▶│ handleIntouchEdits │──────▶│   STATCORE Sheet     │
+│  in "Smart   │       │                    │       │                      │
+│  Select" col │       │ 1. Capture RID     │       │ 1. Find RID          │
+│              │       │ 2. Reset Checkbox  │       │ 2. Update "Focus20"  │
+│              │       │ 3. Call Tagging Fn │       │    col with Timestamp│
+└──────────────┘       └────────────────────┘       └──────────────────────┘
+```
+
+- **Event-Driven**: Uses `onEdit` trigger for instant feedback.
+- **Global State**: Tags are stored in `STATCORE`, making them visible to all other tabs and dashboards.
+- **Workflow**: Enables "Action at a Distance" (select in View A, process in View B).
+
+---
+
 ## File Responsibilities
 
 | File | Purpose | Key Functions |
@@ -420,7 +527,7 @@ tagFocus20Status(true)
 
 ## Sidebar Tabs Detail
 
-### Tab 1: Meeting Prep
+### Tab 1: Meeting Prep (AI Brief & Presentation)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -428,8 +535,8 @@ tagFocus20Status(true)
 │  ─────────────────────────────────────────────────────────────────────────────────  │
 │  - Account Search (autocomplete from STATCORE)                                      │
 │  - Display: RID, Metro, Macro                                                       │
-│  - [AI Brief] → buildPromptForRID() → Copy to clipboard → Open Gemini               │
-│  - [Create Deck] → createBizInsightsDeck() → Open Slides + Sheets                   │
+│  - [AI Brief] → Generates a strategic summary using Gemini based on account data    │
+│  - [Create Deck] → Auto-generates a Google Slides presentation & Google Sheet       │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -463,21 +570,58 @@ tagFocus20Status(true)
 
 ### Tab 4: InTouch Chat (AI Assistant)
 
+The chat interface (`InTouchGuide.js`) uses a **Dual-Model Architecture** with intelligent routing and caching to optimize for speed, cost, and accuracy.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│  INTOUCH CHAT (AI Assistant)                                                        │
+│  INTOUCH CHAT ARCHITECTURE                                                          │
 │  ─────────────────────────────────────────────────────────────────────────────────  │
-│  - Quick Prompts: "Summarize bucket", "Which need attention?", etc.                 │
-│  - Natural language queries about portfolio                                         │
-│  - Filter/Isolate accounts via chat commands                                        │
-│  - Routing: Scripted → Glossary → Cached → Gemini API                               │
-│  - Feedback: Thumbs up/down → Central logging                                       │
+│                                                                                     │
+│  USER QUERY ──▶ [ ROUTING ENGINE ]                                                  │
+│                        │                                                            │
+│       ┌────────────────┼──────────────────────────────┐                             │
+│       ▼                ▼                              ▼                             │
+│  [ SCRIPTED ]     [ GLOSSARY ]                 [ GEMINI AI ]                        │
+│  (Fast-Path)      (Definitions)                       │                             │
+│       │                │                              │                             │
+│       │                │               ┌──────────────┴──────────────┐              │
+│       │                │               ▼                             ▼              │
+│       │                │        [ FLASH MODEL ]               [ PRO MODEL ]         │
+│       │                │        (gemini-2.0-flash)            (gemini-3-pro)        │
+│       │                │        - Simple queries              - Complex reasoning   │
+│       │                │        - Data lookups                - Strategy/Analysis   │
+│       │                │                                             │              │
+│       │                │                                             ▼              │
+│       │                │                                    [ STRATEGIC PLAYBOOK ]  │
+│       │                │                                    (Renewals, Pricing)     │
+│       │                │                                                            │
+│       └────────────────┼──────────────────────────────┘                             │
+│                        │                                                            │
+│                        ▼                                                            │
+│                 [ FINAL RESPONSE ] ◀── [ CONTEXT CACHE ]                            │
+│                                        (System Instructions)                        │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key Components:**
+1.  **Dual-Model Routing**:
+    *   **Flash (gemini-2.0-flash)**: Used for simple queries, definitions, and basic data retrieval. (Low latency, low cost).
+    *   **Pro (gemini-3-pro-preview)**: Used for complex analysis, strategic recommendations, and "why" questions.
+2.  **Context Caching**:
+    *   System instructions and persona are cached (`CACHE_CONFIG`) to reduce token usage by ~50% on repeated calls.
+    *   Cache TTL: 24 hours.
+3.  **Scripted Layer**:
+    *   Regex-based fast path for common questions ("What is PI?", "How do I filter?") to avoid API calls entirely.
+4.  **Strategic Playbook**:
+    *   Specialized logic for high-stakes topics like **Renewals**, **Churn Risk**, and **Pricing Strategy**.
+5.  **Feedback Loop**:
+    *   Thumbs Up/Down logging to `Central Log` for continuous improvement.
 
 ---
 
 ## Central Logging Architecture
+
+The **Central Log** is a master spreadsheet that aggregates fleet-wide monitoring data. It is **updated live** as users interact with their local sheets.
 
 ```
                     MASTER SPREADSHEET (Fleet-Wide Monitoring)
@@ -531,31 +675,6 @@ tagFocus20Status(true)
 
 ---
 
-## System Summary
-
-InTouch is a **thick-client Google Apps Script system** that:
-
-| Capability | Description |
-|------------|-------------|
-| **Data Sync** | Pulls 30k+ rows from external spreadsheets nightly. Uses batch processing (3-4k rows) with `flush()` for stability. |
-| **User Views** | Creates personalized AM tabs filtered from master STATCORE. Dynamic sticky notes generated from NOTE_CONFIG rules. |
-| **AI Integration** | Sidebar with Gemini-powered chat for portfolio insights. Smart routing: Scripted → Glossary → Cached → API. |
-| **Presentations** | Auto-generates Slides + Sheets with benchmark data. Template cloning with chart linking. |
-| **Fleet Ops** | Manages multiple InTouch files across regions. Central logging for monitoring and analytics. |
-
-### Key Performance Characteristics
-
-| Metric | Value |
-|--------|-------|
-| Scale | 30,000+ rows |
-| Memory Management | Batch + Flush pattern |
-| Logging | Pattern 6 (Refresh sheet) |
-| Cache Duration | 6 hours |
-| Nightly Trigger | 1am local time |
-| Max Execution | 6 minutes (GAS limit) |
-
----
-
 ## External Data Sources
 
 | ID | Name | Purpose |
@@ -565,6 +684,35 @@ InTouch is a **thick-client Google Apps Script system** that:
 | `1atxJQcNKTJyE...` | DAGCORE | Distribution analytics |
 | `1FhLSSmCb4bEa...` | Benchmarks | Metro/neighborhood benchmarks |
 | `1yiqY-5XJY2k8...` | Central Log | Fleet-wide operation logs |
+
+---
+
+## Strategic Framework
+
+The system incorporates a strategic decision-making model to guide Account Managers in high-stakes scenarios.
+
+### The Three-Layer Framework (Renewals & Churn)
+
+1.  **Layer 1: TIME (Lifecycle Phase)**
+    *   Where is the partner in their contract lifecycle?
+    *   *Action:* Prioritize term-pending accounts (45-day window).
+
+2.  **Layer 2: SYSTEM (Usage & Value)**
+    *   Is the system actually working for them?
+    *   *Check:* Active XP, Active PI, Cover counts.
+    *   *Action:* Fix adoption issues before discussing price.
+
+3.  **Layer 3: ECONOMICS (Pricing & ROI)**
+    *   Only address this after System value is proven.
+    *   *Action:* Apply specific pricing plays based on the objection.
+
+### Strategic Plays (Pricing)
+
+| Play Name | Trigger / Objection | Lever |
+|-----------|---------------------|-------|
+| **Fairness Play** | "I'm paying for my own website traffic" / "Double-paying" | **Freemium** or **Free Google** |
+| **Stability Play** | "I can't budget for variable bills" / "Bill volatility" | **AYCE** (Flat monthly envelope) |
+| **Operational Relief** | "Too expensive" (but usage is low) | **Fix System First** (Do not lower price yet) |
 
 ---
 

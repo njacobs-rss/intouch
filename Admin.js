@@ -527,8 +527,8 @@ function _scanSheetsForImportRange_() {
   const results = [];
   
   // Regex to extract IMPORTRANGE components
-  // Matches: =IMPORTRANGE("spreadsheet_id", "range") or =IMPORTRANGE(cell_ref, "range")
-  const importRangeRegex = /IMPORTRANGE\s*\(\s*["']?([^"',\)]+)["']?\s*,\s*["']?([^"'\)]+)["']?\s*\)/gi;
+  // Matches: =IMPORTRANGE("spreadsheet_id", "range") - handles multiple instances per formula
+  const importRangeRegex = /IMPORTRANGE\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)/gi;
   
   console.log('[' + functionName + '] Scanning ' + sheets.length + ' sheets for IMPORTRANGE formulas...');
   
@@ -552,23 +552,32 @@ function _scanSheetsForImportRange_() {
             
             // Reset regex lastIndex for each formula
             importRangeRegex.lastIndex = 0;
-            var match = importRangeRegex.exec(formula);
+            var match;
+            var foundAny = false;
             
-            var extractedId = '';
-            var extractedRange = '';
-            
-            if (match) {
-              extractedId = match[1].trim();
-              extractedRange = match[2].trim();
+            // Loop to capture ALL IMPORTRANGE calls in the formula
+            while ((match = importRangeRegex.exec(formula)) !== null) {
+              foundAny = true;
+              results.push({
+                sheet: sheetName,
+                cell: cellA1,
+                formula: formula,
+                extractedId: match[1].trim(),
+                extractedRange: match[2].trim()
+              });
             }
             
-            results.push({
-              sheet: sheetName,
-              cell: cellA1,
-              formula: formula,
-              extractedId: extractedId,
-              extractedRange: extractedRange
-            });
+            // Fallback: if regex didn't match but IMPORTRANGE exists, log for review
+            if (!foundAny) {
+              console.warn('[' + functionName + '] Could not parse IMPORTRANGE in ' + sheetName + '!' + cellA1 + ': ' + formula);
+              results.push({
+                sheet: sheetName,
+                cell: cellA1,
+                formula: formula,
+                extractedId: '[PARSE_ERROR]',
+                extractedRange: ''
+              });
+            }
           }
         }
       }

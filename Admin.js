@@ -421,3 +421,521 @@ function getColumnIndexByName(sheet, columnName) {
 }
 
 // REMOVED: forcePortfolioRecalc() function completely per request
+
+// =============================================================
+// SECTION: EXTERNAL RESOURCE SCANNER
+// =============================================================
+// Scans codebase and spreadsheet for external data dependencies,
+// uses Gemini to generate descriptions, outputs to EXT_RESOURCE_KEY
+// =============================================================
+
+/**
+ * EXTERNAL_RESOURCE_REGISTRY
+ * Central registry of all known external resources used by the InTouch system.
+ * This is populated from static analysis of the codebase.
+ */
+var EXTERNAL_RESOURCE_REGISTRY = {
+  spreadsheets: {
+    'statcore_source': {
+      id: '1Qa3S3USt-TOdVctormnunF4P8L010C3pSCx9zl5aTtM',
+      sheet: 'StatcoreNA',
+      source: 'STATCORE.js:31, FleetCommander.js:611',
+      purpose: 'Base STATCORE account data - columns A-AG (33 columns) containing core account information'
+    },
+    'syscore_source': {
+      id: '1V4C9mIL4ISP4rx2tJcpPhflM-RIi4eft_xDZWAgWmGU',
+      sheet: 'SEND',
+      source: 'STATCORE.js:147, FleetCommander.js:612',
+      purpose: 'SYSCORE supplemental data - columns A-P (16 columns) with Salesforce/Stripe links'
+    },
+    'dagcore_source': {
+      id: '1atxJQcNKTJyE17NhjbXmKIKUwr8uiuexRIgEcAceNcs',
+      sheet: 'SEND',
+      source: 'STATCORE.js:306, FleetCommander.js:613',
+      purpose: 'DAGCORE distribution metrics - columns A-BB (54 columns) for DISTRO sheet'
+    },
+    'central_logging': {
+      id: '1yiqY-5XJY2k86RXDib2zCveR9BNbG7FRdasLUFYYeWY',
+      sheet: 'Log, Refresh, API_Usage, Prompt_Log, Fleet_Ops',
+      source: 'Main.js:12, InTouchGuide.js:4140',
+      purpose: 'Central logging master spreadsheet for fleet-wide operation logs and KH feedback'
+    },
+    'bi_cloning_log': {
+      id: '174CADIuvvbFnTWgVHh-X5EC5pQZQc_9KRjFVdCeA7pk',
+      sheet: 'Runtime logs',
+      source: 'AiOpsFunctions.js:1143',
+      purpose: 'BI presentation cloning runtime logs and error tracking'
+    },
+    'external_benchmarks': {
+      id: '1FhLSSmCb4bEaiso8ZlUcDjPA6pD8l2eHKOkf0E1GJe4',
+      sheet: 'metro, nbhd, macro',
+      source: 'BizInsights.js:136',
+      purpose: 'External benchmark data for metro/neighborhood/macro comparisons in BI presentations'
+    }
+  },
+  folders: {
+    'fleet_target': {
+      id: '1oqbXf4CPouogLMvlB5rzZipOwiGZyRwE',
+      source: 'FleetCommander.js:31',
+      purpose: 'Target Drive folder containing all fleet InTouch spreadsheet files'
+    },
+    'template_folder': {
+      id: '1lt4n-LZe8ufMqCkNSU-tGRs4DysEKySs',
+      source: 'FleetCommander.js:253',
+      purpose: 'Template folder containing BI_Prod_Sheet and BI_Prod_Slides masters'
+    }
+  },
+  urls: {
+    'salesforce_base': {
+      url: 'https://opentable.my.salesforce.com/',
+      source: 'STATCORE.js:128',
+      purpose: 'Salesforce base URL for generating task/event hyperlinks in SYSCORE data'
+    },
+    'stripe_base': {
+      url: 'https://guestcenter.opentable.com/restaurant/',
+      source: 'STATCORE.js:129',
+      purpose: 'Stripe/Guest Center base URL for restaurant integration links'
+    },
+    'preset_dashboard_170': {
+      url: 'https://bce906ff.us1a.app.preset.io/superset/dashboard/170/',
+      source: 'STATCORE.js:415',
+      purpose: 'Preset/Superset dashboard #170 with native filters for data visualization'
+    },
+    'preset_dashboard_2083': {
+      url: 'https://bce906ff.us1a.app.preset.io/superset/dashboard/2083/',
+      source: 'STATCORE.js:423',
+      purpose: 'Preset/Superset dashboard #2083 with native filters for data visualization'
+    },
+    'gemini_api': {
+      url: 'https://generativelanguage.googleapis.com/v1beta/',
+      source: 'InTouchGuide.js:2872, 3879, 6291',
+      purpose: 'Google Gemini API endpoints for AI-powered InTouch Guide responses'
+    }
+  }
+};
+
+/**
+ * Scans all sheets in the active spreadsheet for IMPORTRANGE formulas
+ * Extracts spreadsheet IDs and range references from the formulas
+ * @returns {Array} Array of objects with sheet, cell, formula, extractedId, and extractedRange
+ * @private
+ */
+function _scanSheetsForImportRange_() {
+  const functionName = '_scanSheetsForImportRange_';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  const results = [];
+  
+  // Regex to extract IMPORTRANGE components
+  // Matches: =IMPORTRANGE("spreadsheet_id", "range") or =IMPORTRANGE(cell_ref, "range")
+  const importRangeRegex = /IMPORTRANGE\s*\(\s*["']?([^"',\)]+)["']?\s*,\s*["']?([^"'\)]+)["']?\s*\)/gi;
+  
+  console.log('[' + functionName + '] Scanning ' + sheets.length + ' sheets for IMPORTRANGE formulas...');
+  
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var sheetName = sheet.getName();
+    
+    try {
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
+      
+      if (lastRow === 0 || lastCol === 0) continue;
+      
+      var formulas = sheet.getRange(1, 1, lastRow, lastCol).getFormulas();
+      
+      for (var row = 0; row < formulas.length; row++) {
+        for (var col = 0; col < formulas[row].length; col++) {
+          var formula = formulas[row][col];
+          if (formula && formula.toUpperCase().indexOf('IMPORTRANGE') > -1) {
+            var cellA1 = sheet.getRange(row + 1, col + 1).getA1Notation();
+            
+            // Reset regex lastIndex for each formula
+            importRangeRegex.lastIndex = 0;
+            var match = importRangeRegex.exec(formula);
+            
+            var extractedId = '';
+            var extractedRange = '';
+            
+            if (match) {
+              extractedId = match[1].trim();
+              extractedRange = match[2].trim();
+            }
+            
+            results.push({
+              sheet: sheetName,
+              cell: cellA1,
+              formula: formula,
+              extractedId: extractedId,
+              extractedRange: extractedRange
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.log('[' + functionName + '] Error scanning sheet "' + sheetName + '": ' + e.message);
+    }
+    
+    // Flush to prevent timeout on large spreadsheets
+    if (s % 5 === 0) SpreadsheetApp.flush();
+  }
+  
+  console.log('[' + functionName + '] Found ' + results.length + ' IMPORTRANGE formulas');
+  return results;
+}
+
+/**
+ * Generates a technical description for an external resource using Gemini Flash
+ * @param {Object} resource - Resource object with type, id, context details
+ * @returns {string} AI-generated description or fallback text
+ * @private
+ */
+function _generateResourceDescription_(resource) {
+  var functionName = '_generateResourceDescription_';
+  
+  try {
+    var apiKey = getGeminiApiKey_();
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    
+    var prompt = 'Generate a concise technical description (2-3 sentences max) for this external data resource used in a Google Apps Script system. ' +
+      'Focus on what data it provides and how it integrates with the system.\n\n' +
+      'Resource Type: ' + resource.type + '\n' +
+      'Resource ID: ' + resource.id + '\n' +
+      'Sheet/Path: ' + (resource.sheet || 'N/A') + '\n' +
+      'Source Location: ' + resource.source + '\n' +
+      'Context: ' + resource.context;
+    
+    var payload = {
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 200
+      }
+    };
+    
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
+    
+    if (responseCode === 200) {
+      var json = JSON.parse(response.getContentText());
+      if (json.candidates && json.candidates[0] && json.candidates[0].content) {
+        var text = json.candidates[0].content.parts[0].text;
+        return text.trim();
+      }
+    } else {
+      console.log('[' + functionName + '] API returned code ' + responseCode);
+    }
+  } catch (e) {
+    console.log('[' + functionName + '] Error generating description: ' + e.message);
+  }
+  
+  // Fallback: return the context/purpose if API fails
+  return resource.context || 'External resource - description unavailable';
+}
+
+/**
+ * Creates or updates the EXT_RESOURCE_KEY sheet with all external resources
+ * @param {Array} resources - Array of resource objects to write
+ * @private
+ */
+function _writeToResourceKeySheet_(resources) {
+  var functionName = '_writeToResourceKeySheet_';
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetName = 'EXT_RESOURCE_KEY';
+  
+  // Get or create sheet
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    console.log('[' + functionName + '] Created new sheet: ' + sheetName);
+  } else {
+    // Clear existing data but preserve sheet
+    sheet.clear();
+    console.log('[' + functionName + '] Cleared existing sheet: ' + sheetName);
+  }
+  
+  // Define headers
+  var headers = [
+    'Resource Type',
+    'Resource ID',
+    'Resource Name',
+    'Sheet/Tab Name',
+    'Source Location',
+    'Purpose Context',
+    'AI Description',
+    'Last Scanned',
+    'Status'
+  ];
+  
+  // Write headers with formatting
+  var headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setValues([headers]);
+  headerRange.setFontWeight('bold');
+  headerRange.setBackground('#4a86e8');
+  headerRange.setFontColor('#ffffff');
+  
+  // Write data rows
+  if (resources.length > 0) {
+    var dataRows = resources.map(function(r) {
+      return [
+        r.type || '',
+        r.id || '',
+        r.name || '',
+        r.sheet || '',
+        r.source || '',
+        r.context || '',
+        r.description || '',
+        new Date(),
+        r.status || 'Active'
+      ];
+    });
+    
+    sheet.getRange(2, 1, dataRows.length, headers.length).setValues(dataRows);
+    console.log('[' + functionName + '] Wrote ' + dataRows.length + ' resource rows');
+  }
+  
+  // Auto-resize columns
+  for (var i = 1; i <= headers.length; i++) {
+    sheet.autoResizeColumn(i);
+  }
+  
+  // Set column widths for longer content
+  sheet.setColumnWidth(6, 250); // Purpose Context
+  sheet.setColumnWidth(7, 350); // AI Description
+  
+  // Freeze header row
+  sheet.setFrozenRows(1);
+  
+  return sheet;
+}
+
+/**
+ * Attempts to get the name of an external spreadsheet by ID
+ * @param {string} ssId - Spreadsheet ID
+ * @returns {string} Spreadsheet name or 'Unknown'
+ * @private
+ */
+function _getSpreadsheetName_(ssId) {
+  try {
+    var ss = SpreadsheetApp.openById(ssId);
+    return ss.getName();
+  } catch (e) {
+    return 'Inaccessible';
+  }
+}
+
+/**
+ * Attempts to get the name of a Drive folder by ID
+ * @param {string} folderId - Folder ID
+ * @returns {string} Folder name or 'Unknown'
+ * @private
+ */
+function _getFolderName_(folderId) {
+  try {
+    var folder = DriveApp.getFolderById(folderId);
+    return folder.getName();
+  } catch (e) {
+    return 'Inaccessible';
+  }
+}
+
+/**
+ * MAIN FUNCTION: Scans all external resources and outputs to EXT_RESOURCE_KEY
+ * - Reads from EXTERNAL_RESOURCE_REGISTRY (static codebase analysis)
+ * - Scans spreadsheet for IMPORTRANGE formulas
+ * - Uses Gemini Flash to generate descriptions
+ * - Outputs results to EXT_RESOURCE_KEY sheet
+ */
+function scanExternalResources() {
+  var functionName = 'scanExternalResources';
+  var startTime = new Date();
+  var result = 'Success';
+  var errorMessage = '';
+  var recordsAdded = 0;
+  
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.toast('Scanning external resources...', 'Resource Scanner', -1);
+  
+  console.log('[' + functionName + '] Starting external resource scan...');
+  
+  try {
+    var allResources = [];
+    
+    // =========================================
+    // STEP 1: Process registry spreadsheets
+    // =========================================
+    console.log('[' + functionName + '] Processing registered spreadsheets...');
+    var spreadsheets = EXTERNAL_RESOURCE_REGISTRY.spreadsheets;
+    for (var key in spreadsheets) {
+      if (spreadsheets.hasOwnProperty(key)) {
+        var s = spreadsheets[key];
+        var ssName = _getSpreadsheetName_(s.id);
+        var status = ssName === 'Inaccessible' ? 'Inaccessible' : 'Active';
+        
+        allResources.push({
+          type: 'Spreadsheet',
+          id: s.id,
+          name: ssName,
+          sheet: s.sheet,
+          source: s.source,
+          context: s.purpose,
+          description: '', // Will be filled by AI
+          status: status
+        });
+      }
+    }
+    
+    // =========================================
+    // STEP 2: Process registry folders
+    // =========================================
+    console.log('[' + functionName + '] Processing registered folders...');
+    var folders = EXTERNAL_RESOURCE_REGISTRY.folders;
+    for (var key in folders) {
+      if (folders.hasOwnProperty(key)) {
+        var f = folders[key];
+        var folderName = _getFolderName_(f.id);
+        var status = folderName === 'Inaccessible' ? 'Inaccessible' : 'Active';
+        
+        allResources.push({
+          type: 'Folder',
+          id: f.id,
+          name: folderName,
+          sheet: '',
+          source: f.source,
+          context: f.purpose,
+          description: '',
+          status: status
+        });
+      }
+    }
+    
+    // =========================================
+    // STEP 3: Process registry URLs
+    // =========================================
+    console.log('[' + functionName + '] Processing registered URLs...');
+    var urls = EXTERNAL_RESOURCE_REGISTRY.urls;
+    for (var key in urls) {
+      if (urls.hasOwnProperty(key)) {
+        var u = urls[key];
+        allResources.push({
+          type: 'URL',
+          id: u.url,
+          name: key.replace(/_/g, ' '),
+          sheet: '',
+          source: u.source,
+          context: u.purpose,
+          description: '',
+          status: 'Active'
+        });
+      }
+    }
+    
+    // =========================================
+    // STEP 4: Scan for IMPORTRANGE formulas
+    // =========================================
+    console.log('[' + functionName + '] Scanning for IMPORTRANGE formulas...');
+    var importRanges = _scanSheetsForImportRange_();
+    
+    // Track unique spreadsheet IDs from IMPORTRANGE
+    var seenImportIds = {};
+    
+    for (var i = 0; i < importRanges.length; i++) {
+      var ir = importRanges[i];
+      var irId = ir.extractedId;
+      
+      // Skip if this ID is already in the registry
+      var isInRegistry = false;
+      for (var rKey in spreadsheets) {
+        if (spreadsheets.hasOwnProperty(rKey) && spreadsheets[rKey].id === irId) {
+          isInRegistry = true;
+          break;
+        }
+      }
+      
+      // Skip if we've already added this IMPORTRANGE ID
+      if (seenImportIds[irId]) {
+        // Just note the additional location
+        continue;
+      }
+      
+      if (!isInRegistry && irId) {
+        seenImportIds[irId] = true;
+        var irName = _getSpreadsheetName_(irId);
+        var irStatus = irName === 'Inaccessible' ? 'Inaccessible' : 'Active';
+        
+        allResources.push({
+          type: 'IMPORTRANGE',
+          id: irId,
+          name: irName,
+          sheet: ir.extractedRange,
+          source: ir.sheet + '!' + ir.cell,
+          context: 'IMPORTRANGE formula: ' + ir.formula,
+          description: '',
+          status: irStatus
+        });
+      }
+    }
+    
+    // =========================================
+    // STEP 5: Generate AI descriptions
+    // =========================================
+    console.log('[' + functionName + '] Generating AI descriptions for ' + allResources.length + ' resources...');
+    ss.toast('Generating AI descriptions (' + allResources.length + ' resources)...', 'Resource Scanner', -1);
+    
+    for (var i = 0; i < allResources.length; i++) {
+      var resource = allResources[i];
+      
+      // Generate description
+      resource.description = _generateResourceDescription_(resource);
+      
+      // Rate limiting to avoid quota issues
+      Utilities.sleep(500);
+      
+      // Progress update every 5 resources
+      if ((i + 1) % 5 === 0) {
+        console.log('[' + functionName + '] Processed ' + (i + 1) + '/' + allResources.length + ' resources');
+        SpreadsheetApp.flush();
+      }
+    }
+    
+    // =========================================
+    // STEP 6: Write to EXT_RESOURCE_KEY sheet
+    // =========================================
+    console.log('[' + functionName + '] Writing results to EXT_RESOURCE_KEY sheet...');
+    _writeToResourceKeySheet_(allResources);
+    
+    recordsAdded = allResources.length;
+    
+    var duration = (new Date() - startTime) / 1000;
+    console.log('[' + functionName + '] Scan complete. Found ' + recordsAdded + ' resources in ' + duration + 's');
+    ss.toast('Scan complete! Found ' + recordsAdded + ' external resources.', 'Resource Scanner', 5);
+    
+  } catch (error) {
+    errorMessage = error.message;
+    result = 'Fail';
+    console.error('[' + functionName + '] Error: ' + errorMessage);
+    ss.toast('Error: ' + errorMessage, 'Resource Scanner', 10);
+  }
+  
+  // Pattern 6 Logging
+  var duration = (new Date() - startTime) / 1000;
+  try {
+    var refreshSheet = ss.getSheetByName('Refresh');
+    if (refreshSheet) {
+      refreshSheet.appendRow([functionName, new Date(), recordsAdded, duration, result, errorMessage]);
+    }
+  } catch (e) {
+    console.log('[' + functionName + '] Failed to log to Refresh sheet: ' + e.message);
+  }
+  
+  return result;
+}

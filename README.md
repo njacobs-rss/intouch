@@ -18,8 +18,16 @@ Welcome to **InTouch AI**, your all-in-one tool for account management, meeting 
    - [InTouch Chat (AI Assistant)](#intouch-chat-ai-assistant)
 4. [Menu Options](#menu-options)
 5. [Fleet Commander (Managers & Admins)](#fleet-commander-admin-panel)
+   - [Local Tab](#local-tab-manager-functions)
+   - [Global Ops Tab](#global-ops-tab-system-administrators-only)
+   - [Range Replicator](#range-replicator-system-administrators-only)
 6. [Understanding Your Data](#understanding-your-data)
-7. [Frequently Asked Questions](#frequently-asked-questions)
+7. [Technical Reference](#technical-reference)
+   - [Data Pipeline Architecture](#data-pipeline-architecture)
+   - [Central Logging System](#central-logging-system)
+   - [Performance Optimizations](#performance-optimizations)
+8. [Troubleshooting](#troubleshooting)
+9. [Frequently Asked Questions](#frequently-asked-questions)
 
 ---
 
@@ -215,7 +223,19 @@ Get a quick snapshot of any Account Manager's entire portfolio.
 
 ### InTouch Chat (AI Assistant)
 
-The InTouch Chat is a conversational AI assistant that can answer questions about your portfolio, filter accounts, and help you navigate InTouch. Access it through the InTouch AI Panel.
+The InTouch Chat is a conversational AI assistant powered by Google Gemini that can answer questions about your portfolio, filter accounts, provide strategic guidance, and help you navigate InTouch. Access it through the InTouch AI Panel.
+
+#### How It Works Behind the Scenes
+
+InTouch Chat uses intelligent routing to give you the fastest, most accurate answers:
+
+| Query Type | How It's Handled | Speed |
+|------------|------------------|-------|
+| **Definitions** (e.g., "What is PI?") | Scripted responses - no AI call needed | Instant |
+| **Simple questions** (e.g., "How many Pro?") | Gemini Flash model - optimized for speed | Fast |
+| **Complex analysis** (e.g., "Analyze my renewals strategy") | Gemini Pro model - deeper reasoning | Thorough |
+
+The system also uses **context caching** to remember your portfolio data, reducing response times and API costs by up to 50%.
 
 #### What Can InTouch Chat Do?
 
@@ -228,6 +248,16 @@ The InTouch Chat is a conversational AI assistant that can answer questions abou
 | **Count & List** | "How many on Pro?", "Which accounts are Freemium?", "List my term pending accounts" |
 | **Team Comparisons** | "How do I rank against the team?", "Compare my metrics to other AMs" |
 | **Explanations** | "What is Discovery %?", "What does 0-Fullbook mean?", "Metro vs Macro?" |
+| **Strategic Guidance** | "How should I approach this renewal?", "What's the best pricing play?", "Prioritize my term pending accounts" |
+
+#### Strategic Playbook
+
+InTouch Chat includes built-in strategic knowledge to help with common scenarios:
+
+- **Renewal Strategies** - Guidance on approaching different contract situations
+- **System Type Recommendations** - When to suggest Core vs Pro upgrades
+- **Pricing Plays** - Tactics for Freemium, AYCE, and other pricing models
+- **Account Prioritization** - How to identify and focus on high-impact accounts
 
 #### Starter Prompts
 
@@ -266,6 +296,10 @@ You can ask about any AM's portfolio by name:
 - "Show me Kevin's system mix"
 - "How many Pro accounts does Sarah have?"
 
+#### Providing Feedback
+
+After receiving a response, you can rate it using the thumbs up/down buttons. This feedback helps improve the system over time. All feedback is logged for review by administrators.
+
 #### Tips for Best Results
 
 | Tip | Why It Helps |
@@ -275,6 +309,7 @@ You can ask about any AM's portfolio by name:
 | Ask follow-up questions | After getting a count, ask "which ones?" to see the list |
 | Specify the metric | "How many Pro?" is clearer than "How many types?" |
 | Check Smart Select after filtering | Filtered accounts are checked for bulk actions |
+| Ask for strategy advice | The chat can suggest approaches for renewals, pricing, and prioritization |
 
 #### What InTouch Chat Cannot Do
 
@@ -308,6 +343,7 @@ The chat helps you **identify and select** accounts - then you take action using
 | **AM Tabs → Create Single Tab** | Creates a tab for the name entered in cell F2 of Setup | Managers |
 | **Focus20 → Add RIDs from Smart Select** | Manually trigger Focus 20 tagging | All Users |
 | **Focus20 → Remove RIDs from Smart Select** | Clear Focus 20 tags from selected accounts | All Users |
+| **Global Functions → Test Gemini API (Fleet)** | Tests AI API connectivity across all fleet files | System Admins |
 | **Update Notes Only** | Refreshes the sticky notes on accounts based on current rules | Managers |
 | **Force Master Pipeline** | Manually runs the full data refresh (normally runs nightly) | Managers & Admins |
 | **Reset Nightly Trigger** | Resets the automatic nightly refresh schedule | System Admins |
@@ -349,6 +385,22 @@ These actions affect **only the current spreadsheet** and are intended for team 
 | **Data Refresh** | Refreshes account data across all fleet files (with scope options) | Updates data in all files - can take several minutes |
 | **Update IDs** | Syncs template IDs across all files | Updates configuration in all files |
 | **AM Tabs** | Recreates AM tabs in all fleet files | Rebuilds employee tabs in all files |
+| **Export AI Feedback** | Downloads user feedback on AI chat responses | Creates export file for analysis |
+| **Test API** | Tests Gemini API connectivity across the fleet | Verifies AI features are working |
+| **Check Queue Status** | Shows progress of queued fleet operations | Monitoring only - no changes made |
+
+#### API Testing
+
+The **Test API** button pings the Gemini API to verify connectivity:
+
+- Tests API key configuration
+- Reports latency in milliseconds
+- Identifies configuration issues (missing keys, invalid permissions)
+
+Use this when:
+- InTouch Chat isn't responding
+- You've recently updated API credentials
+- Troubleshooting AI feature issues
 
 #### Data Refresh Options
 
@@ -360,6 +412,35 @@ When running a fleet-wide data refresh, administrators can choose the scope:
 | **SYSCORE + DAGCORE** | Supplemental and performance data only | Medium |
 | **SYSCORE Only** | Supplemental data only | Faster |
 | **DAGCORE Only** | Performance data only | Fastest |
+
+**Optional:** Check "Also update dynamic notes after refresh" to regenerate sticky notes as part of the refresh.
+
+#### Queue-Based Processing
+
+Fleet data refreshes use an intelligent **queue system** that handles large fleets reliably:
+
+**How It Works:**
+1. When you start a refresh, all fleet files are added to a processing queue
+2. Files are processed in batches of 3 (to avoid timeouts)
+3. The system automatically schedules continuation after each batch
+4. You can monitor progress, continue manually, or reset the queue
+
+**Queue Controls:**
+- **Check Queue Status** - See how many files are completed, remaining, and failed
+- **Continue Now** - Manually trigger the next batch (useful if auto-continuation didn't fire)
+- **Reset Queue** - Clear the queue and stop processing (useful if something went wrong)
+
+**Benefits:**
+- **Reliability**: Processing continues even if one file fails
+- **Timeout Protection**: 4.5-minute safety margin prevents execution limits
+- **Preloaded Data**: Source data is read once per batch for efficiency
+- **Progress Tracking**: Real-time visibility into processing status
+
+**Toast Notifications:**
+All operations now show real-time toast notifications instead of the old spinner/log format:
+- Working indicator with spinner during operations
+- Success/error/warning toasts with clear messages
+- Progress bars for multi-file operations
 
 ---
 
@@ -374,7 +455,41 @@ A precision tool for pushing specific cell ranges (formulas, values, formatting)
 4. Use **Verify Headers** to check if target files have matching column structure
 5. Use **Push to Fleet** to copy that exact range to all fleet files
 
-**Test Mode:** Enable this to push to just one file first before going fleet-wide. Always recommended before a full fleet push.
+**Capture Display:**
+After capturing, you'll see:
+- Sheet name and range (e.g., "STATCORE!A1:F10")
+- Size (rows × columns)
+- Badges indicating if the range contains formulas or rich text
+- Preview of first row headers
+
+**Advanced Options:**
+
+| Option | Purpose |
+|--------|---------|
+| **Header Row** | Specify which row contains column headers for verification |
+| **Target Sheet** | Push to a different sheet name than the source |
+| **Different Target Range** | Push to a different cell location than the source |
+
+#### Test Mode (Recommended)
+
+**Always test before a full fleet push!** Test Mode lets you push to a single file first to verify the results:
+
+1. Check the **Test Mode (Single File)** checkbox
+2. Select a target fleet file from the dropdown
+3. Click **Test Push** (instead of "Push to Fleet")
+4. Review the results in that file
+5. If successful, uncheck Test Mode and push to the full fleet
+
+**Test Mode Benefits:**
+- Catch errors before they affect all files
+- Verify formulas resolve correctly in the target context
+- Confirm formatting transfers as expected
+- Option to open the test file directly to inspect results
+
+**Header Verification:**
+- If headers don't match between source and target, you'll see a warning
+- Mismatched files are listed so you can investigate
+- Use **Force Push** to override warnings (use with caution)
 
 ---
 
@@ -402,6 +517,130 @@ The notes that appear when you hover over cells are generated automatically base
 - Revenue and cover metrics
 - System information
 - Special flags or alerts
+
+---
+
+## Technical Reference
+
+> **Note:** This section is intended for system administrators and developers who need to understand the underlying architecture.
+
+### Data Pipeline Architecture
+
+InTouch uses a multi-step data pipeline that runs nightly (1-2 AM) and can be triggered manually:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     NIGHTLY PIPELINE                            │
+│  runMasterPipeline() @ 1am                                      │
+│     │                                                           │
+│     ├─► updateSTATCORE()     → Pulls from external data source  │
+│     │      │                                                    │
+│     │      └─► runSYSCOREUpdates() → Adds system/engagement data│
+│     │             │                                             │
+│     │             └─► runDAGCOREUpdates() → Populates DISTRO    │
+│     │                                                           │
+│     └─► updateAccountNotes() → Generates sticky notes           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Data Sheets:**
+
+| Sheet | Purpose | Key Information |
+|-------|---------|-----------------|
+| `STATCORE` | Master account data | RID, Account Name, Parent, Metro, AM, Contract Dates |
+| `DISTRO` | Performance metrics | Revenue, Covers, Channel Mix, PI Status |
+| `SYSCORE` | System engagement | Salesforce activity, Last Engagement, Task/Event links |
+| `NOTE_CONFIG` | Note rules | Expressions, Formatting, Templates |
+
+### Central Logging System
+
+All operations are logged to a central master spreadsheet for fleet-wide monitoring:
+
+| Log Type | Sheet Name | What It Tracks |
+|----------|------------|----------------|
+| **User Sessions** | `Log` | When users open spreadsheets and what operations they perform |
+| **Pipeline Execution** | `Refresh` | Data refresh results, duration, record counts, errors |
+| **API Usage** | `API_Usage` | Gemini API token consumption per user and query type |
+| **User Prompts** | `Prompt_Log` | Chat queries and how they were routed (scripted vs AI) |
+| **Fleet Operations** | `Fleet_Ops` | Global deployments, mass updates, and their results |
+
+**Viewing Logs:**
+- Administrators can access the central logging spreadsheet to monitor system health
+- The local `Refresh` sheet in each file also shows recent pipeline activity
+- API usage helps track costs and identify heavy users
+
+### Performance Optimizations
+
+The system is optimized for handling 30,000+ rows:
+
+| Technique | Purpose |
+|-----------|---------|
+| **Batch Processing** | Data is written in batches of 3,000-4,000 rows to prevent timeouts |
+| **Memory Flushing** | `SpreadsheetApp.flush()` clears memory after large operations |
+| **True Last Row Detection** | Scans column A to find actual data depth, avoiding empty formatted rows |
+| **Sidebar Caching** | Account lists are cached for 6 hours to speed up sidebar loading |
+| **Context Caching** | AI system instructions are cached for 24 hours to reduce API costs |
+
+---
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Sidebar Won't Load
+
+1. **Refresh the page** and try opening the sidebar again
+2. **Check for browser extensions** that might block popups or scripts
+3. **Clear browser cache** if the sidebar appears broken or outdated
+4. **Try a different browser** (Chrome works best with Google Apps Script)
+
+#### Data Appears Stale or Missing
+
+1. **Check the Refresh sheet** - Look for recent pipeline runs and any errors
+2. **Force a local refresh** - Admin Functions → Force Master Pipeline
+3. **Verify the nightly trigger** - Admin Functions → Reset Nightly Trigger
+4. **Check SETUP sheet** - Ensure your name is in column B (rows 3-22)
+
+#### InTouch Chat Not Responding
+
+1. **Test the API** - Fleet Commander → Test API button
+2. **Check for rate limits** - Heavy usage may trigger temporary throttling
+3. **Verify API key** - Script Properties must contain `GEMINI_API_KEY`
+4. **Try a simple query first** - "What is PI?" to test basic functionality
+
+#### Presentations Not Generating
+
+1. **Verify template IDs** - Check SETUP!H3 (Slides) and SETUP!H5 (Sheets)
+2. **Ensure account is selected** - The button should only be active when an account is chosen
+3. **Check Drive permissions** - You need access to the template files
+4. **Look for popup blockers** - The new presentation opens in a new tab
+
+### Diagnostic Functions
+
+> **For Administrators/Developers Only** - These functions are run from the Apps Script editor.
+
+| Function | Purpose | How to Run |
+|----------|---------|------------|
+| `debugSTATCOREHeaders()` | Inspects column detection in STATCORE | Apps Script Editor → Run |
+| `testMetroMacroDataFlow()` | Tests end-to-end data flow for Metro/Macro fields | Apps Script Editor → Run |
+| `runFullSystemDiagnostic()` | Checks library connections and trigger status | Apps Script Editor → Run |
+| `TEST_InTouchGuideLoaded()` | Verifies AI chat components are loaded correctly | Apps Script Editor → Run |
+| `getCacheStatus()` | Shows context cache status and expiry | Apps Script Editor → Run |
+
+**Viewing Results:**
+- After running a diagnostic function, check **View → Logs** (or Ctrl+Enter) for output
+- For trigger issues, check **View → Executions** for error details
+
+### Error Messages
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "STATCORE sheet not found" | Missing required sheet | Check sheet exists and is named exactly "STATCORE" |
+| "Service Timed Out" | Operation took too long | Data will continue in batches; wait and check again |
+| "Cannot read property of undefined" | Missing data or column | Run `debugSTATCOREHeaders()` to check column mapping |
+| "API Key not found" | Missing Gemini configuration | Add GEMINI_API_KEY to Script Properties |
+| "Access Denied" | Unauthorized for fleet operations | Contact system administrator |
 
 ---
 
@@ -476,4 +715,4 @@ If you encounter issues not covered in this guide, check the **Refresh** sheet i
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: January 30, 2026*

@@ -68,6 +68,7 @@ function onOpen(e) {
            .addItem('Update Notes Only', 'manualUpdateNotesOnly')
            .addItem('Force Master Pipeline', 'runMasterPipeline')
            .addSeparator()
+           .addItem('📋 Scan External Resources', 'scanExternalResources')
            .addItem('⚡ Reset Nightly Trigger', 'setupNightlyTrigger');
 
   // 3. Render Menus

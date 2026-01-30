@@ -681,6 +681,7 @@ function _writeToResourceKeySheet_(resources) {
     'Source Location',
     'Purpose Context',
     'AI Description',
+    'IMPORTRANGE Usage',
     'Last Scanned',
     'Status'
   ];
@@ -703,6 +704,7 @@ function _writeToResourceKeySheet_(resources) {
         r.source || '',
         r.context || '',
         r.description || '',
+        r.importrangeUsage || '',
         new Date(),
         r.status || 'Active'
       ];
@@ -720,6 +722,7 @@ function _writeToResourceKeySheet_(resources) {
   // Set column widths for longer content
   sheet.setColumnWidth(6, 250); // Purpose Context
   sheet.setColumnWidth(7, 350); // AI Description
+  sheet.setColumnWidth(8, 300); // IMPORTRANGE Usage
   
   // Freeze header row
   sheet.setFrozenRows(1);
@@ -855,12 +858,34 @@ function scanExternalResources() {
     console.log('[' + functionName + '] Scanning for IMPORTRANGE formulas...');
     var importRanges = _scanSheetsForImportRange_();
     
-    // Track unique spreadsheet IDs from IMPORTRANGE
+    // Build usage map: spreadsheet ID -> array of {sheet, cell, range}
+    var usageMap = {};
+    for (var i = 0; i < importRanges.length; i++) {
+      var ir = importRanges[i];
+      var irId = ir.extractedId;
+      if (!irId || irId === '[PARSE_ERROR]') continue;
+      
+      if (!usageMap[irId]) {
+        usageMap[irId] = [];
+      }
+      usageMap[irId].push({
+        sheet: ir.sheet,
+        cell: ir.cell,
+        range: ir.extractedRange
+      });
+    }
+    
+    console.log('[' + functionName + '] Built usage map for ' + Object.keys(usageMap).length + ' unique spreadsheet IDs');
+    
+    // Track unique spreadsheet IDs from IMPORTRANGE (for new discoveries)
     var seenImportIds = {};
     
     for (var i = 0; i < importRanges.length; i++) {
       var ir = importRanges[i];
       var irId = ir.extractedId;
+      
+      // Skip parse errors
+      if (!irId || irId === '[PARSE_ERROR]') continue;
       
       // Skip if this ID is already in the registry
       var isInRegistry = false;
@@ -873,7 +898,6 @@ function scanExternalResources() {
       
       // Skip if we've already added this IMPORTRANGE ID
       if (seenImportIds[irId]) {
-        // Just note the additional location
         continue;
       }
       
@@ -892,6 +916,26 @@ function scanExternalResources() {
           description: '',
           status: irStatus
         });
+      }
+    }
+    
+    // =========================================
+    // STEP 4b: Apply usage map to ALL resources
+    // =========================================
+    console.log('[' + functionName + '] Applying IMPORTRANGE usage to all resources...');
+    for (var i = 0; i < allResources.length; i++) {
+      var resource = allResources[i];
+      var resourceId = resource.id;
+      
+      // Check if this resource ID has IMPORTRANGE usage
+      if (usageMap[resourceId]) {
+        var usages = usageMap[resourceId];
+        var usageStrings = usages.map(function(u) {
+          return u.sheet + '!' + u.cell + ' → ' + u.range;
+        });
+        resource.importrangeUsage = usageStrings.join('; ');
+      } else {
+        resource.importrangeUsage = '';
       }
     }
     

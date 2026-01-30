@@ -756,6 +756,7 @@ function _getFolderName_(folderId) {
  * - Outputs results to EXT_RESOURCE_KEY sheet
  */
 function scanExternalResources() {
+  assertAdminAccess(); // Requires admin - sensitive resource audit
   var functionName = 'scanExternalResources';
   var startTime = new Date();
   var result = 'Success';

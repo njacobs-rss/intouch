@@ -111,6 +111,9 @@ function updateSTATCORE(targetSS, skipChain) {
 // === STEP 2: UPDATE SUPPLEMENTAL DATA (SYSCORE) ===
 // @param {boolean} skipDagcore - If true, does NOT chain to runDAGCOREUpdates()
 // @param {Spreadsheet} targetSS - Optional target spreadsheet (defaults to active)
+// 
+// OPTIMIZED: Replaced getRichTextValues() with programmatic hyperlink construction
+// using Task_ID (col P) and Event_ID (col O) columns. Reduces runtime from ~29min to <1min.
 function runSYSCOREUpdates(skipDagcore, targetSS) {
   const startTime = new Date();
   const functionName = "runSYSCOREUpdates";
@@ -121,6 +124,25 @@ function runSYSCOREUpdates(skipDagcore, targetSS) {
   let errorMessage = "";
   const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
 
+  // Hyperlink URL bases
+  const SALESFORCE_BASE = "https://opentable.my.salesforce.com/";
+  const STRIPE_BASE = "https://guestcenter.opentable.com/restaurant/";
+
+  // Column indices in source A:P range (0-based)
+  const COL_RID = 0;       // A - RID
+  const COL_C = 2;         // C - Stripe (conditional hyperlink)
+  const COL_F = 5;         // F - Task data start
+  const COL_G = 6;         // G - Task date (used for M/N conditionals)
+  const COL_H = 7;         // H - Task data end
+  const COL_I = 8;         // I - Event data start
+  const COL_J = 9;         // J - Event date (used for M/N conditionals)
+  const COL_K = 10;        // K - Event data
+  const COL_L = 11;        // L - Event data end
+  const COL_M = 12;        // M - Conditional (Task or Event)
+  const COL_N = 13;        // N - Conditional (Task or Event)
+  const COL_EVENT_ID = 14; // O - Event_ID
+  const COL_TASK_ID = 15;  // P - Task_ID
+
   try {
     const sourceSpreadsheet = SpreadsheetApp.openById('1V4C9mIL4ISP4rx2tJcpPhflM-RIi4eft_xDZWAgWmGU');
     const sourceSheet = sourceSpreadsheet.getSheetByName('SEND');
@@ -129,34 +151,76 @@ function runSYSCOREUpdates(skipDagcore, targetSS) {
     const currentSheet = ss.getSheetByName('STATCORE');
     if (!currentSheet) throw new Error("STATCORE sheet not found");
 
-    // 1. READ SOURCE DATA (OPTIMIZED SCAN)
+    // 1. READ SOURCE DATA (OPTIMIZED - single read of A:P)
     const sourceLastRow = getTrueLastRow_(sourceSheet, 'A');
     if (sourceLastRow < 1) throw new Error("SYSCORE Source is empty");
 
     Logger.log(`[${functionName}] Scanning Source: Found ${sourceLastRow} rows.`);
 
-    // Read IDs (Col A)
-    const sourceIds = sourceSheet.getRange(1, 1, sourceLastRow, 1).getValues().flat();
-    
-    // Read Data (Cols B:N)
-    const sourceDataRange = sourceSheet.getRange(1, 2, sourceLastRow, 13);
-    const sourceValues = sourceDataRange.getValues();
-    const sourceRichTexts = sourceDataRange.getRichTextValues();
-    // OPTIMIZATION: Removed unnecessary flush here
+    // Read all data at once: A:P (16 columns) - FAST, no getRichTextValues()
+    const allSourceData = sourceSheet.getRange(1, 1, sourceLastRow, 16).getValues();
 
     const sourceMap = new Map();
 
-    sourceIds.forEach((id, i) => {
-      if (id) {
-        // Process row immediately to handle hyperlinks
-        const processedRow = sourceValues[i].map((cellValue, j) => {
-          const richText = sourceRichTexts[i][j];
-          const linkUrl = richText ? richText.getLinkUrl() : null;
-          return linkUrl ? `=HYPERLINK("${linkUrl}", "${cellValue}")` : cellValue;
-        });
-        sourceMap.set(String(id), processedRow);
+    // Process each row and build hyperlinks programmatically
+    allSourceData.forEach((row, i) => {
+      const rid = row[COL_RID];
+      if (!rid) return;
+
+      const taskId = row[COL_TASK_ID];
+      const eventId = row[COL_EVENT_ID];
+
+      // Build processed row for columns B:N (output indices 0-12)
+      const processedRow = [];
+
+      for (let j = 1; j <= 13; j++) { // Columns B through N (indices 1-13)
+        const cellValue = row[j];
+        let outputValue = cellValue;
+
+        // Only process non-empty cells
+        if (cellValue !== "" && cellValue != null) {
+          
+          // Column C: Stripe link - only if value is "None" (lookup failed)
+          if (j === COL_C && String(cellValue) === "None") {
+            outputValue = `=HYPERLINK("${STRIPE_BASE}${rid}/integrations/my-integrations/manage/stripe","None")`;
+          }
+          // Columns F:H (indices 5-7): Task hyperlinks
+          else if (j >= COL_F && j <= COL_H && taskId) {
+            outputValue = `=HYPERLINK("${SALESFORCE_BASE}${taskId}","${cellValue}")`;
+          }
+          // Columns I:L (indices 8-11): Event hyperlinks
+          else if (j >= COL_I && j <= COL_L && eventId) {
+            outputValue = `=HYPERLINK("${SALESFORCE_BASE}${eventId}","${cellValue}")`;
+          }
+          // Column M (index 12): Conditional - Task wins if g not empty AND (j empty OR g > j)
+          else if (j === COL_M) {
+            const gVal = row[COL_G]; // Task date
+            const jVal = row[COL_J]; // Event date
+            const usesTask = (gVal !== "" && gVal != null && (jVal === "" || jVal == null || Number(gVal) > Number(jVal)));
+            const idToUse = usesTask ? taskId : eventId;
+            if (idToUse) {
+              outputValue = `=HYPERLINK("${SALESFORCE_BASE}${idToUse}","${cellValue}")`;
+            }
+          }
+          // Column N (index 13): Conditional - Task wins if g >= j
+          else if (j === COL_N) {
+            const gVal = row[COL_G];
+            const jVal = row[COL_J];
+            const usesTask = (Number(gVal) || 0) >= (Number(jVal) || 0);
+            const idToUse = usesTask ? taskId : eventId;
+            if (idToUse) {
+              outputValue = `=HYPERLINK("${SALESFORCE_BASE}${idToUse}","${cellValue}")`;
+            }
+          }
+        }
+
+        processedRow.push(outputValue);
       }
+
+      sourceMap.set(String(rid), processedRow);
     });
+
+    Logger.log(`[${functionName}] Built sourceMap with ${sourceMap.size} entries.`);
 
     // 2. IDENTIFY TARGET ROWS
     const targetLastRow = getTrueLastRow_(currentSheet, 'A');
@@ -169,7 +233,7 @@ function runSYSCOREUpdates(skipDagcore, targetSS) {
     const alignedData = targetIds.map(targetId => {
       const lookupId = String(targetId);
       if (sourceMap.has(lookupId)) {
-        matchCount++; // Correct counting logic
+        matchCount++;
         return sourceMap.get(lookupId);
       } else {
         return new Array(13).fill("");
@@ -184,7 +248,6 @@ function runSYSCOREUpdates(skipDagcore, targetSS) {
 
     // 5. WRITE DATA
     const colIndexStart = 34; // AH
-    const colIndexEnd = 46;   // AT
     const numCols = 13;       // AH to AT is 13 columns
 
     // Clear Content Only in AH:AT for the active area

@@ -175,8 +175,8 @@ function processDynamicSheet(sheet, statMap, distroMap, parentCounts, configRule
   
   if (lastRow < DATA_START_ROW) return { scanned: 0, updated: 0 };
 
-  // IMPORTANT: Assumes RIDs are in Column C (Index 3)
-  const rids = sheet.getRange(DATA_START_ROW, 3, lastRow - (DATA_START_ROW - 1), 1).getValues();
+  // IMPORTANT: Uses VISIBLE RID (Column E / Index 5) to ensure notes match what user sees
+  const rids = sheet.getRange(DATA_START_ROW, 5, lastRow - (DATA_START_ROW - 1), 1).getValues();
   const notesOutput = [];
   
   let updateCount = 0;
@@ -363,6 +363,59 @@ function getParentAccountCounts(ss, sheetName) {
   const counts = {};
   data.forEach(val => { if (val) counts[val] = (counts[val] || 0) + 1; });
   return counts;
+}
+
+/**
+ * 9. DIAGNOSTIC: CHECK FOR MISALIGNMENT
+ * Compares hidden RID column (C) with visible RID column (E)
+ */
+function diagnoseMisalignment() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet();
+  const sheetName = sheet.getName();
+  
+  // Only run on AM tabs (heuristic: has "Smart Select" in D2)
+  const d2 = sheet.getRange("D2").getValue();
+  if (String(d2) !== "Smart Select") {
+    ss.toast("⚠️ Run this on an AM tab (e.g. Allison)", "Diagnostic");
+    return;
+  }
+  
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) {
+    ss.toast("Sheet is empty", "Diagnostic");
+    return;
+  }
+  
+  // Read Col C (Hidden RID) and Col E (Visible RID)
+  // Col C = Index 3, Col E = Index 5
+  const rangeC = sheet.getRange(3, 3, lastRow - 2, 1).getValues();
+  const rangeE = sheet.getRange(3, 5, lastRow - 2, 1).getValues();
+  
+  let mismatches = 0;
+  let firstMismatch = "";
+  
+  for (let i = 0; i < rangeC.length; i++) {
+    const ridC = String(rangeC[i][0]).trim();
+    const ridE = String(rangeE[i][0]).trim();
+    
+    // Skip if both empty
+    if (!ridC && !ridE) continue;
+    
+    if (ridC !== ridE) {
+      mismatches++;
+      if (!firstMismatch) {
+        firstMismatch = `Row ${i+3}: Hidden=${ridC}, Visible=${ridE}`;
+      }
+    }
+  }
+  
+  if (mismatches > 0) {
+    const msg = `⚠️ FOUND ${mismatches} MISMATCHES!\n\nFirst one:\n${firstMismatch}\n\nThe script reads the HIDDEN column (C), but you see the VISIBLE column (E). If they don't match, notes will be wrong.`;
+    SpreadsheetApp.getUi().alert("Diagnostic Result", msg, SpreadsheetApp.getUi().ButtonSet.OK);
+  } else {
+    SpreadsheetApp.getUi().alert("Diagnostic Result", "✅ No mismatches found between Hidden RID (Col C) and Visible RID (Col E).", SpreadsheetApp.getUi().ButtonSet.OK);
+  }
 }
 
 /**

@@ -47,8 +47,7 @@ function onOpen(e) {
   // 2. Admin Menu (Backend/Ops)
   const adminMenu = ui.createMenu('Admin Functions')
     .addItem('🚀 Open Fleet Commander', 'openAdminPanel')   
-    .addSeparator()
-    .addItem('🕵️ Diagnose Misalignment', 'diagnoseMisalignment');
+    .addSeparator();
 
   const amTabsSubMenu = ui.createMenu('AM Tabs')
     .addItem('Create All From Setup', 'createEmployeeTabs')

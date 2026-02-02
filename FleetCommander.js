@@ -855,6 +855,10 @@ function preloadFleetSourceData_(scope) {
 function runOptimizedPipeline_(ss, scope, shared) {
   var records = { statcore: 0, syscore: 0, dagcore: 0 };
   
+  if (scope === 'notes-only') {
+    return { msg: 'Notes Only', records: records };
+  }
+  
   if (scope === 'full') {
     records.statcore = writeStatcoreOptimized_(ss, shared);
   }
@@ -1105,6 +1109,13 @@ function resetFleetQueue() {
  */
 function runQueuedDataRefresh(scope, updateNotes) {
   return startQueuedFleetRefresh(scope, updateNotes);
+}
+
+/**
+ * Wrapper for sidebar to start queued notes-only update
+ */
+function runUpdateNotesOnlyFleet() {
+  return startQueuedFleetRefresh('notes-only', true);
 }
 
 // =============================================================

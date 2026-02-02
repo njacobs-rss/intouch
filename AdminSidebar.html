@@ -508,6 +508,12 @@
             <span class="icon">👥</span> AM Tabs
           </button>
         </div>
+
+        <div class="grid-1" style="margin-top:8px;">
+          <button class="btn-local btn-horizontal" onclick="requestAction('updateNotesFleet')">
+            <span class="icon">📝</span> Update Notes (Fleet)
+          </button>
+        </div>
         
         <div class="grid-2" style="margin-top:8px;">
           <button class="btn-config btn-horizontal" onclick="exportAIFeedback()">
@@ -972,6 +978,7 @@
         if (actionType === 'delete') msg = `WARNING: MASS TERMINATE "${sheetName}" from all external files?`;
         if (actionType === 'config') msg = `GLOBAL: Update Template IDs in "SETUP" tab for all external files?`;
         if (actionType === 'globalTabs') msg = `GLOBAL: Refresh AM Tabs in all external files? (Deletes & recreates employee tabs)`;
+        if (actionType === 'updateNotesFleet') msg = `GLOBAL: Refresh dynamic notes in ALL fleet files? (Queued background process)`;
 
         if (actionType === 'createTabs') msg = `LOCAL: Refresh/Create AM Tabs based on Setup?`;
         if (actionType === 'deleteTabs') msg = `LOCAL: Delete all existing Employee tabs from this sheet?`;
@@ -1004,6 +1011,40 @@
         document.getElementById('test-success-modal').style.display = 'none';
         showCurrentTabContent();
         pendingAction = null;
+      }
+
+      function executeFleetNotesUpdate() {
+        var toastId = showToast('working', 'Starting fleet notes update...', 'Building queue...', { persistent: true });
+
+        function onQueueSuccess(result) {
+          removeToast(toastId);
+          
+          if (result.status === 'started' || result.status === 'continued') {
+            var pct = result.total ? Math.round((0 / result.total) * 100) : 0;
+            showToast('info', 'Queue Started', result.total + ' files queued. Auto-continues in background.', { duration: 6000 });
+          } else if (result.status === 'in_progress') {
+            var total = result.processed + result.remaining;
+            var pct = Math.round((result.processed / total) * 100);
+            showToast('info', 'Batch Complete', result.processed + ' done, ' + result.remaining + ' remaining. Auto-continuing...', { duration: 5000 });
+          } else if (result.status === 'complete') {
+            if (result.failed > 0) {
+              showToast('warning', 'Complete with Errors', result.processed + ' successful, ' + result.failed + ' failed', { duration: 8000 });
+            } else {
+              showToast('success', 'All Complete!', result.processed + ' files processed successfully');
+            }
+          } else if (result.status === 'error') {
+            showToast('error', 'Error', result.message);
+          } else if (result.status === 'idle') {
+            showToast('info', 'No Active Queue', 'Start a new refresh to begin');
+          }
+        }
+
+        function onFailure(error) {
+          removeToast(toastId);
+          showToast('error', 'Error', error.message);
+        }
+
+        google.script.run.withSuccessHandler(onQueueSuccess).withFailureHandler(onFailure).runUpdateNotesOnlyFleet();
       }
 
       function executeDataRefresh() {
@@ -1147,6 +1188,12 @@
           updateNotes: 'Updating Notes',
           totalRefresh: 'Running Full Refresh'
         };
+        
+        if (actionToRun === 'updateNotesFleet') {
+          executeFleetNotesUpdate();
+          pendingAction = null;
+          return;
+        }
         
         var toastId = showToast('working', actionLabels[actionToRun] || 'Working...', '', { persistent: true });
 

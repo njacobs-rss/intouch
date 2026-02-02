@@ -851,6 +851,9 @@
       var isAdmin = false;
 
       function switchTab(tabId) {
+        // #region agent log
+        console.log('[DEBUG] switchTab called:', tabId, 'isAdmin:', isAdmin);
+        // #endregion
         // If switching to global tab and not admin, show denied message
         if (tabId === 'global' && !isAdmin) {
           // Still switch tabs but show access denied
@@ -874,17 +877,34 @@
         document.getElementById('log-area').style.display = 'none';
       }
 
+      // #region agent log
+      console.log('[DEBUG] AdminSidebar loaded, checking admin access...');
+      // #endregion
+      
       // Check admin access on load
       google.script.run
         .withSuccessHandler(function(adminStatus) {
+          // #region agent log
+          console.log('[DEBUG] Admin check result:', adminStatus);
+          // #endregion
           isAdmin = adminStatus;
           if (!isAdmin) {
+            // #region agent log
+            console.log('[DEBUG] Not admin - hiding global content');
+            // #endregion
             // Hide global content, show access denied (for when user clicks Global tab)
             document.getElementById('global-content').style.display = 'none';
             document.getElementById('global-access-denied').style.display = 'block';
+          } else {
+            // #region agent log
+            console.log('[DEBUG] Admin confirmed - global content should be visible');
+            // #endregion
           }
         })
         .withFailureHandler(function(e) {
+          // #region agent log
+          console.error('[DEBUG] Admin check FAILED:', e);
+          // #endregion
           console.error("Failed to check admin status:", e);
           // Default to non-admin on error
           isAdmin = false;
@@ -897,6 +917,20 @@
       // INITIALIZATION
       // =============================================================
       
+      // #region agent log
+      // Check if the Update Notes Fleet button exists
+      setTimeout(function() {
+        var notesFleetBtn = document.querySelector('button[onclick*="updateNotesFleet"]');
+        console.log('[DEBUG] Update Notes Fleet button exists:', !!notesFleetBtn);
+        if (notesFleetBtn) {
+          console.log('[DEBUG] Button parent visible:', notesFleetBtn.parentElement.style.display !== 'none');
+          console.log('[DEBUG] Button innerHTML:', notesFleetBtn.innerHTML.substring(0, 50));
+        }
+        var globalContent = document.getElementById('global-content');
+        console.log('[DEBUG] global-content display:', globalContent ? globalContent.style.display : 'NOT FOUND');
+      }, 500);
+      // #endregion
+
       // Initialize sheet dropdown
       google.script.run
         .withSuccessHandler(populateDropdown)
@@ -952,6 +986,9 @@
       let pendingAction = null;
 
       function requestAction(actionType) {
+        // #region agent log
+        console.log('[DEBUG] requestAction called with:', actionType);
+        // #endregion
         var sheetName = document.getElementById('sheet-selector').value;
         var newName = document.getElementById('new-name-input').value;
         var msg = "";

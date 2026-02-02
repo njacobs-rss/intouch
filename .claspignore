@@ -12,3 +12,15 @@ package-lock.json
 node_modules/**
 .git/**
 .cursor/**
+
+# Ignore documentation site (Vite/React project)
+docs/**
+docs-src/**
+
+# Ignore markdown/readme files
+*.md
+README.md
+README_OLD.md
+CONTEXT.md
+INTOUCH_KNOWLEDGE_EXTRACTION.md
+cursor-setup-guide.md

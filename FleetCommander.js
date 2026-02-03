@@ -689,10 +689,18 @@ function processFleetQueueBatch() {
   var state = JSON.parse(raw);
   var executionStart = new Date();
   
+  // #region agent log
+  Logger.log('[DEBUG-A] Queue scope: ' + state.scope + ', updateNotes: ' + state.updateNotes + ', index: ' + state.index + '/' + state.fileIds.length);
+  // #endregion
+  
   // Preload shared source data ONCE for this batch
   Logger.log('Preloading source data...');
   var shared = preloadFleetSourceData_(state.scope);
   Logger.log('Source data loaded.');
+  
+  // #region agent log
+  Logger.log('[DEBUG-B] Preload complete. Keys: ' + Object.keys(shared).join(', ') + ', statcore rows: ' + (shared.statcoreData ? shared.statcoreData.length : 'N/A'));
+  // #endregion
   
   var startIndex = state.index;
   var endIndex = Math.min(state.index + QUEUE_CFG.batchSize, state.fileIds.length);
@@ -716,13 +724,27 @@ function processFleetQueueBatch() {
       var targetSS = SpreadsheetApp.openById(fileInfo.id);
       Logger.log('(' + (i + 1) + '/' + state.fileIds.length + ') ' + fileInfo.name + ' — start');
       
+      // #region agent log
+      Logger.log('[DEBUG-C] File ' + (i + 1) + ' opened: ' + fileInfo.name + ', elapsed: ' + ((new Date() - executionStart)/1000).toFixed(1) + 's');
+      // #endregion
+      
       // Run the appropriate pipeline with preloaded data
       var result = runOptimizedPipeline_(targetSS, state.scope, shared);
       
+      // #region agent log
+      Logger.log('[DEBUG-D] Pipeline done for ' + fileInfo.name + ', result: ' + JSON.stringify(result).substring(0, 200));
+      // #endregion
+      
       // Optionally update notes
       if (state.updateNotes) {
+        // #region agent log
+        Logger.log('[DEBUG-E] Starting updateAccountNotes for ' + fileInfo.name);
+        // #endregion
         try {
           updateAccountNotes(targetSS);
+          // #region agent log
+          Logger.log('[DEBUG-F] updateAccountNotes completed for ' + fileInfo.name);
+          // #endregion
         } catch (noteErr) {
           Logger.log('Notes update failed: ' + noteErr.message);
         }
@@ -790,9 +812,16 @@ function processFleetQueueBatch() {
 function preloadFleetSourceData_(scope) {
   var shared = {};
   
+  // #region agent log
+  Logger.log('[DEBUG-G] preloadFleetSourceData_ called with scope: ' + scope);
+  // #endregion
+  
   try {
     // STATCORE source (for 'full' scope)
     if (scope === 'full') {
+      // #region agent log
+      Logger.log('[DEBUG-H] Loading STATCORE source data...');
+      // #endregion
       var statSS = SpreadsheetApp.openById(QUEUE_CFG.sources.statcore.ssId);
       var statSh = statSS.getSheetByName(QUEUE_CFG.sources.statcore.sheet);
       var statLastRow = statSh.getLastRow();
@@ -817,6 +846,9 @@ function preloadFleetSourceData_(scope) {
     
     // DAGCORE source (for 'full', 'syscore', 'dagcore')
     if (['full', 'syscore', 'dagcore'].includes(scope)) {
+      // #region agent log
+      Logger.log('[DEBUG-I] Loading DAGCORE source data...');
+      // #endregion
       var dagSS = SpreadsheetApp.openById(QUEUE_CFG.sources.dagcore.ssId);
       var dagSh = dagSS.getSheetByName(QUEUE_CFG.sources.dagcore.sheet);
       var dagLastRow = dagSh.getLastRow();
@@ -832,6 +864,9 @@ function preloadFleetSourceData_(scope) {
           var numRows = endRow - startRow + 1;
           var batch = dagSh.getRange(startRow, 1, numRows, dagLastCol).getValues();
           shared.dagcoreData = shared.dagcoreData.concat(batch);
+          // #region agent log
+          Logger.log('[DEBUG-J] DAGCORE batch loaded: rows ' + startRow + '-' + endRow + ', total so far: ' + shared.dagcoreData.length);
+          // #endregion
         }
       }
       Logger.log('DAGCORE source: ' + shared.dagcoreData.length + ' rows loaded');
@@ -841,6 +876,10 @@ function preloadFleetSourceData_(scope) {
     Logger.log('Error preloading source data: ' + e.message);
     throw e;
   }
+  
+  // #region agent log
+  Logger.log('[DEBUG-K] preloadFleetSourceData_ returning. Keys: ' + Object.keys(shared).join(', '));
+  // #endregion
   
   return shared;
 }

@@ -1389,6 +1389,38 @@ function getAvailableAMTabs() {
 }
 
 /**
+ * Activate a specific sheet by name
+ * Used for programmatic tab switching from the sidebar
+ * @param {string} sheetName - The name of the sheet to activate
+ * @returns {Object} { success, error }
+ */
+function activateSheet(sheetName) {
+  const functionName = 'activateSheet';
+  console.log(`[${functionName}] Request to activate sheet: "${sheetName}"`);
+  
+  try {
+    if (!sheetName) return { success: false, error: 'No sheet name provided' };
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+    
+    if (!sheet) {
+      console.log(`[${functionName}] Sheet not found: "${sheetName}"`);
+      return { success: false, error: `Sheet "${sheetName}" not found` };
+    }
+    
+    sheet.activate();
+    console.log(`[${functionName}] Successfully activated sheet: "${sheetName}"`);
+    
+    return { success: true, sheetName: sheetName };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * Get detailed AM data with RIDs tracked per category
  * This function returns both counts AND lists of RIDs for each category
  * Used for conversational AI to answer specific questions and enable "which rids" follow-ups
@@ -1479,7 +1511,8 @@ function getDetailedAMData(amName) {
       pi: findCol(dHead, "activepi"),
       piShare: findCol(dHead, "pirevshare"),
       pos: findCol(dHead, "posmatch"),
-      pf: findCol(dHead, "partnerfeed")
+      pf: findCol(dHead, "partnerfeed"),
+      totalRev: findCol(dHead, "revenuetotallastmonth")
     };
     
     if (map.am === -1) map.am = 13;
@@ -1561,18 +1594,24 @@ function getDetailedAMData(amName) {
     
     // Simple category tracking (just RIDs)
     // skipTopOnly: if true, excludes "Top" and "Top [Nom]" values
-    const addToSimpleCategory = (category, value, rid, name, skipTopOnly = false) => {
+    const addToSimpleCategory = (category, value, rid, name, skipTopOnly = false, metrics = {}) => {
       const cleanVal = String(value || '').trim();
       if (!cleanVal) return;
       // Skip "Top" or "Top [Nom]" if requested
       if (skipTopOnly && isTopOnly(cleanVal)) return;
       if (!data[category][cleanVal]) data[category][cleanVal] = [];
-      data[category][cleanVal].push({ rid, name });
+      
+      const entry = { rid, name };
+      if (metrics.rev) entry.rev = metrics.rev;
+      if (metrics.yld) entry.yld = metrics.yld;
+      if (metrics.sub) entry.sub = metrics.sub;
+      
+      data[category][cleanVal].push(entry);
     };
     
     // Enhanced category tracking with metrics (for System Types and Quality Tiers)
     // skipTopOnly: if true, excludes "Top" and "Top [Nom]" values
-    const addToMetricCategory = (category, value, rid, name, yieldVal, subVal, skipTopOnly = false) => {
+    const addToMetricCategory = (category, value, rid, name, yieldVal, subVal, skipTopOnly = false, metrics = {}) => {
       const cleanVal = String(value || '').trim();
       if (!cleanVal) return;
       // Skip "Top" or "Top [Nom]" if requested
@@ -1580,7 +1619,13 @@ function getDetailedAMData(amName) {
       if (!data[category][cleanVal]) {
         data[category][cleanVal] = { rids: [], yldSum: 0, yldCnt: 0, subSum: 0, subCnt: 0 };
       }
-      data[category][cleanVal].rids.push({ rid, name });
+      
+      const entry = { rid, name };
+      if (metrics.rev) entry.rev = metrics.rev;
+      if (metrics.yld) entry.yld = metrics.yld; // Redundant but consistent
+      if (metrics.sub) entry.sub = metrics.sub; // Redundant but consistent
+      
+      data[category][cleanVal].rids.push(entry);
       
       // Add metrics if available
       const yld = parseFloat(yieldVal);
@@ -1607,8 +1652,20 @@ function getDetailedAMData(amName) {
       // Get DISTRO metrics for this RID (needed for per-category tracking)
       const yieldVal = dRow ? dRow[map.yield] : null;
       const subVal = dRow ? dRow[map.subfees] : null;
+      const revVal = (dRow && map.totalRev > -1) ? dRow[map.totalRev] : null;
+      const discoVal = dRow ? dRow[map.disco] : null;
+      const momVal = dRow ? dRow[map.mom] : null;
       
-      data.allRids.push({ rid, name });
+      // Store metrics for individual account analysis (ranking, filtering)
+      const metrics = {
+        rev: revVal,
+        yld: yieldVal,
+        sub: subVal,
+        disco: discoVal,
+        mom: momVal
+      };
+      
+      data.allRids.push({ rid, name, ...metrics });
       
       if (map.parent > -1 && row[map.parent]) data.groups.add(row[map.parent]);
       
@@ -1616,28 +1673,28 @@ function getDetailedAMData(amName) {
       if (map.termEnd > -1) {
         const d = row[map.termEnd];
         if (d instanceof Date) {
-          if (d < today) data.termExpired.push({ rid, name });
+          if (d < today) data.termExpired.push({ rid, name, ...metrics });
           else if (d <= warnDate) {
             const daysUntil = Math.floor((d - today) / (1000 * 60 * 60 * 24));
-            data.termWarning.push({ rid, name, daysUntil });
+            data.termWarning.push({ rid, name, daysUntil, ...metrics });
           }
         }
       }
       
       const st = String(row[map.status]||"") + String(row[map.accStatus]||"");
       if (st.toLowerCase().includes("term") || st.toLowerCase().includes("cancel")) {
-        data.termPending.push({ rid, name });
+        data.termPending.push({ rid, name, ...metrics });
       }
       
       // Enhanced categories - track metrics per category value
-      addToMetricCategory('systemTypes', row[map.sysType], rid, name, yieldVal, subVal);
-      addToMetricCategory('qualityTiers', row[map.qual], rid, name, yieldVal, subVal, true);  // Skip "Top" / "Top [Nom]"
+      addToMetricCategory('systemTypes', row[map.sysType], rid, name, yieldVal, subVal, false, metrics);
+      addToMetricCategory('qualityTiers', row[map.qual], rid, name, yieldVal, subVal, true, metrics);  // Skip "Top" / "Top [Nom]"
       
       // Simple categories - just RID tracking
-      addToSimpleCategory('specialPrograms', row[map.programs], rid, name, true);  // Skip "Top" / "Top [Nom]"
-      addToSimpleCategory('exclusivePricing', row[map.pricing], rid, name);
-      addToSimpleCategory('metros', row[map.metro], rid, name);
-      addToSimpleCategory('systemOfRecord', row[map.sor], rid, name);
+      addToSimpleCategory('specialPrograms', row[map.programs], rid, name, true, metrics);  // Skip "Top" / "Top [Nom]"
+      addToSimpleCategory('exclusivePricing', row[map.pricing], rid, name, false, metrics);
+      addToSimpleCategory('metros', row[map.metro], rid, name, false, metrics);
+      addToSimpleCategory('systemOfRecord', row[map.sor], rid, name, false, metrics);
       
       // Features
       if (map.ib > -1 && isTrue(row[map.ib])) data.instantBooking.push({ rid, name });

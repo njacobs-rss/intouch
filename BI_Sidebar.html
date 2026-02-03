@@ -3127,7 +3127,6 @@
       }
       
       // CTA for next action
-      summary += `\n**Layer another filter or:**`;
       
       return summary;
     }
@@ -3828,6 +3827,9 @@
             // Check if user needs to navigate to AM tab first
             if (result.notOnAMTab) {
               khState.pendingRetryQuery = result.originalQuery || query;
+              khState.availableTabs = result.availableTabs || [];
+              khState.suggestedTab = result.suggestedTab || null;
+              
               addKHMessage('assistant', result.answer, true);  // showActionButtons=true to trigger retry button
               return;
             }
@@ -4394,10 +4396,39 @@
               </div>
             `;
           } else if (khState.pendingRetryQuery) {
+            let switchControls = '';
+            
+            // If we have a suggested tab (direct match), show a button
+            if (khState.suggestedTab) {
+                switchControls = `
+                  <div class="kh-tab-switcher" style="margin-bottom: 8px;">
+                    <button class="kh-action-btn primary" onclick="switchAndRetry('${khState.suggestedTab.replace(/'/g, "\\'")}')" style="width: 100%;">
+                      Switch to ${khState.suggestedTab} & Retry
+                    </button>
+                  </div>
+                `;
+            } 
+            // If we have available tabs, show a dropdown
+            else if (khState.availableTabs && khState.availableTabs.length > 0) {
+                const options = khState.availableTabs.map(am => `<option value="${am.tabName}">${am.fullName}</option>`).join('');
+                switchControls = `
+                    <div class="kh-tab-switcher" style="display: flex; gap: 4px; margin-bottom: 8px;">
+                        <select id="kh-am-select" class="kh-select" style="flex: 1; padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                            <option value="">Select your AM tab...</option>
+                            ${options}
+                        </select>
+                        <button class="kh-action-btn primary" onclick="switchAndRetryFromSelect()" style="flex: none;">
+                            Go
+                        </button>
+                    </div>
+                `;
+            }
+
             actionButtonsHtml = `
-              <div class="kh-action-buttons">
-                <button class="kh-action-btn primary" onclick="executeRetryQuery()">
-                  Ok, Let's Go
+              <div class="kh-action-buttons column-layout">
+                ${switchControls}
+                <button class="kh-action-btn secondary" onclick="executeRetryQuery()">
+                  I'm already there, try again
                 </button>
               </div>
             `;
@@ -4678,17 +4709,15 @@ Please navigate to ${result.expectedTab}'s tab and try again, or ask about the a
           let message;
           if (isLayering) {
             message = `✅ **Layered filter applied** - now showing **${result.checkedCount}** account${result.checkedCount !== 1 ? 's' : ''} that match both criteria.\n\n`;
-            message += `What are you looking for across these accounts? I can help analyze patterns or identify specific issues.`;
+            message += `If you tell me more about what you are researching, I can help with your analysis.`;
           } else {
             message = `✅ **Isolated ${result.checkedCount}** account${result.checkedCount !== 1 ? 's' : ''} - your sheet is now filtered to show only these RIDs.\n\n`;
-            message += `Tell me what you're researching and I can help with your analysis.`;
+            message += `If you tell me more about what you are researching, I can help with your analysis.`;
           }
           
           if (result.notFoundCount > 0) {
             message += `*Note: ${result.notFoundCount} RIDs were not found on this sheet.*\n\n`;
           }
-          
-          // message += `**You can layer in another metric or:**`;
           
           // Set up Focus20 action for the button
           khState.pendingFunctionAction = {
@@ -4914,6 +4943,48 @@ If you have any other questions about the team data I'd be happy to dive in with
         console.log('[executeRetryQuery] Re-running query: ' + queryToRetry);
         sendKHMessage(queryToRetry);
       }
+    }
+
+    /**
+     * Switch to a specific tab and retry the query
+     */
+    function switchAndRetry(tabName) {
+      if (!tabName) return;
+      
+      const loadingEl = addKHMessage('loading', '');
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          
+          if (result.success) {
+            // Tab switched successfully, now retry
+            executeRetryQuery();
+          } else {
+            addKHMessage('error', 'Could not switch tab: ' + (result.error || 'Unknown error'));
+          }
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          addKHMessage('error', 'Error switching tab: ' + error.message);
+        })
+        .activateSheet(tabName);
+    }
+
+    /**
+     * Switch to selected AM tab from dropdown and retry
+     */
+    function switchAndRetryFromSelect() {
+      const select = document.getElementById('kh-am-select');
+      if (!select) return;
+      
+      const tabName = select.value;
+      if (!tabName) {
+        addKHMessage('error', 'Please select an AM first.');
+        return;
+      }
+      
+      switchAndRetry(tabName);
     }
     
     /**

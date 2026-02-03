@@ -64,7 +64,10 @@ function classifyQueryComplexity(query, hasData) {
     /^explain\b/i,                       // Explanations
     /^define\b/i,                        // Definitions
     /^tell me (about|what)\b/i,         // Info requests
-    /^show me how\b/i                   // Tutorials
+    /^show me how\b/i,                  // Tutorials
+    /^show me (the )?.*column\b/i,      // Column requests
+    /^add (the )?.*column\b/i,          // Add column requests
+    /^change (to|the) .*\b/i            // Change column requests
   ];
   
   // Complex indicators - require reasoning, analysis, or strategy
@@ -83,7 +86,12 @@ function classifyQueryComplexity(query, hasData) {
     const simpleDataPatterns = [
       /^how many\b/i,
       /^count\b/i,
-      /^list (my|the|all)\b/i
+      /^list (my|the|all)\b/i,
+      /^show me (my|the|all)\b/i,       // "Show me my Pro accounts"
+      /^which (accounts|ones|rids)\b/i, // "Which accounts are Pro"
+      /^find (accounts|rids)\b/i,       // "Find accounts with..."
+      /^isolate\b/i,                    // "Isolate Pro accounts"
+      /^filter\b/i                      // "Filter by..."
     ];
     const isSimpleData = simpleDataPatterns.some(p => p.test(normalizedQuery));
     if (!isSimpleData) {
@@ -662,7 +670,7 @@ const SCRIPTED_RESPONSES = {
       response: `**Customer Since** = Date restaurant first became an OT customer.\n\n- Long-tenured accounts may have legacy pricing or configurations\n- Newer accounts may need more onboarding support\n- Useful context for renewal conversations\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Customer Since]`
     },
     {
-      patterns: [/what.*(is|are).*term.*end/i, /term.*end.*date/i, /when.*contract.*end/i, /contract.*expir/i],
+      patterns: [/what.*(is|are).*term.*end/i, /term.*end.*date/i, /when.*contract.*end/i, /(?:what|explain|define|mean).*contract.*expir/i],
       response: `**Current Term End Date** = When the current contract expires.\n\n- Key for renewal lifecycle planning\n- 90+ days out: Discovery phase\n- 60-90 days: Build value story\n- 30-60 days: Run & close\n\nFound in the **Dates & Activity** section. Would you like me to show this column?\n\n[COLUMN_ACTION:DATES_ACTIVITY:Current Term End Date]`
     },
     {
@@ -732,7 +740,7 @@ const SCRIPTED_RESPONSES = {
       response: `Yes! I can change your column views instantly. Try:\n\n**Switch metrics:**\n- *"Show me Metro instead of Macro"*\n- *"Change to Customer Since"*\n- *"Switch to Contract Alerts"*\n\n**Add columns:**\n- *"Where is POS Type?"* - I'll offer to add it\n- *"Add Discovery % column"*\n- *"Show me Active PI"*\n\n**Quick tip:** Most columns have multiple metrics you can switch between. Just ask and I'll change it for you!\n\nWhat would you like to see?`
     },
     {
-      patterns: [/can.*you.*count/i, /can.*you.*list/i, /can.*you.*tell.*how.*many/i, /do.*you.*know.*how.*many/i],
+      patterns: [/can.*you.*count\b/i, /can.*you.*list/i, /can.*you.*tell.*how.*many/i, /do.*you.*know.*how.*many/i],
       response: `Yes! I can count and list your accounts by almost any criteria:\n\n**Counts:**\n- *"How many accounts on Pro?"* - With percentage of total\n- *"How many term pending?"* - Contract status\n- *"How many running XP?"* - Product adoption\n\n**Lists:**\n- *"Which accounts are on Freemium?"* - Full RID list\n- *"List my 0-Fullbook accounts"* - With names\n- *"Which ones have PI?"* - Then check in Smart Select\n\nI always include percentages and can check matching accounts in Smart Select for you. What would you like to know?`
     },
     {
@@ -866,7 +874,14 @@ const SCRIPTED_RESPONSES = {
   // Keeping minimal scripted responses only for edge cases
   portfolio: [
     {
-      patterns: [/summarize.*my.*bucket/i, /^bucket.*summary$/i, /show.*my.*bucket/i, /analyze.*my.*portfolio/i],
+      patterns: [
+        /summarize.*(my|the)?.*bucket/i, 
+        /bucket.*summary/i, 
+        /show.*(my|the)?.*bucket/i, 
+        /analyze.*(my|the)?.*portfolio/i,
+        /portfolio.*(summary|snapshot|analysis)/i,
+        /bucket.*breakdown/i
+      ],
       response: `I'll generate your bucket summary right now.\n\n[BUCKET_SUMMARY_ACTION]`
     },
     {
@@ -1159,14 +1174,29 @@ NEVER add Google separately to Fullbook calculations
 [SMART_SELECT_ACTION:rid1,rid2,...]
 I've checked these **5** accounts in Smart Select (Column D). **Click the filter icon in Column D and select TRUE** to isolate them."
 
-### 2. COLUMN SETTING (For View/Column Queries)
-**When a user asks to see a column or metric** (e.g., "Show me the System Type column", "Where is Metro?", "Add Discovery %"):
-- **Offer to set the column** using \`[COLUMN_ACTION:...]\`.
-- The system will automatically check if it's already visible before changing it.
-- **Format:** "I can show that for you! [COLUMN_ACTION:CATEGORY:Metric]"
+  ### 2. COLUMN SETTING (For View/Column Queries)
+  **When a user asks to see a column or metric** (e.g., "Show me the System Type column", "Where is Metro?", "Add Discovery %"):
+  - **Offer to set the column** using \`[COLUMN_ACTION:...]\`.
+  - The system will automatically check if it's already visible before changing it.
+  - **Format:** "I can show that for you! [COLUMN_ACTION:CATEGORY:Metric]"
 
-**WRONG approach:**
-"To see Metro, double-click Column I..."
+  ### 3. SHOW/LIST REQUESTS (For "Show me..." Queries)
+  **When a user asks to "show", "list", or "find" accounts based on criteria** (e.g., "Show me core accounts", "List accounts expiring soon"):
+  - **Do NOT explain** where the column is or what the metric means.
+  - **Do NOT offer** to add the column (unless explicitly asked).
+  - **INSTEAD, use [SMART_SELECT_ACTION]** to list the matching accounts immediately.
+  - Treat "Show me X" as "Isolate X".
+
+  **WRONG approach:**
+  User: "Show me core accounts"
+  Response: "Core accounts are defined as... You can filter by System Type..."
+
+  **RIGHT approach:**
+  User: "Show me core accounts"
+  Response: "Here are your Core accounts... [SMART_SELECT_ACTION:rid1,rid2...]"
+
+  **WRONG approach:**
+  "To see Metro, double-click Column I..."
 
 **RIGHT approach:**
 "I can show that for you!
@@ -1413,11 +1443,21 @@ Quality Tiers (with per-category avg yield & sub fee):
 \`\`\`
 
 ### Per-Category Metrics Available
-For **System Mix** (Core, Pro, Basic) and **Quality Tiers** (Platinum, Gold, Silver, Bronze), you have:
-- Count of accounts in that category
-- **Average Yield** for accounts in that category
-- **Average Sub Fee** for accounts in that category
-- List of RIDs
+For **System Mix**, **Quality Tiers**, and other categories, the injected data now includes INDIVIDUAL account metrics in the RID list:
+- **rev** = Revenue - Total Last Month
+- **yld** = Rev Yield
+- **sub** = Subscription Fees
+- **disco** = Discovery %
+- **mom** = Discovery % MoM Change
+
+**Example Data Structure:**
+\`System Mix -> Core -> rids: [{rid: "123", name: "Bistro", rev: 5000, yld: 45, sub: 200, disco: 0.25, mom: -0.05}, ...]\`
+
+**You can use this to:**
+1. **Rank accounts by revenue:** Sort the RIDs by the \`rev\` value to find top performers.
+2. **Find high-yield accounts:** Sort by \`yld\`.
+3. **Identify underperformers:** Find accounts with low revenue/yield.
+4. **Spot trends:** Filter for negative \`mom\` values to find declining Discovery %.
 
 ### Active PI (Promoted Inventory) Values
 When users ask about "active PI campaigns", an account has active PI if Active PI contains:
@@ -1429,6 +1469,7 @@ Empty, "None", or blank = no active PI campaign. Use the activePI count from inj
 
 This allows you to answer questions like:
 - "What is the average yield for Pro accounts?" → Read from System Mix → Pro → Avg Yield
+- "Which Pro accounts have the highest revenue?" → Sort Pro RIDs by \`rev\` value
 - "What's the average sub fee for Platinum accounts?" → Read from Quality Tiers → Platinum → Avg Sub
 
 ### Answer Questions Directly
@@ -1482,9 +1523,10 @@ If a user asks for accounts matching MULTIPLE criteria (e.g., "Pro accounts that
    - Do NOT ask "Would you like me to check these?" - JUST DO IT
 
 **SMART SELECT & NEXT STEPS:**
-When you offer or perform a [SMART_SELECT_ACTION], you MUST provide "Next Steps" guidance so the user knows what to do with the checked boxes.
+- **For ISOLATE/FILTER requests:** Do NOT provide "Next Steps". The system will auto-isolate the accounts.
+- **For LIST requests (without isolate/filter):** You MUST provide "Next Steps" guidance so the user knows what to do with the checked boxes.
 
-**Response Template (for lists):**
+**Response Template (for LISTS ONLY - NOT for isolate/filter):**
 "Here are the [count] accounts that are [Criteria A] and [Criteria B] in [firstName]'s bucket:
 
 | RID | Account Name |
@@ -1506,6 +1548,7 @@ I've checked these **[count]** accounts in Smart Select (Column D) for you.
 - Do NOT offer Smart Select when just answering count questions
 - Only offer Smart Select AFTER the user asks to see the list
 - Use ACTUAL RIDs from the injected data in the action tag
+- If the user asks for an account NOT in your context, use [SEARCH_ACTION:AccountNameOrRID] to find it globally.
 
 ### Tab Verification for Smart Select
 Before the system checks RIDs, it verifies the user is on the correct AM's tab. If not, the user will see:
@@ -3727,6 +3770,13 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
       const scriptedResult = tryScriptedResponse(userQuery);
       if (scriptedResult) {
         console.log('[askInTouchGuide] Using scripted response (no API call)');
+        
+        // Attach AM context if available (needed for actions like [BUCKET_SUMMARY_ACTION])
+        const amContext = getActiveAMContext();
+        if (amContext && amContext.isAMTab) {
+          scriptedResult.amContext = amContext;
+        }
+        
         // Log with routing source for analytics
         logUserPrompt(userQuery, 'chat', scriptedResult.source || 'scripted');
         logPerf('scripted');
@@ -3795,6 +3845,10 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
         } else if (!amContext.isAMTab && !amContext.isTeamView) {
           // User is on a non-AM tab (STATCORE, Focus20, etc.) asking account questions
           console.log('[askInTouchGuide] User not on AM tab, returning navigation prompt');
+          
+          // Get available tabs for the dropdown
+          const availableTabs = getAvailableAMTabs();
+          
           // Log with routing source for analytics
           logUserPrompt(userQuery, 'chat', 'no-am-tab');
           logPerf('no-am-tab');
@@ -3806,7 +3860,9 @@ function askInTouchGuide(userQuery, conversationHistory, shouldLog, prefetchedDa
             requestId: requestId,
             durationMs: new Date() - startTime,
             notOnAMTab: true,  // Flag for client-side handling
-            originalQuery: userQuery  // Pass original query for retry
+            originalQuery: userQuery,  // Pass original query for retry
+            availableTabs: availableTabs.success ? availableTabs.ams : [],
+            suggestedTab: null
           };
         }
       }

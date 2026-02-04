@@ -585,6 +585,12 @@
             </button>
           </div>
           
+          <div class="grid-1" style="margin-top:8px;">
+            <button class="btn-copy btn-horizontal" onclick="extractFormulas()" id="btn-extract">
+              <span class="icon">📄</span> Extract Formulas to JSON
+            </button>
+          </div>
+          
           <div id="test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:12px; border-radius:6px; margin-top:12px; text-align:center;">
             <div style="font-weight:bold; margin-bottom:6px; font-size:13px;">✅ Test Push Complete!</div>
             <div style="font-size:11px; margin-bottom:4px;">Successfully pushed to:</div>
@@ -1594,6 +1600,62 @@
 
       function closeTestSuccessModal() {
         document.getElementById('test-success-modal').style.display = 'none';
+      }
+      
+      // =============================================================
+      // FORMULA EXTRACTOR
+      // =============================================================
+      
+      function extractFormulas() {
+        if (!capturedRangeData) {
+          showToast('warning', 'No Range', 'Please capture a range first');
+          return;
+        }
+        
+        // Check if range has any formulas
+        if (!capturedRangeData.hasFormulas) {
+          showToast('warning', 'No Formulas', 'The captured range contains no formulas to extract');
+          return;
+        }
+        
+        var toastId = showToast('working', 'Extracting formulas...', '', { persistent: true });
+        
+        var config = buildRangeConfig();
+        
+        google.script.run
+          .withSuccessHandler(function(jsonString) {
+            removeToast(toastId);
+            downloadJsonFile(jsonString);
+            showToast('success', 'Formulas Extracted', 'JSON file downloaded');
+          })
+          .withFailureHandler(function(e) {
+            removeToast(toastId);
+            showToast('error', 'Extraction Failed', e.message);
+          })
+          .extractFormulasToJson(config);
+      }
+      
+      function downloadJsonFile(jsonString) {
+        // Create blob and trigger download
+        var blob = new Blob([jsonString], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        
+        // Generate filename with sheet name and timestamp
+        var timestamp = new Date().toISOString().slice(0, 10);
+        var filename = 'formulas_' + capturedRangeData.sheetName + '_' + timestamp + '.json';
+        
+        // Create temporary link and trigger download
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up blob URL
+        setTimeout(function() {
+          URL.revokeObjectURL(url);
+        }, 100);
       }
       
       // =============================================================

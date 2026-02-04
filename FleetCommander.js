@@ -1761,6 +1761,117 @@ function pushRangeToSingleFile(config, fileId, forceOverwrite) {
 }
 
 /**
+ * EXTRACT FORMULAS TO JSON: Extract formulas from captured range organized by column headers
+ * @param {Object} config - Configuration with captured range data (from captureSelectedRange)
+ * @returns {string} JSON string for client-side download
+ */
+function extractFormulasToJson(config) {
+  if (!config || !config.data) {
+    throw new Error("No range data provided. Please capture a range first.");
+  }
+  
+  var sheetName = config.sheetName;
+  var rangeA1 = config.rangeA1;
+  var data = config.data;
+  var numRows = config.numRows;
+  var numCols = config.numCols;
+  
+  // Determine header row - use provided headerRow or default to first row of selection
+  var headerRowIndex = 0; // Default: first row of captured data is the header
+  if (config.headerRow && !isNaN(parseInt(config.headerRow))) {
+    // If headerRow is specified, calculate its index relative to the captured range
+    var rangeRef = parseA1Notation_(rangeA1);
+    var headerRowNum = parseInt(config.headerRow);
+    if (headerRowNum >= rangeRef.startRow && headerRowNum < rangeRef.startRow + numRows) {
+      headerRowIndex = headerRowNum - rangeRef.startRow;
+    }
+  }
+  
+  // Get headers from the header row
+  var headers = [];
+  if (headerRowIndex < numRows) {
+    for (var c = 0; c < numCols; c++) {
+      var headerCell = data[headerRowIndex][c];
+      var headerValue = headerCell ? String(headerCell.value || '').trim() : '';
+      headers.push(headerValue);
+    }
+  }
+  
+  // Parse range to get column letters for fallback naming
+  var rangeRef = parseA1Notation_(rangeA1);
+  
+  // Build column-keyed output with formula deduplication
+  var columns = {};
+  
+  for (var c = 0; c < numCols; c++) {
+    var headerName = headers[c] || '';
+    var colLetter = numberToColumnLetter_(rangeRef.startCol + c);
+    
+    // Determine the key for this column
+    var columnKey;
+    var headerCell = null;
+    
+    if (headerName) {
+      columnKey = headerName;
+      headerCell = colLetter + (rangeRef.startRow + headerRowIndex);
+    } else {
+      // No header - use range notation: SheetName!ColStartRow:ColEndRow
+      var dataStartRow = rangeRef.startRow + (headerRowIndex === 0 ? 1 : 0);
+      var dataEndRow = rangeRef.startRow + numRows - 1;
+      columnKey = sheetName + '!' + colLetter + dataStartRow + ':' + colLetter + dataEndRow;
+    }
+    
+    // Collect unique formulas from this column (skip header row)
+    var formulaSet = {};
+    var startRowForFormulas = headerRowIndex === 0 ? 1 : 0;
+    
+    for (var r = startRowForFormulas; r < numRows; r++) {
+      var cell = data[r][c];
+      if (cell && cell.type === 'formula' && cell.value) {
+        formulaSet[cell.value] = true; // Deduplicate using object keys
+      }
+    }
+    
+    var uniqueFormulas = Object.keys(formulaSet);
+    
+    // Only include columns that have formulas
+    if (uniqueFormulas.length > 0) {
+      columns[columnKey] = {
+        headerCell: headerCell,
+        formulas: uniqueFormulas
+      };
+    }
+  }
+  
+  // Build final JSON structure
+  var output = {
+    source: {
+      sheet: sheetName,
+      range: rangeA1,
+      extractedAt: new Date().toISOString()
+    },
+    columns: columns
+  };
+  
+  return JSON.stringify(output, null, 2);
+}
+
+/**
+ * HELPER: Convert column number to letter(s)
+ * @param {number} num - Column number (1-based)
+ * @returns {string} - Column letters like "A", "AB", "ZZ"
+ */
+function numberToColumnLetter_(num) {
+  var result = '';
+  while (num > 0) {
+    num--;
+    result = String.fromCharCode(65 + (num % 26)) + result;
+    num = Math.floor(num / 26);
+  }
+  return result;
+}
+
+/**
  * HELPER: Parse A1 notation to get row/col info
  * @param {string} a1 - A1 notation like "B5:F10"
  * @returns {Object} - {startRow, startCol, numRows, numCols}

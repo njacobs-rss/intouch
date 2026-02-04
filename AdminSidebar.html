@@ -620,6 +620,21 @@
           <span class="icon">❌</span> Delete AM Tabs
         </button>
       </div>
+
+      <hr class="section-divider">
+
+      <h2>🤖 AI Cache Management</h2>
+      <div class="grid-2" id="cache-buttons">
+        <button class="btn-config btn-vertical" onclick="refreshAICache()">
+          <span class="icon">🔄</span> Refresh AI Cache
+        </button>
+        <button class="btn-safe btn-vertical" onclick="checkCacheStatus()">
+          <span class="icon">📊</span> Cache Status
+        </button>
+      </div>
+      <div style="font-size:10px; color:#718096; margin-top:6px; text-align:center;">
+        Cache auto-refreshes when code version changes. Use these for testing.
+      </div>
     </div>
 
     <!-- SHARED MODALS (outside tab panels) -->
@@ -1623,6 +1638,62 @@
             }
           })
           .pingGeminiApi();
+      }
+
+      // =============================================================
+      // AI CACHE MANAGEMENT
+      // =============================================================
+      function refreshAICache() {
+        var toastId = showToast('working', 'Refreshing AI Cache...', 'Creating new Gemini cache', { persistent: true });
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            removeToast(toastId);
+            
+            if (result.success) {
+              showToast('success', 'Cache Refreshed', 'Version: ' + result.version, { duration: 6000 });
+            } else {
+              showToast('warning', 'Cache Refresh Issue', result.message || 'Will use fallback mode', { duration: 6000 });
+            }
+          })
+          .withFailureHandler(function(e) {
+            removeToast(toastId);
+            showToast('error', 'Cache Refresh Failed', e.message, { duration: 8000 });
+          })
+          .runRefreshLocalCache();
+      }
+
+      function checkCacheStatus() {
+        var toastId = showToast('working', 'Checking Cache...', '', { persistent: true });
+        
+        google.script.run
+          .withSuccessHandler(function(status) {
+            removeToast(toastId);
+            
+            if (status.error) {
+              showToast('error', 'Status Check Failed', status.message);
+              return;
+            }
+            
+            var type = status.isValid ? 'success' : 'warning';
+            var title = status.isValid ? 'Cache Healthy' : 'Cache Needs Refresh';
+            var msg = 'v' + status.cachedVersion;
+            if (status.expiresIn) {
+              msg += ' | Expires in ' + status.expiresIn;
+            } else if (status.isExpired) {
+              msg += ' | Expired';
+            }
+            if (!status.isVersionMatch) {
+              msg += ' | Version mismatch (current: ' + status.currentVersion + ')';
+            }
+            
+            showToast(type, title, msg, { duration: 8000 });
+          })
+          .withFailureHandler(function(e) {
+            removeToast(toastId);
+            showToast('error', 'Status Check Failed', e.message, { duration: 8000 });
+          })
+          .runGetCacheStatus();
       }
     </script>
   </body>

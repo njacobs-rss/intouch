@@ -1813,3 +1813,52 @@ function getUniqueSheetName_(ss, baseName) {
   while (ss.getSheetByName(name)) { name = baseName + " (" + idx++ + ")"; }
   return name;
 }
+
+// =============================================================
+// SECTION: AI CACHE MANAGEMENT (LOCAL)
+// PURPOSE: Admin controls for Gemini system instruction cache
+// NOTE: Cache is per-file (ScriptProperties are file-bound)
+//       Fleet-wide refresh happens automatically via version bump
+// =============================================================
+
+/**
+ * REFRESH LOCAL CACHE: Force refresh the AI system instruction cache for this file
+ * Called from AdminSidebar Local Functions tab
+ * @returns {Object} Result with success status, version, and message
+ */
+function runRefreshLocalCache() {
+  assertAdminAccess();
+  
+  try {
+    // refreshSystemCache() is defined in InTouchGuide.js
+    var result = refreshSystemCache();
+    return result;
+  } catch (e) {
+    Logger.log('[runRefreshLocalCache] Error: ' + e.message);
+    return {
+      success: false,
+      message: 'Error refreshing cache: ' + e.message
+    };
+  }
+}
+
+/**
+ * GET CACHE STATUS: Get current AI cache status for diagnostics
+ * Called from AdminSidebar Local Functions tab
+ * @returns {Object} Cache status information
+ */
+function runGetCacheStatus() {
+  assertAdminAccess();
+  
+  try {
+    // getCacheStatus() is defined in InTouchGuide.js
+    var status = getCacheStatus();
+    return status;
+  } catch (e) {
+    Logger.log('[runGetCacheStatus] Error: ' + e.message);
+    return {
+      error: true,
+      message: 'Error getting cache status: ' + e.message
+    };
+  }
+}

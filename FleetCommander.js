@@ -554,6 +554,10 @@ function runCreateEmployeeTabs() {
           .map(function(r) { return r[0] ? r[0].toString().trim() : ''; })
           .filter(function(name) { return name && name !== "Manager Lens"; });
 
+        // #region agent log
+        Logger.log('[DEBUG-TAB-CREATION] File: ' + file.getName() + ', Found ' + employeeNames.length + ' employees: ' + employeeNames.join(', '));
+        // #endregion
+
         if (employeeNames.length === 0) {
           logs.push({ status: 'Skipped', file: file.getName(), msg: 'No employees in Setup' });
           continue;
@@ -561,6 +565,12 @@ function runCreateEmployeeTabs() {
 
         // 2. Get first names for tab naming
         var firstNames = employeeNames.map(function(n) { return n.split(' ')[0]; });
+
+        // #region agent log
+        Logger.log('[DEBUG-TAB-CREATION] First Names: ' + firstNames.join(', '));
+        var existingSheets = targetSS.getSheets().map(function(s) { return s.getName(); });
+        Logger.log('[DEBUG-TAB-CREATION] Existing Sheets: ' + existingSheets.join(', '));
+        // #endregion
 
         // 3. Delete existing employee tabs (with protection for system sheets)
         var sheetsToDelete = targetSS.getSheets().filter(function(s) { 
@@ -571,12 +581,25 @@ function runCreateEmployeeTabs() {
           }
           return firstNames.includes(name); 
         });
+        
+        // #region agent log
+        Logger.log('[DEBUG-TAB-CREATION] Sheets to delete: ' + sheetsToDelete.map(function(s) { return s.getName(); }).join(', '));
+        // #endregion
+
         sheetsToDelete.forEach(function(s) { targetSS.deleteSheet(s); });
 
         // 4. Create new tabs from Launcher template
         firstNames.forEach(function(name, i) {
           var uniqueName = getUniqueSheetName_(targetSS, name);
+          // #region agent log
+          Logger.log('[DEBUG-TAB-CREATION] Creating tab: ' + uniqueName + ' for ' + employeeNames[i]);
+          // #endregion
           var copy = launcherSheet.copyTo(targetSS).setName(uniqueName);
+          
+          // #region agent log
+          Logger.log('[DEBUG-TAB-CREATION] Created tab ID: ' + copy.getSheetId());
+          // #endregion
+          
           copy.getRange("B2").setValue(employeeNames[i]);
           targetSS.setActiveSheet(copy);
           targetSS.moveActiveSheet(1);

@@ -95,7 +95,7 @@ function updateAccountNotes(targetSS) {
     const sheet = ss.getSheetByName(sheetName);
     if (sheet) {
       // #region agent log
-      Logger.log('[DEBUG-NOTES-5] Processing sheet: ' + sheetName);
+      Logger.log('[DEBUG-NOTES-5] Processing sheet: ' + sheetName + ' (ID: ' + sheet.getSheetId() + ')');
       // #endregion
       console.log(`>> 📂 Processing: "${sheetName}"`);
       tabsProcessed++;

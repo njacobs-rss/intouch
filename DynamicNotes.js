@@ -28,7 +28,7 @@ function updateAccountNotes(targetSS) {
   const ss = targetSS || SpreadsheetApp.getActiveSpreadsheet();
 
   // #region agent log
-  Logger.log('[DEBUG-NOTES-1] updateAccountNotes START for: ' + ss.getName());
+  // Logger.log('[DEBUG-NOTES-1] updateAccountNotes START for: ' + ss.getName());
   // #endregion
 
   console.log("--- 🟢 STEP 1: INITIALIZATION ---");
@@ -38,15 +38,15 @@ function updateAccountNotes(targetSS) {
 
   // --- PRE-FETCH DATA (OPTIMIZED) ---
   // #region agent log
-  Logger.log('[DEBUG-NOTES-2] About to load STATCORE data map...');
+  // Logger.log('[DEBUG-NOTES-2] About to load STATCORE data map...');
   // #endregion
   const statData = getSheetDataMapFuzzySafe(ss, STAT_SHEET_NAME, 2);
   // #region agent log
-  Logger.log('[DEBUG-NOTES-3] STATCORE loaded: ' + Object.keys(statData).length + ' RIDs');
+  // Logger.log('[DEBUG-NOTES-3] STATCORE loaded: ' + Object.keys(statData).length + ' RIDs');
   // #endregion
   const distroData = getSheetDataMapFuzzySafe(ss, DISTRO_SHEET_NAME, 1);
   // #region agent log
-  Logger.log('[DEBUG-NOTES-4] DISTRO loaded: ' + Object.keys(distroData).length + ' RIDs');
+  // Logger.log('[DEBUG-NOTES-4] DISTRO loaded: ' + Object.keys(distroData).length + ' RIDs');
   // #endregion
   const parentAccountCounts = getParentAccountCounts(ss, STAT_SHEET_NAME);
 
@@ -95,7 +95,7 @@ function updateAccountNotes(targetSS) {
     const sheet = ss.getSheetByName(sheetName);
     if (sheet) {
       // #region agent log
-      Logger.log('[DEBUG-NOTES-5] Processing sheet: ' + sheetName + ' (ID: ' + sheet.getSheetId() + ')');
+      // Logger.log('[DEBUG-NOTES-5] Processing sheet: ' + sheetName);
       // #endregion
       console.log(`>> 📂 Processing: "${sheetName}"`);
       tabsProcessed++;
@@ -108,7 +108,7 @@ function updateAccountNotes(targetSS) {
       // CRITICAL FIX: Flush after every sheet to prevent "Service Timed Out"
       SpreadsheetApp.flush(); 
       // #region agent log
-      Logger.log('[DEBUG-NOTES-6] Sheet ' + sheetName + ' done: scanned=' + result.scanned + ', updated=' + result.updated);
+      // Logger.log('[DEBUG-NOTES-6] Sheet ' + sheetName + ' done: scanned=' + result.scanned + ', updated=' + result.updated);
       // #endregion
     } else {
       console.warn(`>> ⚠️ Sheet "${sheetName}" listed in SETUP but not found.`);

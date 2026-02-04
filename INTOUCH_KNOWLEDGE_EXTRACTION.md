@@ -3,6 +3,17 @@
 ## Summary
 This document identifies knowledge categories from `INTOUCH_SYSTEM_INSTRUCTION` that contain static facts, definitions, workflows, and reference data suitable for conversion to local scripted responses (avoiding Gemini API calls).
 
+## Relationship to PLAYBOOK.md
+
+Categories 14-21 (Strategic Playbook, Renewal Lifecycle, Operating Rhythm, System Archetypes, Pricing Levers, Strategic Plays, Objection Scripts, Decision Framework) are **quick-reference summaries** of the detailed content in `PLAYBOOK.md`.
+
+Categories 27-31 (Free Google) are **quick-lookup extractions** that complement the comprehensive Free Google section in `PLAYBOOK.md` Part 3.5.
+
+**Usage guidance:**
+- Use **Knowledge Extraction** categories for fast, static lookups (definitions, eligibility checks, dates, scripts)
+- Use **PLAYBOOK.md** for detailed battle cards, full context, and nuanced If/Then scenarios
+- When both contain similar content, PLAYBOOK.md is authoritative for detailed guidance
+
 ---
 
 ## 1. SHEET LAYOUT & COLUMN STRUCTURE
@@ -543,6 +554,129 @@ This document identifies knowledge categories from `INTOUCH_SYSTEM_INSTRUCTION` 
 
 ---
 
+## 27. FREE GOOGLE DEFINITIONS & VARIANTS
+
+**Type:** Static reference data
+
+**Content:**
+- Free Google is an Exclusive Pricing (EP) plan type where RwG covers are billed at $0
+- Three variants exist: Classic Free Google, Free Google w/ Add-On, Unlimited Google Covers (UGC)
+- Classic Free Google: RwG covers $0 via EP PRF/SKU, value recaptured via higher subs or PI
+- Free Google w/ Add-On: RwG covers free, funded by fixed subscription add-on (DATA-13106)
+- Unlimited Google Covers: Flat fee caps Google exposure, Core-only, NOT available on AYCE/Freemium/Free Google
+- UGC and Free Google are mutually exclusive - cannot stack EP programs
+- Free Google preserves Discovery revenue while zeroing Google-attributed covers
+
+**Example Questions This Could Answer:**
+- "What is Free Google?"
+- "What's the difference between Free Google and Unlimited Google Covers?"
+- "Can I use Free Google with Freemium?"
+- "What are the Free Google variants?"
+- "How does Free Google w/ Add-On work?"
+
+**Conversion Potential:** HIGH - Pure definitions, no data lookups needed
+
+---
+
+## 28. FREE GOOGLE TIMELINE & CRITICAL DATES
+
+**Type:** Static timeline reference
+
+**Content:**
+- January 15, 2026: Free Google Global Pricing Overhaul (FT-5081) - new bundles, targeted market logic
+- January 26, 2026: Google project pricing goes live
+- End of February 2026: Google's blue "Reserve a table" button rolled out widely
+- March 1, 2026: Free Google restaurants get RwG blue button
+- End of March 2026: All other restaurants will PAY for Google covers
+- Google partnership agreement expires Jan 31, 2026; amendment covering RwG billing changes effective Feb 1
+
+**Example Questions This Could Answer:**
+- "When does Free Google launch?"
+- "What's the March deadline for Free Google?"
+- "When does the Google blue button roll out?"
+- "What are the Free Google milestones?"
+- "When do restaurants start paying for Google covers?"
+
+**Conversion Potential:** HIGH - Static dates, no calculations
+
+---
+
+## 29. FREE GOOGLE ELIGIBILITY RULES
+
+**Type:** Static eligibility checklist
+
+**Content:**
+- System Type: Core/Pro only - Basic is NOT eligible
+- Term Length: 6M+ term (US independents via 2026 blanket PRF)
+- Not Stackable: Cannot combine with AYCE or Freemium
+- PRF Required: Individual PRF required for all Free Google offers
+- Markets: US, CA, MX, UK (legacy) + expanding to LATAM, DE, IE via FT-5081/FT-5123
+- If on AYCE or Freemium, neither Free Google nor UGC is available
+- If term < 6 months in US without blanket PRF, requires special approval ("near impossible")
+
+**Example Questions This Could Answer:**
+- "Is this account eligible for Free Google?"
+- "Can Basic accounts get Free Google?"
+- "What term length is needed for Free Google?"
+- "Can I use Free Google with AYCE?"
+- "What markets have Free Google?"
+
+**Conversion Potential:** HIGH - Static rules, straightforward yes/no logic
+
+---
+
+## 30. FREE GOOGLE COHORTS & PLAYS
+
+**Type:** Static play definitions with scripts
+
+**Content:**
+- Cohort: Low Hanging Fruit - Sub discount > Google revenue, high sub discount, moderate Google RPR
+- Cohort: PI Reinvestment - High PI spend, history of marketing, meaningful Google RPR
+- Cohort: Unsecured Contracts - Contract expiring <90 days, non-auto-renew, contract risk + Google exposure
+- Play 1: Discount Swap (LHF) - Trade discount for Free Google + list sub
+- Play 2: PI Booster (PI Reinvestment) - Free Google in exchange for PI commitment
+- Play 3: Save the At-Risk (Unsecured) - Free Google + renewal + term lock
+- Script for Discount Swap: "We're retiring Google fees and normalizing your software price at a fair level"
+- Script for PI Booster: "We'll stop charging for Google covers if you commit to a stronger PI program"
+- Script for Save the At-Risk: "We'll relieve Google fees if we can get you into a modern contract"
+
+**Example Questions This Could Answer:**
+- "What Free Google cohorts exist?"
+- "What play should I use for Low Hanging Fruit?"
+- "What's the script for PI Booster?"
+- "How do I use Free Google as a save play?"
+- "What is the Discount Swap play?"
+
+**Conversion Potential:** HIGH - Static play definitions with exact scripts
+
+---
+
+## 31. FREE GOOGLE BILLING & QA
+
+**Type:** Static troubleshooting and QA reference
+
+**Content:**
+- Known issue: Only "Reserve a Table" button was zeroed initially; "Reservations" link was missed (2021, fixed)
+- Known issue: SF bug inactivated Free Google contracts signed before May 25, 2021
+- Known issue: Recent billing errors (2025) - RIDs installed Free Google but still billed
+- Known issue: Experience bookings via Google billed as OTNW despite Free Google SKU (TRACK-3475)
+- QA Check: Verify Free Google SKU is active in billing system
+- QA Check: Cross-check Google Seated Covers vs invoiced amounts
+- QA Check: Confirm no Experiences bookings being mis-billed
+- QA Check: Validate PRF flags match contract terms
+- QA Check: Check for UGC add-on conflicts (should not coexist with Free Google)
+
+**Example Questions This Could Answer:**
+- "Why is my Free Google account still being charged?"
+- "How do I verify Free Google is working?"
+- "What are the known Free Google billing issues?"
+- "How do I QA a Free Google account?"
+- "What should I check if Free Google billing looks wrong?"
+
+**Conversion Potential:** HIGH - Static troubleshooting guide
+
+---
+
 ## SUMMARY BY CONVERSION PRIORITY
 
 ### HIGH PRIORITY (Pure Static Content - No Data Required)
@@ -568,6 +702,11 @@ This document identifies knowledge categories from `INTOUCH_SYSTEM_INSTRUCTION` 
 21. Decision Framework Rules
 22. Opportunity Engine Guardrails
 26. Capability Guidance
+27. Free Google Definitions & Variants
+28. Free Google Timeline & Critical Dates
+29. Free Google Eligibility Rules
+30. Free Google Cohorts & Plays
+31. Free Google Billing & QA
 
 ### MEDIUM PRIORITY (Static Templates/Patterns - Require Data to Execute)
 13. Response Format Guidelines

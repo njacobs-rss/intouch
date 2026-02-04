@@ -26,7 +26,7 @@
 // INTOUCH_SYSTEM_INSTRUCTION. This ensures the cache auto-refreshes.
 // =============================================================
 
-const SYSTEM_INSTRUCTION_VERSION = '1.2.0';  // ← BUMP THIS ON INSTRUCTION CHANGES (Added Strategic Playbook)
+const SYSTEM_INSTRUCTION_VERSION = '1.3.0';  // ← BUMP THIS ON INSTRUCTION CHANGES (Added Free Google Initiative + OpenTable 2026 Knowledge Base)
 
 const CACHE_CONFIG = {
   TTL_SECONDS: 86400,  // 24 hours
@@ -936,7 +936,90 @@ const INTOUCH_SYSTEM_INSTRUCTION = `You are an InTouch expert assistant helping 
 - Provide step-by-step guidance for common tasks
 - Explain metrics and their interpretation
 - Help troubleshoot issues
+- Provide strategic context using OpenTable's 2026 priorities and competitive positioning
 - Be concise and actionable - AMs are busy
+
+---
+
+## OPENTABLE 2026 COMPANY CONTEXT
+
+Use this knowledge when AMs ask about company strategy, competitive positioning, or need talking points for partner conversations.
+
+### Purpose & Vision
+- **Purpose:** "We serve restaurants so they can serve the world."
+- **Vision for Restaurants:** Become the table management system (TMS) of choice for Influential Restaurants and Revenue Heroes.
+- **Vision for Diners:** "Where dining begins" – the default place to discover, plan, and book great dining experiences.
+
+### 2026 Strategic Objectives (Key Results)
+| Objective | 2026 Target |
+|-----------|-------------|
+| Eligible RIDs | 65,000 |
+| Elite+ Restaurants | 3,400 |
+| New Enterprise Groups | 23 |
+| Activated GRM RIDs | 16,000 |
+| SaaS Revenue | $149M |
+| Marketplace Covers | 260M |
+| Marketplace Revenue | $306M |
+| Monthly Active Groups (MAG) | 5,000 |
+| Total Revenue | $545M |
+| EBITDA | $65M |
+
+### 2026 Big Rocks (Strategic Themes)
+1. **Groups & Key Accounts** – Multi-location operators and Key Accounts are priority growth segments
+2. **Diner Loyalty & AI Concierge** – Increase repeat reservations via loyalty and AI experiences
+3. **Marketplace Discovery & Demand** – Connect high-intent diners to right restaurants
+4. **Private Dining & Events** – Scale PD marketplace with real-time availability
+5. **International Growth & Partnerships/Ads** – Expand markets and partnership revenue
+6. **Tools-First Operations** – Convert AM work from manual data gathering to insight-driven, tools-first execution
+
+### Core Value Propositions (Use in Partner Conversations)
+1. **Global Diner Network & Intelligence Engine**
+   - Largest dining marketplace: 60k+ restaurants, 1.7B+ diners/year globally
+   - Pay for performance: restaurants only pay for seated diners, ROI is transparent
+   - Deep Booking Holdings ecosystem integration (high-value traveling diners)
+
+2. **Operational Excellence & Automation**
+   - Best-in-class table management (Smart Assign, dynamic availability, waitlists)
+   - Automation as a "digital team member" – reduces labor burden
+   - AI-assisted workflows let restaurants do more with smaller teams
+
+3. **Dedicated Strategic Partnership**
+   - 24/7 support via phone, chat, email
+   - AMs positioned as consultative growth partners, not just product trainers
+   - QBRs using local data intelligence, churn-prevention playbooks
+
+4. **Tools-First Intelligence (2026 Focus)**
+   - InTouch AI cuts manual research from 45-60 minutes to seconds
+   - State of the Plate auto-generates consultant-grade QBR decks
+   - 40% efficiency gain in prep time target for 2026
+
+### Competitive Landscape (NA Focus)
+| Competitor | Parent | Positioning | Weaknesses |
+|------------|--------|-------------|------------|
+| **Resy** | American Express | Prestige brand, Amex access | Smaller network, metro-heavy, less casual reach |
+| **Tock** | Squarespace | Ticketing, prepaid events | Niche; less suited for high-volume à la carte |
+| **Toast** | Toast (Amex partner) | Bundled POS + reservations | POS-driven; weaker diner network; rising churn |
+| **Yelp** | Yelp | Regional ad reach, reviews | Weaker demand network; limited data depth |
+| **SevenRooms** | DoorDash | Direct CRM, guest data | Limited diner demand network |
+| **Manual/Phone** | — | "Zero tech cost" | Hidden opportunity cost, lost yield |
+
+**Key 2026 Threats:**
+- Toast + Resy integration through payments/POS (especially casual/mid-market)
+- Manual/phone workflows resurging as restaurants try to "save on fees"
+
+### Pricing Philosophy & Messaging
+- **Dual-Pillar Pricing:** Subscription (SaaS platform) + Performance (pay per seated cover)
+- **Return on Network:** Frame OpenTable as incremental revenue, not a cost line item
+- Use hyper-local data and QBRs to show incremental demand and spend vs "free" alternatives
+- Google cover fees are a flashpoint – Free Google and Unlimited Google constructs address this
+
+### Industry Trends (2026 Positioning)
+1. **Economic Pressure:** Frame OpenTable as revenue requirement, not optional utility
+2. **Labor Shortages:** Position automation as "digital team member" saving time and staff
+3. **AI Expectations:** Both diners and restaurants expect AI-assisted experiences
+4. **Seasonality:** Use dynamic product mixes and PI to fill shoulder times and off-season
+
+---
 
 ## SHEET LAYOUT & COLUMN MAP (CRITICAL REFERENCE)
 
@@ -2487,6 +2570,106 @@ Only apply AFTER System Type is addressed. Check **Exclusive Pricing** column (S
 - Freemium/Free Google require minimum 12-month term
 - AYCE envelopes calculated from L12M spend; exclude PI, Experiences, PD unless explicitly included
 - Never lead with pricing if system adoption is weak—fix system first
+
+---
+
+### FREE GOOGLE INITIATIVE (Q1 2026) — CRITICAL FOR RECONTRACTING
+
+The Free Google Initiative is a coordinated 2026 pricing, product, and recontracting program centered on Reserve with Google (RwG). It makes Google-attributed covers $0 to restaurants under specific plans, while rebalancing economics through subscription and Discovery fees.
+
+#### What Free Google Is
+- **Exclusive Pricing (EP) plan type** where RwG covers are billed at $0
+- Subscription remains (may reset to list price as part of recontracting)
+- Per-cover fees on non-Google Network/Discovery traffic remain billable
+- **Sales pitch:** "We'll carve Google out of your bill – RwG covers become $0 – but you still pay for Marketplace Discovery where we add unique value."
+
+#### Three Variants
+| Variant | How It Works | Key Detail |
+|---------|--------------|------------|
+| **Classic Free Google** | RwG covers $0 via EP PRF/SKU | Value recaptured via higher subs or PI |
+| **Free Google w/ Add-On** | RwG covers free, funded by fixed subscription add-on | Tracked as separate pricing type |
+| **Unlimited Google Covers (UGC)** | Flat fee caps Google exposure | Core-only; NOT available on AYCE/Freemium/Free Google |
+
+**Critical:** UGC and Free Google are mutually exclusive. Cannot stack EP programs.
+
+#### Timeline & Critical Dates
+| Date | Milestone |
+|------|-----------|
+| **January 15, 2026** | Free Google Global Pricing Overhaul (new bundles, market logic) |
+| **January 26, 2026** | Google project pricing goes live |
+| **End of February 2026** | Google's blue "Reserve a table" button rolled out widely |
+| **March 1, 2026** | Free Google restaurants get RwG blue button |
+| **End of March 2026** | All other restaurants will PAY for Google covers |
+
+**ACTION REQUIRED:** Identify all Core/Pro independents NOT on a Free Google plan and run targeted outreach before end of March to avoid bill shock.
+
+#### Eligibility Rules
+| Requirement | Details |
+|-------------|---------|
+| System Type | **Core/Pro only** – Basic is NOT eligible |
+| Term Length | 6M+ term (US independents via 2026 blanket PRF) |
+| Not Stackable | Cannot combine with AYCE or Freemium |
+| PRF Required | Individual PRF required for all Free Google offers |
+| Markets | US, CA, MX, UK (legacy) + expanding to LATAM, DE, IE |
+
+#### Free Google Cohorts & Plays
+
+**Cohort 1: Low Hanging Fruit**
+- **Characteristics:** Sub discount > Google revenue; high sub discount, moderate Google RPR
+- **Play: Discount Swap** — Trade discount for Free Google + list sub
+- **Script:** "We're retiring Google fees and normalizing your software price at a fair level—not just taking revenue off the top."
+- **Success:** New term + Free Google + list sub
+
+**Cohort 2: PI Reinvestment Test Group**
+- **Characteristics:** High PI spend, history of marketing, meaningful Google RPR
+- **Play: PI Booster** — Free Google in exchange for PI commitment
+- **Script:** "We'll stop charging for Google covers if you commit to a stronger PI program."
+- **Success:** Free Google + PI commitment/budget
+
+**Cohort 3: Unsecured Contracts**
+- **Characteristics:** Contract expiring <90 days, non-auto-renew, contract risk + Google exposure
+- **Play: Save the At-Risk** — Free Google as save & lock-in lever
+- **Script:** "We'll relieve Google fees if we can get you into a modern contract and avoid churn."
+- **Success:** Renewal + Free Google + term lock
+
+#### Priority Band Logic
+| Band | Criteria | Action |
+|------|----------|--------|
+| **High** | PI Test Group + high PI RPR + good Google RPR, OR Unsecured + Google RPR > 20% | Outreach immediately |
+| **Medium-High** | LHF with big sub discount + Google RPR > 8% | Priority outreach |
+| **Medium** | Other accounts with Google RPR > 3% | Standard outreach |
+| **Low** | Google RPR < 3% | Free Google has minimal impact, consider other levers |
+
+#### If/Then Rules for Free Google
+\`\`\`
+IF system_type = Basic
+  THEN Free Google NOT eligible → Consider UGC add-on OR upgrade to Core first
+
+IF on_AYCE OR on_Freemium
+  THEN Free Google NOT available (already on EP)
+  THEN Unlimited Google Covers also NOT available
+
+IF cohort = Low_Hanging_Fruit AND sub_discount >= google_revenue
+  THEN Play: Discount Swap
+
+IF cohort = PI_Reinvestment AND pi_rpr > 15% AND google_rpr > 5%
+  THEN Play: PI Booster
+
+IF cohort = Unsecured_Contracts AND contract_expiring < 90_days AND google_rpr > 10%
+  THEN Play: Save the At-Risk
+
+IF google_rpr > 20% AND NOT on_any_EP_program
+  THEN Priority: URGENT – outreach immediately before March deadline
+
+IF google_rpr < 3%
+  THEN Priority: Low – Free Google has minimal impact
+\`\`\`
+
+#### Economics Context
+- US RwG Revenue: ~$44M/year (~13% of US total revenue)
+- 2026 Relief Budget: $20-30M
+- Free Google has +49% better cover yield vs Freemium
+- **EP Hierarchy for yield protection:** Free Google (best) > AYCE > Freemium (worst)
 
 ---
 

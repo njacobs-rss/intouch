@@ -578,18 +578,10 @@ function runCreateEmployeeTabs() {
           var uniqueName = getUniqueSheetName_(targetSS, name);
           var copy = launcherSheet.copyTo(targetSS).setName(uniqueName);
           
-          // #region agent log
-          Logger.log('[DEBUG-TAB] Created ' + uniqueName + '. Hidden before show? ' + copy.isSheetHidden());
-          // #endregion
-          
           copy.getRange("B2").setValue(employeeNames[i]);
           
           // Explicitly show the sheet (in case Launcher was hidden)
           copy.showSheet();
-          
-          // #region agent log
-          Logger.log('[DEBUG-TAB] Hidden after show? ' + copy.isSheetHidden());
-          // #endregion
           
           targetSS.setActiveSheet(copy);
           targetSS.moveActiveSheet(1);

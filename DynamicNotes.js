@@ -16,7 +16,7 @@ const DISTRO_SHEET_NAME = 'DISTRO';
 const TARGET_NOTE_COL_INDEX = 8; 
 
 // List of sheets to process in SETUP tab
-const SOURCE_SHEET_LIST_RANGE = 'C3:C23';
+// const SOURCE_SHEET_LIST_RANGE = 'C3:C23'; // DEPRECATED: Now using dynamic range
 
 /**
  * 1. MAIN FUNCTION: UPDATE NOTES BATCH
@@ -72,12 +72,15 @@ function updateAccountNotes(targetSS) {
 
   // --- FETCH TARGET SHEETS ---
   const setupSheet = ss.getSheetByName(SETUP_SHEET_NAME);
-  // Flatten and filter to ensure we have a clean list of names
-  const targetSheetNames = setupSheet.getRange(SOURCE_SHEET_LIST_RANGE)
-    .getValues().flat().filter(name => name && String(name).trim() !== "");
+  
+  // DYNAMIC RANGE FIX: Read all rows from C3 down to ensure all tabs are processed
+  const lastSetupRow = setupSheet.getLastRow();
+  const targetSheetNames = (lastSetupRow >= 3) 
+    ? setupSheet.getRange("C3:C" + lastSetupRow).getValues().flat().filter(name => name && String(name).trim() !== "")
+    : [];
 
   if (targetSheetNames.length === 0) {
-    console.warn("⚠️ No target sheets found in SETUP range " + SOURCE_SHEET_LIST_RANGE);
+    console.warn("⚠️ No target sheets found in SETUP (Column C)");
     ss.toast("⚠️ No AM Tabs listed in SETUP", "Warning");
     return;
   }

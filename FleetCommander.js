@@ -585,7 +585,14 @@ function runCreateEmployeeTabs() {
         // 5. Set Setup as active sheet
         targetSS.setActiveSheet(setupSheet);
         
-        logs.push({ status: 'Success', file: file.getName(), msg: 'Created ' + employeeNames.length + ' tabs' });
+        // 6. Update Notes (Added)
+        try {
+           updateAccountNotes(targetSS);
+        } catch (noteError) {
+           Logger.log("Warning: Notes update failed for " + file.getName() + ": " + noteError.message);
+        }
+        
+        logs.push({ status: 'Success', file: file.getName(), msg: 'Created ' + employeeNames.length + ' tabs + Notes Updated' });
         
       } catch (e) {
         logs.push({ status: 'Error', file: file.getName(), msg: e.toString() });

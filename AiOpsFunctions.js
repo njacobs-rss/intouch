@@ -3127,3 +3127,489 @@ function getRecommendedPrompts_(data, sections) {
   
   return prompts.slice(0, 3);  // Max 3 prompts
 }
+
+// =============================================================
+// SECTION: FREE GOOGLE COHORT DATA
+// =============================================================
+
+/**
+ * Cohort configuration for Free Google Initiative
+ * Maps cohort names to their strategic plays and display order
+ */
+const FREE_GOOGLE_COHORT_CONFIG = {
+  'PI Reinvestment': { 
+    play: 'PI Booster', 
+    order: 1, 
+    priorityDot: '🎯',
+    description: 'High PI spend, meaningful Google exposure'
+  },
+  'PI Reinvestment - Test Group': { 
+    play: 'PI Booster', 
+    order: 1, 
+    priorityDot: '🎯',
+    description: 'Test group for PI reinvestment strategy'
+  },
+  'Unsecured Contracts': { 
+    play: 'Save At-Risk', 
+    order: 2, 
+    priorityDot: '⚠️',
+    description: 'Contract expiring, churn risk with Google exposure'
+  },
+  'Low Hanging Fruit': { 
+    play: 'Discount Swap', 
+    order: 3, 
+    priorityDot: '🍎',
+    description: 'Sub discount exceeds Google revenue'
+  },
+  'Partial Sub Reinvestment': { 
+    play: 'Hybrid', 
+    order: 4, 
+    priorityDot: '🔄',
+    description: 'Moderate sub discount, moderate Google exposure'
+  },
+  'Other': { 
+    play: 'Standard Evaluation', 
+    order: 5, 
+    priorityDot: '📋',
+    description: 'Case-by-case assessment needed'
+  }
+};
+
+/**
+ * Get Free Google cohort data for the sidebar panel
+ * Reads from "Free Google" sheet and groups by cohort
+ * @param {string} amName - The AM's full name (optional, not currently filtered)
+ * @returns {Object} Cohort data structured for UI display
+ */
+function getFreeGoogleCohortData(amName) {
+  const functionName = 'getFreeGoogleCohortData';
+  const startTime = new Date();
+  
+  console.log(`[${functionName}] Starting...`);
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Free Google');
+    
+    if (!sheet) {
+      console.error(`[${functionName}] Sheet 'Free Google' not found`);
+      return { 
+        success: false, 
+        error: 'Free Google sheet not found. Please ensure the sheet exists.' 
+      };
+    }
+    
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    
+    if (lastRow < 2) {
+      return { success: false, error: 'Free Google sheet is empty' };
+    }
+    
+    // Read headers and data
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    
+    // Fuzzy column finder (matches existing pattern)
+    const findCol = (keyword) => headers.findIndex(h => 
+      String(h).toLowerCase().replace(/[^a-z0-9]/g, "").includes(
+        keyword.toLowerCase().replace(/[^a-z0-9]/g, "")
+      )
+    );
+    
+    // Find column indices
+    const colIdx = {
+      category: findCol('category'),
+      cohort: findCol('cohort'),
+      rid: findCol('gidrid') !== -1 ? findCol('gidrid') : findCol('rid'),
+      name: findCol('ridgroupname') !== -1 ? findCol('ridgroupname') : findCol('groupname'),
+      groupCount: findCol('groupcount'),
+      ridCount: findCol('ridcount'),
+      expiringCount: findCol('expiringnonautorenewal'),
+      totalRevenue: findCol('monthlytotalrevenue'),
+      googleRevenue: findCol('monthlygooglerevenue'),
+      piRevenue: findCol('monthlypirevenue'),
+      subDiscount: findCol('monthlysubdiscount'),
+      googleRPR: findCol('monthlygooglerpr'),
+      piRPR: findCol('monthlypirpr') !== -1 ? findCol('monthlypirpr') : findCol('monhtlypirpr'),
+      subRPR: findCol('monthlysubrpr') !== -1 ? findCol('monthlysubrpr') : findCol('monhtlysubrpr')
+    };
+    
+    console.log(`[${functionName}] Column indices:`, JSON.stringify(colIdx));
+    
+    // Validate required columns
+    if (colIdx.cohort === -1 || colIdx.rid === -1 || colIdx.name === -1) {
+      return { 
+        success: false, 
+        error: 'Missing required columns in Free Google sheet (COHORT, GID_RID, RID_GROUP_NAME)' 
+      };
+    }
+    
+    // Group data by cohort
+    const cohortMap = {};
+    let totalAccounts = 0;
+    
+    data.forEach((row, idx) => {
+      const cohortName = String(row[colIdx.cohort] || '').trim();
+      if (!cohortName) return;
+      
+      const rid = String(row[colIdx.rid] || '').trim();
+      const name = String(row[colIdx.name] || '').trim();
+      if (!rid || !name) return;
+      
+      // Parse numeric values (handle currency format like "$ 1,234")
+      const parseNum = (val) => {
+        if (val === null || val === undefined || val === '') return 0;
+        const str = String(val).replace(/[$,\s]/g, '');
+        return parseFloat(str) || 0;
+      };
+      
+      const account = {
+        rid: rid,
+        name: name,
+        category: colIdx.category !== -1 ? String(row[colIdx.category] || '').trim() : 'Unknown',
+        ridCount: colIdx.ridCount !== -1 ? parseInt(row[colIdx.ridCount]) || 1 : 1,
+        googleRPR: colIdx.googleRPR !== -1 ? parseNum(row[colIdx.googleRPR]) : 0,
+        piRPR: colIdx.piRPR !== -1 ? parseNum(row[colIdx.piRPR]) : 0,
+        subDiscount: colIdx.subDiscount !== -1 ? parseNum(row[colIdx.subDiscount]) : 0,
+        googleRevenue: colIdx.googleRevenue !== -1 ? parseNum(row[colIdx.googleRevenue]) : 0,
+        expiringCount: colIdx.expiringCount !== -1 ? parseInt(row[colIdx.expiringCount]) || 0 : 0
+      };
+      
+      // Derive contract status from expiring count
+      account.contractStatus = account.expiringCount > 0 ? 'Expiring' : 'Secured';
+      
+      // Initialize cohort if needed
+      if (!cohortMap[cohortName]) {
+        const config = FREE_GOOGLE_COHORT_CONFIG[cohortName] || FREE_GOOGLE_COHORT_CONFIG['Other'];
+        cohortMap[cohortName] = {
+          id: cohortName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          title: cohortName,
+          play: config.play,
+          priorityDot: config.priorityDot,
+          description: config.description,
+          order: config.order,
+          count: 0,
+          accounts: []
+        };
+      }
+      
+      cohortMap[cohortName].accounts.push(account);
+      cohortMap[cohortName].count++;
+      totalAccounts++;
+    });
+    
+    // Sort cohorts by strategic priority order
+    const sortedCohorts = Object.values(cohortMap).sort((a, b) => a.order - b.order);
+    
+    // Convert back to object keyed by cohort name
+    const cohorts = {};
+    sortedCohorts.forEach(cohort => {
+      // Sort accounts within each cohort by Google RPR (highest first)
+      cohort.accounts.sort((a, b) => b.googleRPR - a.googleRPR);
+      cohorts[cohort.title] = cohort;
+    });
+    
+    const duration = new Date() - startTime;
+    console.log(`[${functionName}] Completed in ${duration}ms. Found ${totalAccounts} accounts across ${Object.keys(cohorts).length} cohorts`);
+    
+    return {
+      success: true,
+      cohorts: cohorts,
+      totalAccounts: totalAccounts,
+      generatedAt: new Date().toISOString(),
+      durationMs: duration
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Get Free Google account data for a specific RID
+ * Used when user selects an account for strategy generation
+ * @param {string} rid - The RID to look up
+ * @returns {Object} Account data with cohort info, or null if not found
+ */
+function getFreeGoogleAccountData(rid) {
+  const functionName = 'getFreeGoogleAccountData';
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Free Google');
+    
+    if (!sheet) {
+      return { success: false, error: 'Free Google sheet not found' };
+    }
+    
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    
+    if (lastRow < 2) {
+      return { success: false, error: 'Free Google sheet is empty' };
+    }
+    
+    // Read headers and data
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    
+    // Fuzzy column finder
+    const findCol = (keyword) => headers.findIndex(h => 
+      String(h).toLowerCase().replace(/[^a-z0-9]/g, "").includes(
+        keyword.toLowerCase().replace(/[^a-z0-9]/g, "")
+      )
+    );
+    
+    // Find column indices
+    const colIdx = {
+      category: findCol('category'),
+      cohort: findCol('cohort'),
+      rid: findCol('gidrid') !== -1 ? findCol('gidrid') : findCol('rid'),
+      name: findCol('ridgroupname') !== -1 ? findCol('ridgroupname') : findCol('groupname'),
+      ridCount: findCol('ridcount'),
+      expiringCount: findCol('expiringnonautorenewal'),
+      totalRevenue: findCol('monthlytotalrevenue'),
+      googleRevenue: findCol('monthlygooglerevenue'),
+      piRevenue: findCol('monthlypirevenue'),
+      subDiscount: findCol('monthlysubdiscount'),
+      googleRPR: findCol('monthlygooglerpr'),
+      piRPR: findCol('monthlypirpr') !== -1 ? findCol('monthlypirpr') : findCol('monhtlypirpr'),
+      subRPR: findCol('monthlysubrpr') !== -1 ? findCol('monthlysubrpr') : findCol('monhtlysubrpr')
+    };
+    
+    // Parse numeric values
+    const parseNum = (val) => {
+      if (val === null || val === undefined || val === '') return 0;
+      const str = String(val).replace(/[$,\s]/g, '');
+      return parseFloat(str) || 0;
+    };
+    
+    // Find the row matching this RID
+    const ridStr = String(rid).trim();
+    const matchRow = data.find(row => String(row[colIdx.rid] || '').trim() === ridStr);
+    
+    if (!matchRow) {
+      return { success: false, found: false, error: 'RID not found in Free Google data' };
+    }
+    
+    const cohortName = String(matchRow[colIdx.cohort] || '').trim();
+    const config = FREE_GOOGLE_COHORT_CONFIG[cohortName] || FREE_GOOGLE_COHORT_CONFIG['Other'];
+    
+    return {
+      success: true,
+      found: true,
+      account: {
+        rid: ridStr,
+        name: String(matchRow[colIdx.name] || '').trim(),
+        category: colIdx.category !== -1 ? String(matchRow[colIdx.category] || '').trim() : 'Unknown',
+        cohort: cohortName,
+        play: config.play,
+        ridCount: colIdx.ridCount !== -1 ? parseInt(matchRow[colIdx.ridCount]) || 1 : 1,
+        googleRPR: colIdx.googleRPR !== -1 ? parseNum(matchRow[colIdx.googleRPR]) : 0,
+        piRPR: colIdx.piRPR !== -1 ? parseNum(matchRow[colIdx.piRPR]) : 0,
+        subDiscount: colIdx.subDiscount !== -1 ? parseNum(matchRow[colIdx.subDiscount]) : 0,
+        googleRevenue: colIdx.googleRevenue !== -1 ? parseNum(matchRow[colIdx.googleRevenue]) : 0,
+        totalRevenue: colIdx.totalRevenue !== -1 ? parseNum(matchRow[colIdx.totalRevenue]) : 0,
+        expiringCount: colIdx.expiringCount !== -1 ? parseInt(matchRow[colIdx.expiringCount]) || 0 : 0,
+        contractStatus: (colIdx.expiringCount !== -1 && parseInt(matchRow[colIdx.expiringCount]) > 0) ? 'Expiring' : 'Secured'
+      }
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Generate Glean research prompt for Free Google account
+ * @param {string} rid - The RID to generate prompt for
+ * @returns {Object} {success, prompt} with the formatted Glean prompt
+ */
+function generateFreeGoogleGleanPrompt(rid) {
+  const functionName = 'generateFreeGoogleGleanPrompt';
+  
+  try {
+    // Get account data from Free Google sheet
+    const accountResult = getFreeGoogleAccountData(rid);
+    
+    if (!accountResult.success || !accountResult.found) {
+      return { 
+        success: false, 
+        error: accountResult.error || 'Account not found in Free Google data' 
+      };
+    }
+    
+    const acc = accountResult.account;
+    
+    // Cohort-specific research blocks
+    const cohortBlocks = {
+      'Low Hanging Fruit': `**Low Hanging Fruit — Discount Swap Play**
+
+Look for: Legacy sub discount history, contract term appetite, past pricing conversations
+
+**Strategic angle:** Trade legacy sub discounts for Free Google + list pricing. Frame as "modernizing your agreement."
+
+**Key question:** Is sub discount larger than Google revenue? If yes, there's rebalancing room.`,
+
+      'PI Reinvestment': `**PI Reinvestment — PI Booster Play**
+
+Look for: Current PI spend, campaign performance, growth appetite, past PI conversations
+
+**Strategic angle:** Free Google in exchange for PI commitment increase.
+
+**Key question:** What PI level would offset the Google revenue we're giving up?`,
+
+      'PI Reinvestment - Test Group': `**PI Reinvestment Test Group — PI Booster Play**
+
+Look for: Current PI spend, campaign performance, growth appetite, past PI conversations
+
+**Strategic angle:** Free Google in exchange for PI commitment increase. This is a test cohort—track outcomes carefully.
+
+**Key question:** What PI level would offset the Google revenue we're giving up?`,
+
+      'Unsecured Contracts': `**Unsecured Contracts — Save At-Risk Play**
+
+Look for: Contract expiration date, churn signals, competitor mentions, recent escalations
+
+**Strategic angle:** Free Google as renewal incentive with term lock-in. Time pressure is your lever.
+
+**Key question:** How soon does the contract expire? What's their churn probability?`,
+
+      'Partial Sub Reinvestment': `**Partial Sub Reinvestment — Hybrid Play**
+
+Look for: Current sub discount vs Google exposure, upgrade potential, appetite for value-adds
+
+**Strategic angle:** Partial sub normalization combined with Free Google.
+
+**Key question:** What's the right balance that feels fair to them?`,
+
+      'Other': `**Other — Standard Evaluation**
+
+Look for: Why they're categorized as "Other," which cohort they're closest to, unique circumstances
+
+**Strategic angle:** Evaluate case-by-case. May need Freemium, AYCE, or Unlimited Google Covers instead.
+
+**Key question:** Is Free Google even the right play?`
+    };
+    
+    const cohortBlock = cohortBlocks[acc.cohort] || cohortBlocks['Other'];
+    
+    // Build the Glean prompt
+    const prompt = `## Free Google Account Strategy Research
+
+You are helping an OpenTable Account Manager research a specific restaurant account to build a Free Google recontracting strategy.
+
+---
+
+### Account Context
+
+| Field | Value |
+|-------|-------|
+| **RID** | ${acc.rid} |
+| **Restaurant Name** | ${acc.name} |
+| **Group** | ${acc.category === 'Group' ? acc.name : 'Independent'} |
+| **Cohort** | ${acc.cohort} |
+| **Google RPR** | $${acc.googleRPR.toFixed(0)}/mo |
+| **PI RPR** | $${acc.piRPR.toFixed(0)}/mo |
+| **Sub Discount** | $${acc.subDiscount.toFixed(0)}/mo |
+| **Contract Status** | ${acc.contractStatus} |
+
+---
+
+### What to Search For
+
+#### Salesforce (Primary Source)
+
+Query using these **exact field names** for accurate results:
+
+**Identity & Joining Keys:**
+- Account identifier: \`Hidden ID\` or \`Finance Systems ID\` (note: there is no simple \`RID\` field on Account)
+- Use \`Hidden ID\` value: **${acc.rid}** to locate this account
+
+**Health & Risk Signals:**
+- \`Vitality Score\`, \`Vitality Score Change\`
+- \`Reputation Score\`, \`Reputation Score Change\`
+- \`Visibility Score\`, \`Visibility Score Change\`
+- \`Churn Probability\`, \`Churn Probability Month\`
+- \`Days since last activity\`
+- \`Total Reviews\`, \`Average Review Score\`
+
+**Segmentation & Tier:**
+- \`CQ Account Tier\` (e.g., Tier 2, Tier 3)
+- \`Customer Type\`, \`Account Status\`
+- \`Restaurant Product Type\`
+
+**Product & System:**
+- \`Primary Product\`, \`Contracted Primary Product\` (OT product)
+- \`System_of_Record__r\` (primary reservation system lookup)
+
+**Billing & Collections:**
+- \`Current Payment Status\` (Up to Date, Past Due, Send to Collections)
+- \`Collections Status\`
+- \`Current Charges\`
+
+**Contract & Renewal:**
+- \`Active_Contract__r\` (current contract ID and name)
+- \`Account on Month to Month Renewal\`
+- \`Auto Renewal\`, \`Auto Renewal Term\`
+- \`Customer Since\`, \`Customer For\`
+
+**Contacts:**
+- Contact-level \`RID\` field
+- \`Contact Email\`, \`Contact Phone\`
+- \`Last Activity\`, \`Most Recent Activity Type\`
+
+---
+
+#### Communication History
+
+Search for recent interactions:
+- **Gmail:** Emails with "${acc.name}" or contacts at this account
+- **Slack:** Mentions of "${acc.name}" or RID ${acc.rid} in AM channels
+- **Google Calendar:** Meetings, QBRs, or calls with this restaurant
+- **Zoom:** Call transcripts if recorded meetings exist
+- **Google Drive:** QBR decks, renewal strategy docs, or account notes
+
+---
+
+#### Context Documents
+
+Look for:
+- AM Playbooks mentioning this account or similar profiles
+- Contract/renewal strategy docs for this segment
+- Any Jira tickets or Cases related to this restaurant
+- Relevant Confluence pages about their product setup or escalations
+
+---
+
+### Strategic Framework
+
+This account is in the **${acc.cohort}** cohort.
+
+${cohortBlock}
+
+---
+
+### Desired Output Format
+
+1. **Account Health** — Vitality, churn risk, engagement level
+2. **Contract Situation** — Term, auto-renew, expiration window
+3. **Billing & Collections** — Payment status, collections flags
+4. **Communication History** — Last touch, open issues, relationship signals
+5. **Recommended Approach** — Which play, talk track angles, timing
+6. **Watch Out For** — Red flags, sensitivities, blockers`;
+
+    return {
+      success: true,
+      prompt: prompt,
+      account: acc
+    };
+    
+  } catch (e) {
+    console.error(`[${functionName}] Error: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}

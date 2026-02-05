@@ -1170,6 +1170,342 @@ function runUpdateNotesOnlyFleet() {
 }
 
 // =============================================================
+// SECTION: SINGLE-FILE GLOBAL OPERATIONS (Test Mode)
+// PURPOSE: Run global operations on a single fleet file for testing
+// =============================================================
+
+/**
+ * SAFE UPDATE SINGLE FILE: Replaces a specific sheet in ONE fleet file
+ * @param {string} sheetName - Name of sheet to update
+ * @param {boolean} hideSheet - Whether to hide sheet after update
+ * @param {string} fileId - Target file ID
+ * @returns {Array} Single-item logs array
+ */
+function runUpdateSheetSafeSingleFile(sheetName, hideSheet, fileId) {
+  assertAdminAccess();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var logs = [];
+
+  var sourceTemplate = ss.getSheetByName(sheetName);
+  if (!sourceTemplate) {
+    throw new Error("Source sheet '" + sheetName + "' not found in this spreadsheet.");
+  }
+
+  var sourceProtections = sourceTemplate.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    var oldSheet = targetSS.getSheetByName(sheetName);
+    
+    if (oldSheet) {
+      // 1. Rename old sheet to preserve formula references temporarily
+      var tempName = sheetName + "_OLD_" + new Date().getTime();
+      oldSheet.setName(tempName);
+      
+      // 2. Copy new sheet in
+      var newSheet = sourceTemplate.copyTo(targetSS).setName(sheetName);
+      
+      // 3. Handle Visibility
+      if (hideSheet === true) {
+        newSheet.hideSheet();
+      } else {
+        newSheet.showSheet(); 
+      }
+
+      // 4. Restore Protections
+      for (var i = 0; i < sourceProtections.length; i++) {
+         var p = sourceProtections[i];
+         newSheet.getRange(p.getRange().getA1Notation()).protect().setDescription(p.getDescription());
+      }
+
+      // 5. Update formulas in the whole spreadsheet to point to the new sheet name 
+      targetSS.createTextFinder(tempName).matchFormulaText(true).replaceAllWith(sheetName);
+      
+      // 6. Delete the old sheet
+      targetSS.deleteSheet(oldSheet);
+      
+      logs.push({ status: 'Success', file: fileName, msg: 'Updated & Reconnected' });
+    } else {
+       logs.push({ status: 'Skipped', file: fileName, msg: 'Sheet not found in target' });
+    }
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.toString() });
+  }
+  
+  return logs;
+}
+
+/**
+ * COPY SHEET SINGLE FILE: Pushes a new sheet to ONE fleet file
+ * @param {string} sourceSheetName - Name of source sheet
+ * @param {string} newSheetName - Name for new sheet
+ * @param {boolean} hideSheet - Whether to hide sheet after copy
+ * @param {string} fileId - Target file ID
+ * @returns {Array} Single-item logs array
+ */
+function runCopySheetSingleFile(sourceSheetName, newSheetName, hideSheet, fileId) {
+  assertAdminAccess();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = ss.getSheetByName(sourceSheetName);
+  var logs = [];
+  var protections = sourceSheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+
+  if (!sourceSheet) {
+    throw new Error("Source sheet '" + sourceSheetName + "' not found.");
+  }
+
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    
+    if (targetSS.getSheetByName(newSheetName)) {
+       logs.push({ status: 'Skipped', file: fileName, msg: 'Sheet already exists' });
+       return logs;
+    }
+    
+    var newSheet = sourceSheet.copyTo(targetSS).setName(newSheetName);
+
+    if (hideSheet === true) {
+      newSheet.hideSheet();
+    } else {
+      newSheet.showSheet();
+    }
+
+    for (var i = 0; i < protections.length; i++) {
+        var p = protections[i];
+        newSheet.getRange(p.getRange().getA1Notation()).protect().setDescription(p.getDescription());
+    }
+    logs.push({ status: 'Success', file: fileName, msg: 'Sheet Copied' });
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.toString() });
+  }
+  
+  return logs;
+}
+
+/**
+ * DELETE SHEET SINGLE FILE: Removes a sheet from ONE fleet file
+ * @param {string} sheetToDelete - Name of sheet to delete
+ * @param {string} fileId - Target file ID
+ * @returns {Array} Single-item logs array
+ */
+function runDeleteSheetSingleFile(sheetToDelete, fileId) {
+  assertAdminAccess();
+  var logs = [];
+
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    var sheet = targetSS.getSheetByName(sheetToDelete);
+    
+    if (sheet) {
+      targetSS.deleteSheet(sheet);
+      logs.push({ status: 'Success', file: fileName, msg: 'Deleted ' + sheetToDelete });
+    } else {
+      logs.push({ status: 'Skipped', file: fileName, msg: 'Sheet not found' });
+    }
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.toString() });
+  }
+  
+  return logs;
+}
+
+/**
+ * CONFIG UPDATE SINGLE FILE: Updates Template IDs in SETUP tab for ONE file
+ * @param {string} fileId - Target file ID
+ * @returns {Array} Single-item logs array
+ */
+function runUpdateSheetSingleFile(fileId) {
+  assertAdminAccess();
+  var TEMPLATE_FOLDER_ID = '1lt4n-LZe8ufMqCkNSU-tGRs4DysEKySs'; 
+  var logs = [];
+  
+  try {
+    const TEMPLATE_FOLDER = DriveApp.getFolderById(TEMPLATE_FOLDER_ID);
+    let SHEETS_TEMPLATE_ID, SLIDES_TEMPLATE_ID;
+    
+    const templateFiles = TEMPLATE_FOLDER.getFiles();
+    while (templateFiles.hasNext()) {
+      const file = templateFiles.next();
+      if (file.getName() === "BI_Prod_Sheet") SHEETS_TEMPLATE_ID = file.getId();
+      if (file.getName() === "BI_Prod_Slides") SLIDES_TEMPLATE_ID = file.getId();
+    }
+    
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    var sheet = targetSS.getSheetByName('SETUP');
+    
+    if (sheet) {
+      if (SLIDES_TEMPLATE_ID) sheet.getRange('G10').setValue(SLIDES_TEMPLATE_ID);
+      if (SHEETS_TEMPLATE_ID) sheet.getRange('G11').setValue(SHEETS_TEMPLATE_ID);
+      logs.push({ status: 'Success', file: fileName, msg: 'IDs Updated' });
+    } else {
+      logs.push({ status: 'Skipped', file: fileName, msg: 'SETUP sheet not found' });
+    }
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.message });
+  }
+  
+  return logs;
+}
+
+/**
+ * CREATE EMPLOYEE TABS SINGLE FILE: Recreates AM tabs in ONE fleet file
+ * @param {string} fileId - Target file ID
+ * @returns {Array} Single-item logs array
+ */
+function runCreateEmployeeTabsSingleFile(fileId) {
+  assertAdminAccess();
+  var logs = [];
+
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    var setupSheet = targetSS.getSheetByName("Setup");
+    var launcherSheet = targetSS.getSheetByName("Launcher");
+    
+    if (!setupSheet || !launcherSheet) {
+      logs.push({ status: 'Skipped', file: fileName, msg: 'Missing Setup or Launcher sheet' });
+      return logs;
+    }
+
+    // 1. Get employee names from Setup B3:B
+    var employeeNames = setupSheet.getRange("B3:B" + setupSheet.getLastRow()).getValues()
+      .map(function(r) { return r[0] ? r[0].toString().trim() : ''; })
+      .filter(function(name) { return name && name !== "Manager Lens"; });
+
+    if (employeeNames.length === 0) {
+      logs.push({ status: 'Skipped', file: fileName, msg: 'No employees in Setup' });
+      return logs;
+    }
+
+    // 2. Get first names for tab naming
+    var firstNames = employeeNames.map(function(n) { return n.split(' ')[0]; });
+
+    // 3. Delete existing employee tabs (with protection for system sheets)
+    var sheetsToDelete = targetSS.getSheets().filter(function(s) { 
+      var name = s.getName();
+      if (PROTECTED_SHEET_NAMES.includes(name)) {
+        Logger.log('WARNING: Skipping protected sheet "' + name + '" in ' + fileName);
+        return false;
+      }
+      return firstNames.includes(name); 
+    });
+    sheetsToDelete.forEach(function(s) { targetSS.deleteSheet(s); });
+
+    // 4. Create new tabs from Launcher template
+    firstNames.forEach(function(name, i) {
+      var uniqueName = getUniqueSheetName_(targetSS, name);
+      var copy = launcherSheet.copyTo(targetSS).setName(uniqueName);
+      
+      copy.getRange("B2").setValue(employeeNames[i]);
+      
+      // Explicitly show the sheet (in case Launcher was hidden)
+      copy.showSheet();
+      
+      targetSS.setActiveSheet(copy);
+      targetSS.moveActiveSheet(1);
+    });
+
+    // 5. Set Setup as active sheet
+    targetSS.setActiveSheet(setupSheet);
+    
+    // 6. Update Notes
+    try {
+       updateAccountNotes(targetSS);
+    } catch (noteError) {
+       Logger.log("Warning: Notes update failed for " + fileName + ": " + noteError.message);
+    }
+    
+    logs.push({ status: 'Success', file: fileName, msg: 'Created ' + employeeNames.length + ' tabs + Notes Updated' });
+    
+  } catch (e) {
+    logs.push({ status: 'Error', file: fileId, msg: e.toString() });
+  }
+  
+  return logs;
+}
+
+/**
+ * DATA REFRESH SINGLE FILE: Run data pipeline on ONE fleet file
+ * @param {string} scope - 'full', 'syscore', 'syscore-only', or 'dagcore'
+ * @param {boolean} updateNotes - Whether to update notes after refresh
+ * @param {string} fileId - Target file ID
+ * @returns {Object} Result object
+ */
+function runDataRefreshSingleFile(scope, updateNotes, fileId) {
+  assertAdminAccess();
+  
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    
+    // Preload shared source data for this single file
+    var shared = preloadFleetSourceData_(scope);
+    
+    // Run the appropriate pipeline with preloaded data
+    var result = runOptimizedPipeline_(targetSS, scope, shared);
+    
+    // Optionally update notes
+    if (updateNotes) {
+      try {
+        updateAccountNotes(targetSS);
+        result.msg += ' + Notes';
+      } catch (noteErr) {
+        Logger.log('Notes update failed: ' + noteErr.message);
+      }
+    }
+    
+    return { 
+      status: 'Success', 
+      file: fileName, 
+      message: result.msg,
+      records: result.records 
+    };
+    
+  } catch (e) {
+    Logger.log('Single file data refresh error: ' + e.message);
+    return { 
+      status: 'Error', 
+      file: fileId, 
+      message: e.message 
+    };
+  }
+}
+
+/**
+ * UPDATE NOTES ONLY SINGLE FILE: Update dynamic notes on ONE fleet file
+ * @param {string} fileId - Target file ID
+ * @returns {Object} Result object
+ */
+function runUpdateNotesOnlyFleetSingleFile(fileId) {
+  assertAdminAccess();
+  
+  try {
+    var targetSS = SpreadsheetApp.openById(fileId);
+    var fileName = targetSS.getName();
+    
+    updateAccountNotes(targetSS);
+    
+    return { 
+      status: 'Success', 
+      file: fileName, 
+      message: 'Notes updated' 
+    };
+    
+  } catch (e) {
+    Logger.log('Single file notes update error: ' + e.message);
+    return { 
+      status: 'Error', 
+      file: fileId, 
+      message: e.message 
+    };
+  }
+}
+
+// =============================================================
 // SECTION: RANGE REPLICATOR
 // PURPOSE: Push specific cell ranges across fleet files
 // =============================================================

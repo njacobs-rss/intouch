@@ -481,6 +481,16 @@
           </div>
         </div>
 
+        <div class="checkbox-wrapper" style="margin-top:8px; padding:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:4px;">
+          <input type="checkbox" id="global-test-mode-check" onchange="toggleGlobalTestMode()"> 
+          <span style="color:#c2410c; font-weight:600;">Test Mode (Single File)</span>
+        </div>
+
+        <div id="global-test-file-wrapper" style="display:none; margin-top:8px; margin-bottom:12px;">
+          <label>Target Fleet File</label>
+          <select id="global-fleet-file-selector"><option value="">Loading fleet files...</option></select>
+        </div>
+
         <div class="grid-3" id="global-row-1">
           <button class="btn-safe btn-vertical" onclick="requestAction('safeUpdate')">
             <span class="icon">📑</span> Deploy Update
@@ -723,6 +733,17 @@
         <div class="confirm-btns">
           <button class="btn-yes" onclick="executeRangePush(true)">Push Anyway</button>
           <button class="btn-no" onclick="cancelRangeAction()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="global-test-success-modal" style="display:none; background:#e6fffa; border:1px solid #38b2ac; color:#234e52; padding:12px; border-radius:6px; margin-top:12px; text-align:center;">
+        <div style="font-weight:bold; margin-bottom:6px; font-size:13px;">✅ Test Operation Complete!</div>
+        <div style="font-size:11px; margin-bottom:4px;">Successfully ran on:</div>
+        <div id="global-test-success-filename" style="font-weight:600; color:#2c7a7b; margin-bottom:10px; font-size:12px;"></div>
+        <div style="font-size:10px; margin-bottom:8px;">Would you like to open the file to verify?</div>
+        <div class="confirm-btns" style="margin-top:0;">
+          <button class="btn-yes" onclick="openGlobalTestFile()">Open File</button>
+          <button class="btn-no" onclick="closeGlobalTestSuccessModal()">Done</button>
         </div>
       </div>
 
@@ -1033,6 +1054,7 @@
         document.getElementById('no-header-modal').style.display = 'none';
         document.getElementById('mismatch-modal').style.display = 'none';
         document.getElementById('test-success-modal').style.display = 'none';
+        document.getElementById('global-test-success-modal').style.display = 'none';
         showCurrentTabContent();
         pendingAction = null;
       }
@@ -1074,8 +1096,40 @@
       function executeDataRefresh() {
         var scope = document.querySelector('input[name="refresh-scope"]:checked').value;
         var updateNotes = document.getElementById('update-notes-check').checked;
+        var globalTestMode = isGlobalTestMode();
         
         document.getElementById('data-refresh-modal').style.display = 'none';
+        
+        // Handle global test mode
+        if (globalTestMode) {
+          var testFileId = getGlobalTestFileId();
+          if (!testFileId) {
+            showToast('warning', 'Select File', 'Test Mode enabled - please select a target file');
+            return;
+          }
+          lastGlobalTestFileId = testFileId;
+          lastGlobalTestFileName = getGlobalTestFileName();
+          
+          var toastId = showToast('working', 'Testing ' + scope + ' refresh...', lastGlobalTestFileName, { persistent: true });
+          
+          google.script.run
+            .withSuccessHandler(function(result) {
+              removeToast(toastId);
+              if (result.status === 'Success' || result.status === 'complete') {
+                document.getElementById('global-test-success-filename').textContent = lastGlobalTestFileName;
+                document.getElementById('global-test-success-modal').style.display = 'block';
+                showToast('success', 'Test Refresh Complete', lastGlobalTestFileName);
+              } else {
+                showToast('warning', 'Refresh Issue', result.message || 'Check logs');
+              }
+            })
+            .withFailureHandler(function(error) {
+              removeToast(toastId);
+              showToast('error', 'Error', error.message);
+            })
+            .runDataRefreshSingleFile(scope, updateNotes, testFileId);
+          return;
+        }
         
         var toastId = showToast('working', 'Starting ' + scope + ' refresh...', 'Building queue...', { persistent: true });
 
@@ -1190,6 +1244,10 @@
       // Keep for backward compatibility
       function closeQueueStatus() {}
 
+      // Track last test file for success modal
+      var lastGlobalTestFileId = null;
+      var lastGlobalTestFileName = null;
+
       function executeConfirmedAction() {
         var actionToRun = pendingAction; 
         
@@ -1201,12 +1259,27 @@
 
         document.getElementById('confirm-modal').style.display = 'none';
         
+        // Check if global test mode is active for fleet operations
+        var globalTestMode = isGlobalTestMode();
+        var globalActions = ['safeUpdate', 'copy', 'delete', 'config', 'globalTabs', 'updateNotesFleet'];
+        
+        if (globalTestMode && globalActions.includes(actionToRun)) {
+          var testFileId = getGlobalTestFileId();
+          if (!testFileId) {
+            showToast('warning', 'Select File', 'Test Mode enabled - please select a target file');
+            pendingAction = null;
+            return;
+          }
+          lastGlobalTestFileId = testFileId;
+          lastGlobalTestFileName = getGlobalTestFileName();
+        }
+        
         var actionLabels = {
-          safeUpdate: 'Deploying Update',
-          copy: 'Deploying New Tab',
-          delete: 'Deleting Tabs',
-          config: 'Updating IDs',
-          globalTabs: 'Refreshing AM Tabs',
+          safeUpdate: globalTestMode ? 'Test Deploying Update' : 'Deploying Update',
+          copy: globalTestMode ? 'Test Deploying New Tab' : 'Deploying New Tab',
+          delete: globalTestMode ? 'Test Deleting Tab' : 'Deleting Tabs',
+          config: globalTestMode ? 'Test Updating IDs' : 'Updating IDs',
+          globalTabs: globalTestMode ? 'Test Refreshing AM Tabs' : 'Refreshing AM Tabs',
           createTabs: 'Creating Tabs',
           deleteTabs: 'Deleting Tabs',
           updateNotes: 'Updating Notes',
@@ -1214,7 +1287,11 @@
         };
         
         if (actionToRun === 'updateNotesFleet') {
-          executeFleetNotesUpdate();
+          if (globalTestMode) {
+            executeFleetNotesUpdateSingleFile();
+          } else {
+            executeFleetNotesUpdate();
+          }
           pendingAction = null;
           return;
         }
@@ -1236,21 +1313,53 @@
           showLogsAsToast(logs);
         }
         
+        function onTestSuccess(logs) {
+          removeToast(toastId);
+          var wasSuccess = logs && logs.length > 0 && logs.some(function(l) { return l.status === 'Success'; });
+          if (wasSuccess) {
+            document.getElementById('global-test-success-filename').textContent = lastGlobalTestFileName;
+            document.getElementById('global-test-success-modal').style.display = 'block';
+            showToast('success', 'Test Complete', lastGlobalTestFileName);
+          } else {
+            showLogsAsToast(logs);
+          }
+        }
+        
         function onSimpleSuccess(msg) {
           removeToast(toastId);
           showToast('success', msg, '');
         }
 
         if (actionToRun === 'safeUpdate') {
-          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runUpdateSheetSafe(sheetName, hideCheck);
+          if (globalTestMode) {
+            google.script.run.withSuccessHandler(onTestSuccess).withFailureHandler(onFailure).runUpdateSheetSafeSingleFile(sheetName, hideCheck, lastGlobalTestFileId);
+          } else {
+            google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runUpdateSheetSafe(sheetName, hideCheck);
+          }
         } else if (actionToRun === 'copy') {
-          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runCopySheet(sheetName, newName, hideCheck);
+          if (globalTestMode) {
+            google.script.run.withSuccessHandler(onTestSuccess).withFailureHandler(onFailure).runCopySheetSingleFile(sheetName, newName, hideCheck, lastGlobalTestFileId);
+          } else {
+            google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runCopySheet(sheetName, newName, hideCheck);
+          }
         } else if (actionToRun === 'delete') {
-          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runDeleteSheet(sheetName);
+          if (globalTestMode) {
+            google.script.run.withSuccessHandler(onTestSuccess).withFailureHandler(onFailure).runDeleteSheetSingleFile(sheetName, lastGlobalTestFileId);
+          } else {
+            google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runDeleteSheet(sheetName);
+          }
         } else if (actionToRun === 'config') {
-          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runUpdateSheet();
+          if (globalTestMode) {
+            google.script.run.withSuccessHandler(onTestSuccess).withFailureHandler(onFailure).runUpdateSheetSingleFile(lastGlobalTestFileId);
+          } else {
+            google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runUpdateSheet();
+          }
         } else if (actionToRun === 'globalTabs') {
-          google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runCreateEmployeeTabs();
+          if (globalTestMode) {
+            google.script.run.withSuccessHandler(onTestSuccess).withFailureHandler(onFailure).runCreateEmployeeTabsSingleFile(lastGlobalTestFileId);
+          } else {
+            google.script.run.withSuccessHandler(onLogsSuccess).withFailureHandler(onFailure).runCreateEmployeeTabs();
+          }
         } else if (actionToRun === 'createTabs') {
           google.script.run.withSuccessHandler(function() { onSimpleSuccess('AM Tabs Refreshed'); }).withFailureHandler(onFailure).createEmployeeTabs();
         } else if (actionToRun === 'deleteTabs') {
@@ -1262,6 +1371,39 @@
         }
 
         pendingAction = null;
+      }
+      
+      function executeFleetNotesUpdateSingleFile() {
+        var toastId = showToast('working', 'Testing notes update...', 'Single file', { persistent: true });
+
+        google.script.run
+          .withSuccessHandler(function(result) {
+            removeToast(toastId);
+            if (result.status === 'Success' || result.status === 'complete') {
+              document.getElementById('global-test-success-filename').textContent = lastGlobalTestFileName;
+              document.getElementById('global-test-success-modal').style.display = 'block';
+              showToast('success', 'Test Notes Update Complete', lastGlobalTestFileName);
+            } else {
+              showToast('warning', 'Notes Update Issue', result.message || 'Check logs');
+            }
+          })
+          .withFailureHandler(function(error) {
+            removeToast(toastId);
+            showToast('error', 'Error', error.message);
+          })
+          .runUpdateNotesOnlyFleetSingleFile(lastGlobalTestFileId);
+      }
+      
+      function openGlobalTestFile() {
+        if (lastGlobalTestFileId) {
+          var url = 'https://docs.google.com/spreadsheets/d/' + lastGlobalTestFileId + '/edit';
+          window.open(url, '_blank');
+        }
+        closeGlobalTestSuccessModal();
+      }
+
+      function closeGlobalTestSuccessModal() {
+        document.getElementById('global-test-success-modal').style.display = 'none';
       }
       
       // Show logs summary as toast
@@ -1332,6 +1474,63 @@
             console.error("Failed to load fleet files:", e);
           })
           .getFleetFileList();
+      }
+
+      // =============================================================
+      // GLOBAL TEST MODE FUNCTIONS
+      // =============================================================
+      var globalFleetFilesLoaded = false;
+      
+      function toggleGlobalTestMode() {
+        var checkbox = document.getElementById('global-test-mode-check');
+        var wrapper = document.getElementById('global-test-file-wrapper');
+        
+        if (checkbox.checked) {
+          wrapper.style.display = 'block';
+          loadGlobalFleetFiles();
+        } else {
+          wrapper.style.display = 'none';
+          document.getElementById('global-fleet-file-selector').value = '';
+        }
+      }
+      
+      function loadGlobalFleetFiles() {
+        if (globalFleetFilesLoaded) return;
+        google.script.run
+          .withSuccessHandler(function(files) {
+            var select = document.getElementById('global-fleet-file-selector');
+            select.innerHTML = '<option value="">— Select a file —</option>';
+            if (files && files.length > 0) {
+              files.forEach(function(file) {
+                var option = document.createElement('option');
+                option.value = file.id;
+                option.text = file.name;
+                select.add(option);
+              });
+              globalFleetFilesLoaded = true;
+            } else {
+              select.innerHTML = '<option value="">No fleet files found</option>';
+            }
+          })
+          .withFailureHandler(function(e) {
+            var select = document.getElementById('global-fleet-file-selector');
+            select.innerHTML = '<option value="">Error loading files</option>';
+            console.error("Failed to load global fleet files:", e);
+          })
+          .getFleetFileList();
+      }
+      
+      function isGlobalTestMode() {
+        return document.getElementById('global-test-mode-check').checked;
+      }
+      
+      function getGlobalTestFileId() {
+        return document.getElementById('global-fleet-file-selector').value;
+      }
+      
+      function getGlobalTestFileName() {
+        var selector = document.getElementById('global-fleet-file-selector');
+        return selector.options[selector.selectedIndex] ? selector.options[selector.selectedIndex].text : '';
       }
 
       function toggleTestMode() {

@@ -99,6 +99,80 @@ createBizInsightsDeck()
   ├─► _populateBenchmarks_()
   ├─► Copy slides template
   └─► _replaceChartsInSlides_V2_Batch_()
+
+askInTouchGuide(query, history, shouldLog, prefetchedData)
+  ├─► classifyQueryComplexity()
+  │     └─► Returns "flash" | "pro"
+  ├─► Check scripted responses (fast-path)
+  ├─► Check response cache
+  ├─► Inject account/ranking data if needed
+  └─► Call Gemini API with context caching
+        ├─► Flash: Simple queries
+        └─► Pro: Complex analysis (with context cache)
+
+getFreeGoogleCohortData(amName)
+  ├─► Read "Free Google" sheet
+  ├─► Filter by AM
+  ├─► Group by cohort (PI Reinvestment, etc.)
+  └─► Sort by priority + Google RPR
+
+executeFreeGoogleStrategy(rid, strategyType)
+  ├─► "quick" → generateQuickFreeGoogleStrategy()
+  ├─► "full" → askInTouchGuide() with strategy prompt
+  └─► "glean" → generateFreeGoogleGleanPrompt()
+              └─► Opens Glean with pre-filled search
+```
+
+## Free Google Cohort Configuration
+
+```javascript
+const FREE_GOOGLE_COHORT_CONFIG = {
+  "PI Reinvestment":       { priority: 1, play: "PI Booster" },
+  "Unsecured Contracts":   { priority: 2, play: "Save At-Risk" },
+  "Low Hanging Fruit":     { priority: 3, play: "Discount Swap" },
+  "Partial Sub Reinvestment": { priority: 4, play: "Hybrid" },
+  "Other":                 { priority: 5, play: "Standard Evaluation" }
+};
+```
+
+## Feedback System Data Flow
+
+```
+┌──────────────────┐          ┌──────────────────┐          ┌──────────────────┐
+│   Bucket IQ      │          │  InTouchGuide    │          │  Central Master  │
+│   (Browser)      │          │  (Server)        │          │  Spreadsheet     │
+├──────────────────┤          ├──────────────────┤          ├──────────────────┤
+│ User rates       │          │                  │          │                  │
+│ response:        │          │                  │          │                  │
+│  thumbs up/down  ├─────────►│ logKnowledge    │─────────►│ Feedback sheet   │
+│  correction text │          │  HubFeedback()   │          │ (central log)    │
+│                  │          │                  │          │                  │
+│ Admin export:    │          │                  │          │                  │
+│  export button   ├─────────►│ exportFeedback  │◄─────────┤ Read all rows    │
+│                  │◄─────────┤  ForAI()        │          │                  │
+│  Downloads JSON  │          │                  │          │                  │
+└──────────────────┘          └──────────────────┘          └──────────────────┘
+```
+
+## Query Classification Logic
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  classifyQueryComplexity(query, hasData)        │
+│                                                                 │
+│  FLASH (Simple) triggers:                                       │
+│   - "what is", "define", "meaning of"                          │
+│   - "how do I", "how to"                                       │
+│   - "show", "list", "find" (without analysis)                  │
+│   - Short queries without account data                          │
+│                                                                 │
+│  PRO (Complex) triggers:                                        │
+│   - "analyze", "compare", "summarize my"                       │
+│   - "strategy", "recommend", "should I"                        │
+│   - Portfolio-level questions with hasData=true                 │
+│   - Multi-step reasoning requests                               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Error Handling Conventions
@@ -127,6 +201,32 @@ function pipelineStep() {
 | Execution time | 6 min (trigger) | Break into chained calls |
 | Cache duration | 6 hours | CACHE_DURATION constant |
 
+## New Server Functions (Feb 2026)
+
+### Free Google Functions (AiOpsFunctions.js)
+
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `getFreeGoogleCohortData(amName)` | Load cohort-grouped accounts for sidebar | `{cohorts: {...}, meta: {...}}` |
+| `getFreeGoogleAccountData(rid)` | Get detailed account for strategy | Account object |
+| `generateFreeGoogleGleanPrompt(rid)` | Create Glean research prompt | Prompt string |
+
+### AI Chat Functions (InTouchGuide.js)
+
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `askInTouchGuide(query, history, log, data)` | Main chat orchestration | Response string |
+| `classifyQueryComplexity(query, hasData)` | Route to Flash/Pro | "flash" or "pro" |
+
+### Feedback Functions (InTouchGuide.js)
+
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `logKnowledgeHubFeedback(feedback)` | Log rating to central master | Success boolean |
+| `getKHFeedbackForReview()` | Get items needing review | Array of feedback |
+| `exportFeedbackForAI()` | Export for Cursor training | JSON string |
+| `generateFeedbackMarkdown_()` | Markdown with Cursor instructions | Markdown string |
+
 ## Testing Checklist
 
 Before deploying changes:
@@ -136,3 +236,5 @@ Before deploying changes:
 - [ ] Check sidebar still loads
 - [ ] Confirm no console errors in browser
 - [ ] Test on one fleet file before push:all
+- [ ] Test Free Google cohort loading
+- [ ] Test feedback logging to central master

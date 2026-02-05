@@ -1259,6 +1259,26 @@
       box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
     }
     
+    /* Free Google Button - Green variant */
+    .kh-freegoogle-trigger {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+      box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2) !important;
+      margin-left: 8px;
+    }
+    .kh-freegoogle-trigger:hover {
+      box-shadow: 0 4px 8px rgba(5, 150, 105, 0.3) !important;
+    }
+    
+    /* Free Google Panel Prompt */
+    .kh-freegoogle-prompt {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #64748b;
+      font-style: italic;
+      text-align: center;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
     .kh-jumpstart-empty {
       padding: 12px;
       text-align: center;
@@ -1547,6 +1567,29 @@
       <!-- Daily Insights rendered separately to avoid clipping -->
       <div id="khJumpStartInsights"></div>
 
+      <!-- Free Google Cohort Panel -->
+      <div class="kh-jumpstart kh-freegoogle" id="khFreeGoogle" style="display:none;">
+        <div class="kh-jumpstart-header">
+          <div class="kh-jumpstart-title-wrapper">
+            <div class="kh-jumpstart-title">
+              <span>🆓</span> FREE GOOGLE COHORTS
+            </div>
+            <div class="kh-jumpstart-am-indicator" id="khFreeGoogleTotal"></div>
+          </div>
+          <button class="kh-jumpstart-refresh" onclick="startFreeGoogle()" title="Refresh">
+            🔄
+          </button>
+        </div>
+        <div class="kh-freegoogle-prompt" id="khFreeGooglePrompt">
+          Which cohort do you want to focus on?
+        </div>
+        <div id="khFreeGoogleContent">
+          <!-- Cohort sections will be injected here -->
+        </div>
+      </div>
+      <!-- Free Google Insights rendered separately -->
+      <div id="khFreeGoogleInsights"></div>
+
       <div class="kh-welcome" id="khWelcome">
         <div class="kh-welcome-icon">✦</div>
         <h5>Let's Get Down To Buckets</h5>
@@ -1554,6 +1597,9 @@
         
         <button class="kh-jumpstart-trigger" onclick="startMyDay()">
           <span>🌅</span> Start My Day
+        </button>
+        <button class="kh-jumpstart-trigger kh-freegoogle-trigger" onclick="startFreeGoogle()">
+          <span>🆓</span> Free Google
         </button>
         <div class="kh-section-label">InTouch Help</div>
         <div class="kh-suggestions">
@@ -2264,6 +2310,13 @@
       jumpStartData: null,          // Cached data from getJumpStartData()
       jumpStartLoading: false,      // Loading state for Jump Start
       expandedSections: {},         // Tracks which sections are expanded {termPending: true, ...}
+      // Free Google Cohort state
+      freeGoogleData: null,         // Cached data from getFreeGoogleCohortData()
+      freeGoogleLoading: false,     // Loading state for Free Google panel
+      expandedFreeGoogleCohorts: {}, // Tracks which cohorts are expanded
+      lastCopiedFreeGoogleRID: null, // Last RID copied from Free Google panel
+      lastCopiedFreeGoogleAccount: null, // Account data for last copied RID
+      pendingFreeGoogleStrategy: null, // Pending strategy request {rid, accountData, cohortName, play}
       // Pre-fetched AM data for faster chat responses
       cachedAMData: null,           // Cached portfolio data from getDetailedAMData()
       cachedAMDataExpiry: 0,        // Timestamp when cached data expires
@@ -3706,6 +3759,628 @@
       return output;
     }
 
+    // =============================================================
+    // FREE GOOGLE COHORT PANEL FUNCTIONS
+    // =============================================================
+    
+    /**
+     * Start Free Google cohort exploration
+     * Loads cohort data and renders accordion
+     */
+    function startFreeGoogle() {
+      console.log('[startFreeGoogle] Starting...');
+      
+      // Debounce rapid clicks
+      if (khState.freeGoogleLoading) {
+        console.log('[startFreeGoogle] Already loading, ignoring click');
+        return;
+      }
+      
+      // Get DOM elements
+      const freeGoogleEl = document.getElementById('khFreeGoogle');
+      const freeGoogleContent = document.getElementById('khFreeGoogleContent');
+      const welcomeEl = document.getElementById('khWelcome');
+      const jumpStartEl = document.getElementById('khJumpStart');
+      const triggerBtns = document.querySelectorAll('.kh-freegoogle-trigger');
+      const refreshBtn = freeGoogleEl?.querySelector('.kh-jumpstart-refresh');
+      
+      if (!freeGoogleEl || !freeGoogleContent) {
+        console.error('[startFreeGoogle] Free Google elements not found');
+        return;
+      }
+      
+      // Show Free Google panel, hide welcome and Jump Start
+      freeGoogleEl.style.display = 'block';
+      if (welcomeEl) welcomeEl.style.display = 'none';
+      if (jumpStartEl) jumpStartEl.style.display = 'none';
+      
+      // Hide jump start insights too
+      const jumpStartInsights = document.getElementById('khJumpStartInsights');
+      if (jumpStartInsights) jumpStartInsights.innerHTML = '';
+      
+      // Loading state
+      khState.freeGoogleLoading = true;
+      triggerBtns.forEach(btn => btn.disabled = true);
+      if (refreshBtn) refreshBtn.disabled = true;
+      
+      // Show loading spinner
+      freeGoogleContent.innerHTML = `
+        <div class="kh-jumpstart-loading">
+          <div class="kh-loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="kh-jumpstart-loading-text">
+            Loading Free Google cohorts...
+          </div>
+        </div>
+      `;
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          console.log('[startFreeGoogle] Data received:', result);
+          
+          // Re-enable buttons
+          khState.freeGoogleLoading = false;
+          triggerBtns.forEach(btn => btn.disabled = false);
+          if (refreshBtn) refreshBtn.disabled = false;
+          
+          if (result.success) {
+            // Store data for later use
+            khState.freeGoogleData = result;
+            khState.expandedFreeGoogleCohorts = {};
+            renderFreeGoogleAccordion(result);
+          } else {
+            console.error('[startFreeGoogle] Server returned error:', result.error);
+            freeGoogleContent.innerHTML = `
+              <div class="kh-jumpstart-error">
+                <div class="kh-jumpstart-error-icon">⚠️</div>
+                <div class="kh-jumpstart-error-text">
+                  Couldn't load Free Google data
+                </div>
+                <div class="kh-jumpstart-error-detail">
+                  ${result.error || 'Please try again'}
+                </div>
+                <button class="kh-jumpstart-btn primary" onclick="startFreeGoogle()">
+                  Try Again
+                </button>
+              </div>
+            `;
+          }
+        })
+        .withFailureHandler((error) => {
+          console.error('[startFreeGoogle] Fetch error:', error);
+          
+          // Re-enable buttons
+          khState.freeGoogleLoading = false;
+          triggerBtns.forEach(btn => btn.disabled = false);
+          if (refreshBtn) refreshBtn.disabled = false;
+          
+          freeGoogleContent.innerHTML = `
+            <div class="kh-jumpstart-error">
+              <div class="kh-jumpstart-error-icon">❌</div>
+              <div class="kh-jumpstart-error-text">
+                Connection error
+              </div>
+              <div class="kh-jumpstart-error-detail">
+                ${error.message || 'Please check your connection and try again'}
+              </div>
+              <button class="kh-jumpstart-btn primary" onclick="startFreeGoogle()">
+                Try Again
+              </button>
+            </div>
+          `;
+        })
+        .getFreeGoogleCohortData();
+    }
+    
+    /**
+     * Render Free Google cohort accordion
+     * @param {Object} data - Data from getFreeGoogleCohortData()
+     */
+    function renderFreeGoogleAccordion(data) {
+      const freeGoogleContent = document.getElementById('khFreeGoogleContent');
+      if (!freeGoogleContent || !data.cohorts) {
+        console.error('[renderFreeGoogleAccordion] Missing content element or cohorts');
+        return;
+      }
+      
+      // Update total indicator
+      const totalIndicator = document.getElementById('khFreeGoogleTotal');
+      if (totalIndicator) {
+        totalIndicator.textContent = `📊 ${data.totalAccounts} accounts`;
+        totalIndicator.style.display = 'inline-block';
+      }
+      
+      // Get cohort order from config (already sorted by server)
+      const cohortOrder = Object.keys(data.cohorts);
+      
+      let html = '';
+      let totalAccounts = 0;
+      
+      cohortOrder.forEach(cohortName => {
+        const cohort = data.cohorts[cohortName];
+        if (!cohort || cohort.count === 0) return;
+        
+        totalAccounts += cohort.count;
+        
+        // Determine expansion state (first cohort expanded by default)
+        const isLargeCohort = cohort.count > 10;
+        if (khState.expandedFreeGoogleCohorts[cohort.id] === undefined) {
+          khState.expandedFreeGoogleCohorts[cohort.id] = !isLargeCohort && totalAccounts === cohort.count;
+        }
+        const expanded = khState.expandedFreeGoogleCohorts[cohort.id] ? 'expanded' : '';
+        
+        html += `
+          <div class="kh-jumpstart-section ${expanded}" data-cohort-id="${cohort.id}" data-count="${cohort.count}">
+            <div class="kh-jumpstart-section-header" onclick="toggleFreeGoogleCohort('${cohort.id}')">
+              <span class="kh-jumpstart-chevron">▶</span>
+              <span class="kh-jumpstart-dot">${cohort.priorityDot}</span>
+              <span class="kh-jumpstart-name">${cohort.title} <span style="color:#64748b;font-weight:400;">(${cohort.play})</span></span>
+              <span class="kh-jumpstart-badge">${cohort.count}</span>
+            </div>
+            <div class="kh-jumpstart-content">
+              ${renderFreeGoogleCohortContent(cohort, isLargeCohort)}
+            </div>
+          </div>
+        `;
+      });
+      
+      // Empty state
+      if (totalAccounts === 0) {
+        html = `
+          <div class="kh-jumpstart-all-clear">
+            <div class="kh-jumpstart-all-clear-icon">📋</div>
+            <div class="kh-jumpstart-all-clear-text">No Free Google accounts</div>
+            <div class="kh-jumpstart-all-clear-subtext">No accounts in the Free Google cohorts</div>
+          </div>
+        `;
+      }
+      
+      freeGoogleContent.innerHTML = html;
+      
+      // Render insights
+      const insightsContainer = document.getElementById('khFreeGoogleInsights');
+      if (insightsContainer && totalAccounts > 0) {
+        insightsContainer.innerHTML = `
+          <div class="kh-jumpstart-insights">
+            <div class="kh-jumpstart-insights-header">
+              <span class="kh-jumpstart-insights-icon">💡</span>
+              <span>Free Google Guidance</span>
+            </div>
+            <div class="kh-jumpstart-strategic">
+              <strong>How to use:</strong>
+              <div class="kh-jumpstart-suggestion">• Click any account name to copy its RID</div>
+              <div class="kh-jumpstart-suggestion">• Paste the RID in chat for a tailored strategy</div>
+              <div class="kh-jumpstart-suggestion">• Choose Quick Strategy, Full Strategy, or Glean handoff</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      console.log(`[renderFreeGoogleAccordion] Rendered ${cohortOrder.length} cohorts, ${totalAccounts} total accounts`);
+    }
+    
+    /**
+     * Render content for a Free Google cohort
+     * @param {Object} cohort - Cohort data with accounts array
+     * @param {boolean} isLargeCohort - True if cohort has many accounts
+     * @returns {string} HTML string
+     */
+    function renderFreeGoogleCohortContent(cohort, isLargeCohort = false) {
+      if (!cohort.accounts || cohort.accounts.length === 0) {
+        return `<div class="kh-jumpstart-empty">No accounts in this cohort</div>`;
+      }
+      
+      const count = cohort.accounts.length;
+      const displayLimit = isLargeCohort ? 10 : count;
+      const displayAccounts = cohort.accounts.slice(0, displayLimit);
+      
+      let listHtml = '<div class="kh-jumpstart-list">';
+      
+      displayAccounts.forEach(acc => {
+        const name = truncateAccountName(acc.name);
+        const groupLabel = acc.category === 'Group' ? `<span style="color:#64748b;font-size:10px;margin-left:4px;">(Group)</span>` : '';
+        const googleRPRBadge = acc.googleRPR > 0 ? `<span class="kh-days-label" style="background:#dcfce7;color:#166534;">$${Math.round(acc.googleRPR)}</span>` : '';
+        
+        listHtml += `
+          <div class="kh-jumpstart-row">
+            <span class="kh-jumpstart-acc-name" 
+                  onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" 
+                  onmouseleave="hideCustomTooltip()" 
+                  data-rid="${acc.rid}" 
+                  onclick="copyFreeGoogleRID('${acc.rid}')">${name}${groupLabel}</span>
+            ${googleRPRBadge}
+          </div>
+        `;
+      });
+      
+      listHtml += '</div>';
+      
+      // Show "and X more" for large cohorts
+      if (count > displayLimit) {
+        listHtml += `
+          <div class="kh-jumpstart-show-all">
+            <button class="kh-jumpstart-show-all-btn" onclick="expandFreeGoogleCohort('${cohort.id}')">
+              📋 Show All ${count} Accounts
+            </button>
+          </div>
+        `;
+      }
+      
+      return listHtml;
+    }
+    
+    /**
+     * Toggle expand/collapse for a Free Google cohort
+     * @param {string} cohortId - Cohort identifier
+     */
+    function toggleFreeGoogleCohort(cohortId) {
+      const cohortEl = document.querySelector(`[data-cohort-id="${cohortId}"]`);
+      if (!cohortEl) return;
+      
+      const count = parseInt(cohortEl.dataset.count || '0');
+      if (count === 0) {
+        console.log(`[toggleFreeGoogleCohort] Cohort ${cohortId} is empty, not expandable`);
+        return;
+      }
+      
+      const isExpanded = cohortEl.classList.contains('expanded');
+      
+      if (isExpanded) {
+        cohortEl.classList.remove('expanded');
+        khState.expandedFreeGoogleCohorts[cohortId] = false;
+      } else {
+        // Accordion behavior: collapse all others first
+        document.querySelectorAll('#khFreeGoogleContent .kh-jumpstart-section.expanded').forEach(el => {
+          el.classList.remove('expanded');
+          const id = el.dataset.cohortId;
+          if (id) khState.expandedFreeGoogleCohorts[id] = false;
+        });
+        
+        cohortEl.classList.add('expanded');
+        khState.expandedFreeGoogleCohorts[cohortId] = true;
+      }
+    }
+    
+    /**
+     * Expand a Free Google cohort (used by "Show All" button)
+     * @param {string} cohortId - Cohort identifier
+     */
+    function expandFreeGoogleCohort(cohortId) {
+      const cohortEl = document.querySelector(`[data-cohort-id="${cohortId}"]`);
+      if (!cohortEl) return;
+      
+      // Re-render with all accounts
+      const cohort = khState.freeGoogleData?.cohorts?.[Object.keys(khState.freeGoogleData.cohorts).find(k => 
+        khState.freeGoogleData.cohorts[k].id === cohortId
+      )];
+      
+      if (cohort) {
+        const contentEl = cohortEl.querySelector('.kh-jumpstart-content');
+        if (contentEl) {
+          contentEl.innerHTML = renderFreeGoogleCohortContent(cohort, false);
+        }
+      }
+      
+      cohortEl.classList.add('expanded');
+      khState.expandedFreeGoogleCohorts[cohortId] = true;
+    }
+    
+    /**
+     * Copy Free Google RID to clipboard with strategic guidance toast
+     * @param {string} rid - Restaurant ID to copy
+     */
+    function copyFreeGoogleRID(rid) {
+      // Find account data for context
+      let accountData = null;
+      if (khState.freeGoogleData?.cohorts) {
+        for (const cohortName of Object.keys(khState.freeGoogleData.cohorts)) {
+          const cohort = khState.freeGoogleData.cohorts[cohortName];
+          const found = cohort.accounts.find(a => a.rid === rid);
+          if (found) {
+            accountData = { ...found, cohort: cohortName, play: cohort.play };
+            break;
+          }
+        }
+      }
+      
+      // Store for later detection when pasted
+      khState.lastCopiedFreeGoogleRID = rid;
+      khState.lastCopiedFreeGoogleAccount = accountData;
+      
+      navigator.clipboard.writeText(rid).then(() => {
+        const toast = document.getElementById('khToast');
+        if (toast) {
+          toast.textContent = `RID ${rid} copied — Paste in chat for strategic play`;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+      }).catch(err => {
+        console.error('[copyFreeGoogleRID] Failed to copy:', err);
+      });
+    }
+    
+    /**
+     * Check if input is a Free Google RID and show strategy options
+     * @param {string} input - User input to check
+     * @returns {boolean} True if handled as Free Google RID
+     */
+    function checkFreeGoogleRID(input) {
+      const ridMatch = input.match(/^\d{5,8}$/);
+      if (!ridMatch) return false;
+      
+      const rid = ridMatch[0];
+      
+      // Check if this RID is in our Free Google data
+      if (!khState.freeGoogleData?.cohorts) return false;
+      
+      let accountData = null;
+      let cohortName = null;
+      
+      for (const cName of Object.keys(khState.freeGoogleData.cohorts)) {
+        const cohort = khState.freeGoogleData.cohorts[cName];
+        const found = cohort.accounts.find(a => String(a.rid) === rid);
+        if (found) {
+          accountData = found;
+          cohortName = cName;
+          break;
+        }
+      }
+      
+      if (!accountData) return false;
+      
+      // This is a Free Google RID - show strategy options
+      showFreeGoogleStrategyMenu(rid, accountData, cohortName);
+      return true;
+    }
+    
+    /**
+     * Show strategy options menu for a Free Google account
+     * @param {string} rid - Restaurant ID
+     * @param {Object} accountData - Account data from Free Google sheet
+     * @param {string} cohortName - Cohort name
+     */
+    function showFreeGoogleStrategyMenu(rid, accountData, cohortName) {
+      const cohort = khState.freeGoogleData?.cohorts?.[cohortName];
+      const play = cohort?.play || 'Standard Evaluation';
+      
+      // Store for later use
+      khState.pendingFreeGoogleStrategy = { rid, accountData, cohortName, play };
+      
+      // Build message with account context and options
+      const googleRPR = accountData.googleRPR ? `$${Math.round(accountData.googleRPR)}/mo` : 'N/A';
+      const piRPR = accountData.piRPR ? `$${Math.round(accountData.piRPR)}/mo` : 'N/A';
+      const subDiscount = accountData.subDiscount ? `$${Math.round(accountData.subDiscount)}/mo` : 'N/A';
+      
+      const message = `**${accountData.name}** (RID: ${rid})
+
+**Cohort:** ${cohortName}
+**Recommended Play:** ${play}
+
+| Metric | Value |
+|--------|-------|
+| Google RPR | ${googleRPR} |
+| PI RPR | ${piRPR} |
+| Sub Discount | ${subDiscount} |
+| Contract | ${accountData.contractStatus || 'Unknown'} |
+
+**What would you like?**`;
+
+      addKHMessage('assistant', message);
+      
+      // Add action buttons
+      const actionsHtml = `
+        <div class="kh-action-buttons" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="kh-action-btn primary" onclick="executeFreeGoogleStrategy('quick')">
+            ⚡ Quick Strategy
+          </button>
+          <button class="kh-action-btn" onclick="executeFreeGoogleStrategy('full')">
+            📋 Full Strategy
+          </button>
+          <button class="kh-action-btn" onclick="executeFreeGoogleStrategy('glean')">
+            🧠 Take It to Glean
+          </button>
+        </div>
+      `;
+      
+      // Append buttons to last message
+      const messages = document.querySelectorAll('.kh-msg.assistant');
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg) {
+        const contentEl = lastMsg.querySelector('.kh-msg-content');
+        if (contentEl) {
+          contentEl.insertAdjacentHTML('beforeend', actionsHtml);
+        }
+      }
+    }
+    
+    /**
+     * Execute Free Google strategy generation
+     * @param {string} type - 'quick', 'full', or 'glean'
+     */
+    function executeFreeGoogleStrategy(type) {
+      const pending = khState.pendingFreeGoogleStrategy;
+      if (!pending) {
+        addKHMessage('error', 'No account selected. Please copy an RID from the Free Google panel first.');
+        return;
+      }
+      
+      const { rid, accountData, cohortName, play } = pending;
+      
+      if (type === 'quick') {
+        // Generate quick strategy inline
+        generateQuickFreeGoogleStrategy(rid, accountData, cohortName, play);
+      } else if (type === 'full') {
+        // Send to AI for full strategy
+        generateFullFreeGoogleStrategy(rid, accountData, cohortName, play);
+      } else if (type === 'glean') {
+        // Generate Glean prompt and open Glean
+        executeFreeGoogleGlean(rid);
+      }
+      
+      // Clear pending
+      khState.pendingFreeGoogleStrategy = null;
+    }
+    
+    /**
+     * Generate quick tactical strategy for Free Google account
+     */
+    function generateQuickFreeGoogleStrategy(rid, accountData, cohortName, play) {
+      const strategies = {
+        'Discount Swap': {
+          bullets: [
+            `**Play:** Discount Swap — Trade sub discount for Free Google + list pricing`,
+            `**Core Ask:** New contract at list sub rate, Free Google included`,
+            `**Prep:** Calculate sub discount vs Google revenue — is there rebalancing room?`,
+            `**Risk:** Partner may resist losing discount without clear value exchange`
+          ]
+        },
+        'PI Booster': {
+          bullets: [
+            `**Play:** PI Booster — Free Google in exchange for PI commitment`,
+            `**Core Ask:** Commit to PI spend increase or minimum budget`,
+            `**Prep:** Review current PI performance, identify campaigns to pitch`,
+            `**Risk:** Partner may not see PI value; prepare ROI examples`
+          ]
+        },
+        'Save At-Risk': {
+          bullets: [
+            `**Play:** Save At-Risk — Free Google as renewal incentive`,
+            `**Core Ask:** Sign renewal with term lock + Free Google`,
+            `**Prep:** Confirm expiration date, check churn signals, review competitor mentions`,
+            `**Risk:** Running out of time; prioritize urgently if <30 days`
+          ]
+        },
+        'Hybrid': {
+          bullets: [
+            `**Play:** Hybrid — Partial sub normalization + Free Google`,
+            `**Core Ask:** Adjusted sub rate (not full list) plus Free Google`,
+            `**Prep:** Model the middle ground — what feels fair?`,
+            `**Risk:** May need multiple conversations to find the balance`
+          ]
+        },
+        'Standard Evaluation': {
+          bullets: [
+            `**Play:** Standard Evaluation — Case-by-case assessment`,
+            `**Core Ask:** Understand their situation before proposing`,
+            `**Prep:** Review why they're in "Other" — what's unique?`,
+            `**Risk:** Free Google may not be the right fit; consider AYCE, Freemium, or UGC`
+          ]
+        }
+      };
+      
+      const strategy = strategies[play] || strategies['Standard Evaluation'];
+      
+      let message = `**⚡ Quick Strategy for ${accountData.name}**\n\n`;
+      strategy.bullets.forEach(bullet => {
+        message += `• ${bullet}\n`;
+      });
+      
+      message += `\n*Need more detail? Click "Full Strategy" or take it to Glean.*`;
+      
+      addKHMessage('assistant', message);
+    }
+    
+    /**
+     * Generate full strategy using AI
+     */
+    function generateFullFreeGoogleStrategy(rid, accountData, cohortName, play) {
+      // Build prompt for AI
+      const prompt = `Generate a Full Strategy for Free Google account:
+
+**Account:** ${accountData.name} (RID: ${rid})
+**Cohort:** ${cohortName}
+**Play:** ${play}
+**Google RPR:** $${Math.round(accountData.googleRPR || 0)}/mo
+**PI RPR:** $${Math.round(accountData.piRPR || 0)}/mo
+**Sub Discount:** $${Math.round(accountData.subDiscount || 0)}/mo
+**Contract Status:** ${accountData.contractStatus || 'Unknown'}
+
+Please provide:
+1. Situation Assessment (1-2 sentences)
+2. Recommended Play (1 sentence)
+3. Priority Actions (2-3 bullets)
+4. The Script (3-5 sentences talk track)
+5. Watch Out For (1-2 bullets)`;
+
+      // Show loading and send to AI
+      addKHMessage('user', `Full Strategy for ${accountData.name}`);
+      
+      khState.isLoading = true;
+      if (khEls.sendBtn) khEls.sendBtn.disabled = true;
+      const loadingEl = addKHMessage('loading', '');
+      
+      // Get AM context
+      const amName = khState.currentAMContext?.fullName || '';
+      
+      google.script.run
+        .withSuccessHandler((response) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          
+          if (response.success) {
+            addKHMessage('assistant', response.response);
+          } else {
+            addKHMessage('error', response.error || 'Failed to generate strategy');
+          }
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          khState.isLoading = false;
+          if (khEls.sendBtn) khEls.sendBtn.disabled = false;
+          addKHMessage('error', error.message || 'Failed to generate strategy');
+        })
+        .askInTouchGuide(prompt, amName);
+    }
+    
+    /**
+     * Execute Glean handoff for Free Google account
+     */
+    function executeFreeGoogleGlean(rid) {
+      // Show loading
+      const loadingEl = addKHMessage('loading', '');
+      
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (loadingEl) loadingEl.remove();
+          
+          if (result.success) {
+            // Copy prompt to clipboard
+            navigator.clipboard.writeText(result.prompt)
+              .then(() => {
+                addKHMessage('assistant', `**✓ Glean prompt copied for ${result.account.name}**
+
+The prompt includes:
+• Account context and Free Google metrics
+• Salesforce field guidance (correct field names)
+• ${result.account.cohort}-specific research focus
+• Communication history search terms
+
+Opening Glean now — paste the prompt to begin research.`);
+                
+                // Open Glean
+                window.open('https://app.glean.com/', '_blank');
+              })
+              .catch((err) => {
+                console.error('[executeFreeGoogleGlean] Clipboard error:', err);
+                addKHMessage('error', 'Could not copy to clipboard. Please try again.');
+              });
+          } else {
+            addKHMessage('error', result.error || 'Failed to generate Glean prompt');
+          }
+        })
+        .withFailureHandler((error) => {
+          if (loadingEl) loadingEl.remove();
+          addKHMessage('error', error.message || 'Failed to generate Glean prompt');
+        })
+        .generateFreeGoogleGleanPrompt(rid);
+    }
+
+    // =============================================================
+    // END FREE GOOGLE COHORT PANEL FUNCTIONS
+    // =============================================================
+
     function sendKHMessage() {
       if (!khEls.input) return;
       const query = khEls.input.value.trim();
@@ -3752,6 +4427,13 @@
         addKHMessage('user', query);
         khEls.input.value = '';
         executeSmartSelectAction();
+        return;
+      }
+      
+      // Check if this is a Free Google RID (only if we have Free Google data loaded)
+      if (khState.freeGoogleData && checkFreeGoogleRID(query)) {
+        console.log('[sendKHMessage] Free Google RID detected, showing strategy options');
+        khEls.input.value = '';
         return;
       }
       

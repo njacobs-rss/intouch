@@ -235,29 +235,113 @@ sequenceDiagram
 
 ## 5. AI Functionality
 
-### AI Chat Architecture
+### AI Chat Architecture (Bucket IQ)
 
-The chat system uses a **Dual-Model Architecture** with intelligent routing.
+The **Bucket IQ** tab (formerly Knowledge Hub) provides an enhanced chat interface with intelligent routing and cost optimization.
 
 ```mermaid
 flowchart TD
-    Query[User Query] --> Router{Routing Engine}
+    Query[User Query] --> Classify{Query Classifier}
     
-    Router -->|Simple/Def| Script[Scripted/Glossary]
-    Router -->|Complex| AI[Gemini AI]
+    Classify -->|Simple| Script[Scripted/Glossary]
+    Classify -->|Definition| Flash[Gemini Flash]
+    Classify -->|Complex/Analysis| Pro[Gemini Pro]
     
-    subgraph Models
-        AI -->|Fast/Cheap| Flash[Gemini Flash]
-        AI -->|Reasoning| Pro[Gemini Pro]
+    subgraph Optimization [Cost Optimization]
+        Cache[Response Cache]
+        Context[Context Cache - 50% savings]
     end
     
     Script --> Response
     Flash --> Response
-    Pro --> Response
+    Pro --> Context
+    Context --> Response
     
-    Response --> Cache[Context Cache]
-    Cache -.-> Router
+    Response --> Cache
+    Cache -.->|Repeated Query| Response
 ```
+
+#### Query Classification
+
+The `classifyQueryComplexity()` function routes queries to the appropriate model:
+
+| Route | Model | Use Cases |
+|-------|-------|-----------|
+| **Scripted** | None (fast-path) | Definitions, how-to questions, glossary terms |
+| **Flash** | Gemini Flash | Simple lookups, basic calculations, status checks |
+| **Pro** | Gemini 3 Pro | Portfolio analysis, strategic recommendations, complex comparisons |
+
+#### Cost Optimization Features
+
+- **Response Caching**: Repeated questions return cached answers (no API call)
+- **Context Caching**: 50% cost savings on Gemini 3 Pro calls by caching system context
+- **Scripted Responses**: Fast-path bypass for known question patterns
+
+### Free Google Cohort System
+
+The **Free Google Initiative** (Q1 2026) is integrated into the sidebar for strategic account management.
+
+```mermaid
+flowchart LR
+    Panel[Free Google Panel] --> Cohorts{Cohorts}
+    
+    Cohorts --> PI[PI Reinvestment]
+    Cohorts --> UC[Unsecured Contracts]
+    Cohorts --> LHF[Low Hanging Fruit]
+    Cohorts --> PSR[Partial Sub Reinvestment]
+    
+    PI --> PIPlay[PI Booster Play]
+    UC --> UCPlay[Save At-Risk Play]
+    LHF --> LHFPlay[Discount Swap Play]
+    PSR --> PSRPlay[Hybrid Play]
+```
+
+#### Cohort Configuration
+
+| Cohort | Priority | Strategic Play | Goal |
+|--------|----------|----------------|------|
+| **PI Reinvestment** | 1 | PI Booster | Reinvest PI savings into paid products |
+| **Unsecured Contracts** | 2 | Save At-Risk | Secure contract before term end |
+| **Low Hanging Fruit** | 3 | Discount Swap | Convert discounts to subscription value |
+| **Partial Sub Reinvestment** | 4 | Hybrid | Partial conversion strategy |
+| **Other** | 5 | Standard Evaluation | Case-by-case analysis |
+
+#### Free Google Workflow
+
+1. **Browse Cohorts**: Open the Free Google accordion panel in the sidebar
+2. **Select Account**: Click an RID to copy it with strategic context
+3. **Paste in Chat**: The system auto-detects Free Google RIDs
+4. **Choose Strategy**: Select Quick Strategy, Full Strategy, or Glean handoff
+5. **Execute**: Generate tactical guidance or research prompts
+
+#### Server Functions
+
+- `getFreeGoogleCohortData(amName)` — Returns cohort-grouped accounts for sidebar
+- `getFreeGoogleAccountData(rid)` — Retrieves detailed account data for strategy generation
+- `generateFreeGoogleGleanPrompt(rid)` — Creates Glean research prompt with cohort context
+
+### Feedback System
+
+User feedback is logged centrally for continuous AI improvement.
+
+```mermaid
+flowchart LR
+    User[User Rates Response] --> Log[logKnowledgeHubFeedback]
+    Log --> Master[Central Master Sheet]
+    
+    Admin[Admin Review] --> Export[exportFeedbackForAI]
+    Export --> JSON[JSON/Markdown]
+    JSON --> Cursor[Cursor Optimization]
+```
+
+#### Feedback Functions
+
+| Function | Purpose |
+|----------|---------|
+| `logKnowledgeHubFeedback(feedback)` | Logs ratings/corrections to central master |
+| `getKHFeedbackForReview()` | Retrieves items needing admin review |
+| `exportFeedbackForAI()` | Exports feedback as JSON for AI training |
+| `generateFeedbackMarkdown_()` | Creates markdown with Cursor instructions |
 
 ### Presentation Generation
 
@@ -334,10 +418,21 @@ A decision model for renewals and churn prevention.
 - **Dynamic Columns**: Double-click headers in Row 2 to change metrics (e.g., show "Revenue" instead of "Status").
 
 ### The InTouch AI Panel
-- **Meeting Prep**: Search an account → "AI Brief" for a summary, "Create Deck" for slides.
-- **Pricing Simulator**: Model "What-If" scenarios for Freemium vs. Pro vs. AYCE.
-- **Bucket Summary**: View portfolio-level stats (Churn risk, System mix).
-- **Chat**: Ask questions like "Show me my Pro accounts" or "Summarize my renewals".
+
+The sidebar has **4 tabs** for different workflows:
+
+| Tab | Purpose |
+|-----|---------|
+| **Meeting Prep** | Search an account → "AI Brief" for a summary, "Create Deck" for slides |
+| **Pricing Simulator** | Model "What-If" scenarios for Freemium vs. Pro vs. AYCE |
+| **Bucket Summary** | View portfolio-level stats (Churn risk, System mix) |
+| **Bucket IQ** | AI chat + Free Google cohort management |
+
+#### Bucket IQ Tab Features
+- **Chat Interface**: Ask questions like "Show me my Pro accounts" or "Summarize my renewals"
+- **Free Google Panel**: Browse cohorts, click accounts to generate strategies
+- **Data Loading Banner**: Shows when data is being loaded with refresh option
+- **Quick Actions**: Pre-built prompts for common tasks
 
 ### Troubleshooting
 - **Sidebar won't load?** Refresh page, check browser pop-up blocker.
@@ -373,4 +468,4 @@ Uses `clasp` for deployment.
 - `npm run push:all`: Deploy to all fleet scripts (via `multi-deploy.js`).
 
 ---
-*Last Updated: January 30, 2026*
+*Last Updated: February 4, 2026*

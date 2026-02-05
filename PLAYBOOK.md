@@ -860,6 +860,44 @@ IF free_google_contract_signed_before_May_25_2021
 
 ---
 
+### **3.5.14 InTouch UI Workflow for Free Google**
+
+The Free Google Initiative is integrated into the **Bucket IQ** tab in the InTouch sidebar:
+
+**Step-by-Step Workflow:**
+
+1. **Open Bucket IQ Tab** → The Free Google accordion panel is in the sidebar
+2. **Browse Cohorts** → Accounts are pre-grouped by strategic cohort (PI Reinvestment, Unsecured Contracts, etc.)
+3. **Select Account** → Click an RID to copy it with strategic context
+4. **Paste in Chat** → The system auto-detects Free Google RIDs
+5. **Choose Strategy Type:**
+   - **Quick Strategy** → Instant tactical guidance (no API call)
+   - **Full Strategy** → Detailed AI-powered analysis
+   - **Glean Handoff** → Opens Glean with pre-filled research prompt
+
+**Visual Indicators:**
+
+| Element | Meaning |
+|---------|---------|
+| Priority Dot (P1-P5) | Cohort priority ranking |
+| Google RPR Badge | Account's Google revenue exposure |
+| Play Name | Recommended strategic play |
+| Account Count | Number of accounts in cohort |
+
+**Quick Actions:**
+
+- Click RID → Copies with toast showing strategic context
+- Show All → Expands full account list (appears when >5 accounts)
+- Refresh → Reloads Free Google data from sheet
+
+**Related Server Functions:**
+
+- `getFreeGoogleCohortData(amName)` → Loads cohort-grouped accounts
+- `getFreeGoogleAccountData(rid)` → Gets detailed account for strategy
+- `generateFreeGoogleGleanPrompt(rid)` → Creates Glean research prompt
+
+---
+
 ## **Part 4: Expansion & Improvements (LLM & Training‑Ready Content)**
 
 In this section:

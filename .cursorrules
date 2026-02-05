@@ -83,8 +83,13 @@ This is a Google Apps Script (GAS) project for OpenTable's Account Management op
 - `FleetCommander.js` → Multi-file deployment operations
 
 **HTML Sidebars:**
-- `BI_Sidebar.html` → Main user-facing sidebar (3 tabs)
+- `BI_Sidebar.html` → Main user-facing sidebar (4 tabs: Meeting Prep, Pricing Sim, Bucket Summary, Bucket IQ)
 - `AdminSidebar.html` → Fleet management operations
+
+**Key Features (Feb 2026):**
+- `InTouchGuide.js` → AI chat orchestration, query classification, feedback system
+- Free Google Cohort System → Cohort management for Q1 2026 initiative
+- Feedback Loop → User feedback logging to Central Master for AI improvement
 
 ---
 
@@ -258,10 +263,63 @@ google.script.run.withSuccessHandler(fn).getDataFromSheet();
 | `Main.js` | Entry point, menus | `onOpen`, `onEdit`, `BI_openSidebar` |
 | `Admin.js` | Pipeline orchestration | `runMasterPipeline`, `handleIntouchEdits` |
 | `STATCORE.js` | Data sync | `updateSTATCORE`, `runSYSCOREUpdates`, `runDAGCOREUpdates` |
-| `AiOpsFunctions.js` | Sidebar APIs | `getSidebarData`, `generateAMSummary`, `buildPromptForRID` |
+| `AiOpsFunctions.js` | Sidebar APIs, Free Google | `getSidebarData`, `getFreeGoogleCohortData`, `getFreeGoogleAccountData` |
+| `InTouchGuide.js` | AI Chat orchestration | `askInTouchGuide`, `classifyQueryComplexity`, `logKnowledgeHubFeedback` |
 | `BizInsights.js` | Slides generation | `createBizInsightsDeck` |
 | `DynamicNotes.js` | Note engine | `updateAccountNotes`, `buildDynamicNote` |
 | `FleetCommander.js` | Multi-file ops | `runUpdateSheetSafe`, `runCopySheet` |
+
+---
+
+## Free Google Cohort System (Q1 2026)
+
+### Cohort Configuration
+```javascript
+const FREE_GOOGLE_COHORT_CONFIG = {
+  "PI Reinvestment":       { priority: 1, play: "PI Booster" },
+  "Unsecured Contracts":   { priority: 2, play: "Save At-Risk" },
+  "Low Hanging Fruit":     { priority: 3, play: "Discount Swap" },
+  "Partial Sub Reinvestment": { priority: 4, play: "Hybrid" },
+  "Other":                 { priority: 5, play: "Standard Evaluation" }
+};
+```
+
+### Free Google Workflow
+1. User opens Bucket IQ tab → Free Google accordion panel
+2. Cohorts displayed grouped by priority
+3. User clicks RID → copied with strategic context
+4. User pastes in chat → system auto-detects Free Google RID
+5. Strategy menu appears: Quick Strategy, Full Strategy, Glean
+6. Selection executes appropriate function
+
+### Server Functions
+- `getFreeGoogleCohortData(amName)` — Returns cohort-grouped accounts
+- `getFreeGoogleAccountData(rid)` — Gets detailed account for strategy
+- `generateFreeGoogleGleanPrompt(rid)` — Creates Glean research prompt
+
+---
+
+## AI Chat & Feedback System
+
+### Query Classification Pattern
+```javascript
+// Routes queries to appropriate model
+const model = classifyQueryComplexity(query, hasAccountData);
+// Returns: "flash" (simple) or "pro" (complex)
+```
+
+### Feedback System Functions
+| Function | Purpose |
+|----------|---------|
+| `logKnowledgeHubFeedback(feedback)` | Logs user rating to Central Master |
+| `getKHFeedbackForReview()` | Retrieves items for admin review |
+| `exportFeedbackForAI()` | JSON export for Cursor optimization |
+| `generateFeedbackMarkdown_()` | Markdown with Cursor instructions |
+
+### Cost Optimization
+- **Response Caching**: Repeated questions return cached answers
+- **Context Caching**: 50% savings on Gemini 3 Pro via cached system context
+- **Scripted Responses**: Fast-path for known question patterns (no API call)
 
 ---
 

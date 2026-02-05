@@ -9,9 +9,12 @@ Categories 14-21 (Strategic Playbook, Renewal Lifecycle, Operating Rhythm, Syste
 
 Categories 27-31 (Free Google) are **quick-lookup extractions** that complement the comprehensive Free Google section in `PLAYBOOK.md` Part 3.5.
 
+Categories 32-35 (Free Google Sidebar Workflow, Strategy Generation, Bucket IQ Tab, Feedback System) document the **UI/UX features** added in v1.4.0 (Feb 2026) for the Free Google Initiative and AI optimizations.
+
 **Usage guidance:**
 - Use **Knowledge Extraction** categories for fast, static lookups (definitions, eligibility checks, dates, scripts)
 - Use **PLAYBOOK.md** for detailed battle cards, full context, and nuanced If/Then scenarios
+- Use **Categories 32-35** for UI navigation and workflow questions
 - When both contain similar content, PLAYBOOK.md is authoritative for detailed guidance
 
 ---
@@ -677,6 +680,102 @@ Categories 27-31 (Free Google) are **quick-lookup extractions** that complement 
 
 ---
 
+## 32. FREE GOOGLE SIDEBAR WORKFLOW
+
+**Type:** Static UI/navigation guidance
+
+**Content:**
+- Free Google panel location: Bucket IQ tab → Free Google accordion
+- Cohort display: Grouped by priority (PI Reinvestment, Unsecured Contracts, Low Hanging Fruit, etc.)
+- Each cohort shows: Priority dot, play name, account count
+- Account display: RID, account name, Google RPR badge
+- "Show All" button appears when cohort has more than 5 accounts
+- Click an RID → copies to clipboard with strategic context toast
+
+**Example Questions This Could Answer:**
+- "Where is the Free Google panel?"
+- "How do I see my Free Google accounts?"
+- "How do I copy a Free Google RID?"
+- "What does the priority dot mean?"
+- "How are Free Google accounts organized?"
+
+**Conversion Potential:** HIGH - Static UI guidance
+
+---
+
+## 33. FREE GOOGLE STRATEGY GENERATION
+
+**Type:** Static workflow explanation
+
+**Content:**
+- Three strategy options: Quick Strategy, Full Strategy, Glean Handoff
+- Quick Strategy: Local generation using cohort config, no API call, instant response
+- Full Strategy: Uses askInTouchGuide() with account context for detailed analysis
+- Glean Handoff: Generates pre-filled Glean research prompt and opens Glean
+- Auto-detection: System recognizes Free Google RIDs pasted in chat input
+- Strategy menu appears automatically when Free Google RID detected
+- Quick Strategy includes: Cohort name, strategic play, recommended action, key metrics
+
+**Example Questions This Could Answer:**
+- "How do I generate a Free Google strategy?"
+- "What's the difference between Quick and Full strategy?"
+- "How do I use Glean for Free Google?"
+- "What happens when I paste a Free Google RID?"
+- "What does Quick Strategy include?"
+
+**Conversion Potential:** HIGH - Static workflow explanation
+
+---
+
+## 34. BUCKET IQ TAB FEATURES
+
+**Type:** Static feature definitions
+
+**Content:**
+- Bucket IQ is the renamed Knowledge Hub tab (v1.4.0+)
+- Chat interface: Message history, input area, send button
+- Data Loading Banner: Shows spinner during initial data load, displays timestamp on completion
+- Refresh button: Reloads sidebar data, appears in data loaded banner
+- Welcome screen: Quick action buttons for common tasks
+- Free Google accordion: Collapsible panel showing cohort-grouped accounts
+- Feedback system: Thumbs up/down on responses, correction input field
+- Query classification: System routes to appropriate model (Flash for simple, Pro for complex)
+
+**Example Questions This Could Answer:**
+- "What is Bucket IQ?"
+- "How do I refresh the sidebar data?"
+- "What are the quick actions?"
+- "How do I give feedback on responses?"
+- "What happened to Knowledge Hub?"
+
+**Conversion Potential:** HIGH - Static feature definitions
+
+---
+
+## 35. FEEDBACK SYSTEM USAGE
+
+**Type:** Static workflow explanation
+
+**Content:**
+- Feedback location: Below each AI response in Bucket IQ tab
+- Feedback options: Thumbs up (helpful), Thumbs down (unhelpful), Correction text field
+- Feedback logging: All feedback sent to Central Master spreadsheet
+- Admin functions: getKHFeedbackForReview() retrieves items needing review
+- Export function: exportFeedbackForAI() creates JSON for Cursor optimization
+- Markdown export: generateFeedbackMarkdown_() creates Cursor-compatible instructions
+- Feedback loop: User feedback → Central log → Admin review → AI improvement
+
+**Example Questions This Could Answer:**
+- "How do I report a wrong answer?"
+- "Where does my feedback go?"
+- "How do I give feedback on AI responses?"
+- "What happens to feedback I submit?"
+- "How is feedback used to improve the AI?"
+
+**Conversion Potential:** HIGH - Static workflow explanation
+
+---
+
 ## SUMMARY BY CONVERSION PRIORITY
 
 ### HIGH PRIORITY (Pure Static Content - No Data Required)
@@ -707,6 +806,10 @@ Categories 27-31 (Free Google) are **quick-lookup extractions** that complement 
 29. Free Google Eligibility Rules
 30. Free Google Cohorts & Plays
 31. Free Google Billing & QA
+32. Free Google Sidebar Workflow
+33. Free Google Strategy Generation
+34. Bucket IQ Tab Features
+35. Feedback System Usage
 
 ### MEDIUM PRIORITY (Static Templates/Patterns - Require Data to Execute)
 13. Response Format Guidelines

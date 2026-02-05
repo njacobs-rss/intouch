@@ -73,7 +73,7 @@ const InTouchDocs = () => {
             <Bot className="text-blue-400" />
             InTouch <span className="text-slate-400 font-light">Docs</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-2">System & Strategy v2.8</p>
+          <p className="text-xs text-slate-500 mt-2">System & Strategy v2.9</p>
         </div>
         <nav className="p-4 space-y-1">
           {sections.map((section) => (
@@ -722,8 +722,9 @@ const InTouchDocs = () => {
                   <div className="bg-white p-2 rounded text-xs text-center border border-indigo-100 text-indigo-600">Meeting Prep</div>
                   <div className="bg-white p-2 rounded text-xs text-center border border-indigo-100 text-indigo-600">Pricing Sim</div>
                   <div className="bg-white p-2 rounded text-xs text-center border border-indigo-100 text-indigo-600">Bucket Summary</div>
-                  <div className="bg-white p-2 rounded text-xs text-center border border-indigo-100 text-indigo-600">Chat AI</div>
+                  <div className="bg-white p-2 rounded text-xs text-center border border-indigo-100 text-indigo-600 font-bold">Bucket IQ</div>
                 </div>
+                <div className="mt-2 text-[10px] text-indigo-500 text-center">Bucket IQ = AI Chat + Free Google + Feedback</div>
               </div>
             </div>
           </section>
@@ -733,16 +734,16 @@ const InTouchDocs = () => {
              <SectionHeader title="AI Functionality" icon={<Bot />} />
              
              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
-                <p className="text-slate-600">The <strong>InTouch✔ ai</strong> panel offers three distinct AI-driven workflows:</p>
+                <p className="text-slate-600">The <strong>InTouch✔ ai</strong> panel offers AI-driven workflows with intelligent query routing and cost optimization:</p>
                 
                 <div className="grid md:grid-cols-3 gap-6">
                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow">
                       <div className="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center mb-4 text-blue-600">
                          <MessageSquare className="w-5 h-5" />
                       </div>
-                      <h4 className="font-bold text-slate-800 mb-2">1. AI Chat</h4>
+                      <h4 className="font-bold text-slate-800 mb-2">1. Bucket IQ Chat</h4>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                         <strong>Conversational Q&A.</strong> Ask about your portfolio ("Show me my Pro accounts", "Summarize renewals"). Uses Gemini to query sheet data dynamically.
+                         <strong>Smart AI Chat.</strong> Ask about your portfolio with intelligent query routing: simple questions use Gemini Flash, complex analysis uses Gemini Pro with context caching for 50% cost savings.
                       </p>
                    </div>
                    
@@ -764,6 +765,71 @@ const InTouchDocs = () => {
                       <p className="text-xs text-slate-500 leading-relaxed">
                          <strong>Slide Generation.</strong> Auto-generates a Google Slides deck for a specific account, pre-filled with benchmark data, charts, and account insights.
                       </p>
+                   </div>
+                </div>
+
+                {/* Free Google Cohort System */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6 mt-6">
+                   <h4 className="font-bold text-green-800 mb-4 flex items-center gap-2">
+                      <DollarSign className="w-5 h-5" /> Free Google Cohort System (Q1 2026)
+                   </h4>
+                   <p className="text-sm text-green-700 mb-4">
+                      The Free Google Initiative is integrated directly into the Bucket IQ tab. Accounts are automatically grouped by strategic cohort.
+                   </p>
+                   
+                   <div className="grid md:grid-cols-5 gap-3 mb-4">
+                      {[
+                         { name: "PI Reinvestment", play: "PI Booster", priority: 1 },
+                         { name: "Unsecured Contracts", play: "Save At-Risk", priority: 2 },
+                         { name: "Low Hanging Fruit", play: "Discount Swap", priority: 3 },
+                         { name: "Partial Sub Reinvest", play: "Hybrid", priority: 4 },
+                         { name: "Other", play: "Standard Eval", priority: 5 },
+                      ].map((cohort, idx) => (
+                         <div key={idx} className="bg-white p-3 rounded border border-green-100 text-center">
+                            <div className="text-[10px] text-green-500 font-bold mb-1">P{cohort.priority}</div>
+                            <div className="font-bold text-xs text-slate-700 mb-1">{cohort.name}</div>
+                            <div className="text-[10px] text-slate-500">{cohort.play}</div>
+                         </div>
+                      ))}
+                   </div>
+
+                   <div className="bg-white p-4 rounded border border-green-100">
+                      <h5 className="font-bold text-sm text-slate-700 mb-2">Free Google Workflow</h5>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                         <span className="bg-green-100 px-2 py-1 rounded">1. Browse Cohorts</span>
+                         <ArrowRight className="w-3 h-3 text-slate-400" />
+                         <span className="bg-green-100 px-2 py-1 rounded">2. Click RID</span>
+                         <ArrowRight className="w-3 h-3 text-slate-400" />
+                         <span className="bg-green-100 px-2 py-1 rounded">3. Paste in Chat</span>
+                         <ArrowRight className="w-3 h-3 text-slate-400" />
+                         <span className="bg-green-100 px-2 py-1 rounded">4. Choose Strategy</span>
+                         <ArrowRight className="w-3 h-3 text-slate-400" />
+                         <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">Quick / Full / Glean</span>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Query Classification */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
+                   <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                      <Cpu className="w-5 h-5 text-slate-500" /> Query Classification & Cost Optimization
+                   </h4>
+                   <div className="grid md:grid-cols-3 gap-4">
+                      <div className="bg-white p-3 rounded border border-slate-200">
+                         <div className="font-bold text-sm text-slate-700 mb-1">Scripted</div>
+                         <div className="text-[10px] text-slate-500">Definitions, how-to, glossary</div>
+                         <div className="text-[10px] text-green-600 font-bold mt-1">No API call</div>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-slate-200">
+                         <div className="font-bold text-sm text-blue-600 mb-1">Gemini Flash</div>
+                         <div className="text-[10px] text-slate-500">Simple lookups, status checks</div>
+                         <div className="text-[10px] text-blue-600 font-bold mt-1">Fast & cheap</div>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-slate-200">
+                         <div className="font-bold text-sm text-purple-600 mb-1">Gemini Pro</div>
+                         <div className="text-[10px] text-slate-500">Analysis, strategy, comparisons</div>
+                         <div className="text-[10px] text-purple-600 font-bold mt-1">Context cache: 50% savings</div>
+                      </div>
                    </div>
                 </div>
              </div>
@@ -797,6 +863,13 @@ const InTouchDocs = () => {
                        <div>
                          <span className="block text-sm font-bold text-slate-700">API Usage</span>
                          <span className="text-xs text-slate-500">Monitors Gemini token consumption.</span>
+                       </div>
+                     </li>
+                     <li className="flex items-center gap-3 bg-green-50 p-3 rounded border border-green-200">
+                       <BookOpen className="text-green-500 w-5 h-5" />
+                       <div>
+                         <span className="block text-sm font-bold text-green-700">Feedback Log</span>
+                         <span className="text-xs text-green-600">User ratings and corrections for AI improvement.</span>
                        </div>
                      </li>
                    </ul>
@@ -838,6 +911,12 @@ const InTouchDocs = () => {
                             <Radio className="w-3 h-3 text-orange-400 animate-pulse delay-200" />
                             <span className="font-mono text-slate-600 font-bold">PROMPT:</span>
                             <span className="text-slate-500">"Show Risky Accts"</span>
+                        </div>
+                        {/* Feedback Log Packet */}
+                        <div className="flex items-center gap-2 text-xs bg-green-50 p-1.5 rounded border border-green-100">
+                            <Radio className="w-3 h-3 text-green-400 animate-pulse delay-300" />
+                            <span className="font-mono text-green-600 font-bold">FEEDBACK:</span>
+                            <span className="text-slate-500">Thumbs Up (NYC)</span>
                         </div>
                     </div>
                   </div>

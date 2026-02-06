@@ -173,47 +173,47 @@
             <div class="kh-jumpstart-header">
               <div class="kh-jumpstart-title-wrapper">
                 <div class="kh-jumpstart-title">
-                  <span>🌅</span> DAILY JUMP START
-                </div>
-                <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"></div>
-              </div>
+                  <span>🌅<\/span> DAILY JUMP START
+                <\/div>
+                <div class="kh-jumpstart-am-indicator" id="khJumpStartAM"><\/div>
+              <\/div>
               <button class="kh-jumpstart-refresh" onclick="startMyDay()" title="Refresh">
                 🔄
-              </button>
-            </div>
+              <\/button>
+            <\/div>
             <div id="khJumpStartContent">
               <!-- Sections will be injected here -->
-            </div>
-          </div>
+            <\/div>
+          <\/div>
           <!-- Daily Insights rendered separately to avoid clipping -->
-          <div id="khJumpStartInsights"></div>
+          <div id="khJumpStartInsights"><\/div>
 
           <div class="kh-welcome" id="khWelcome">
-            <div class="kh-welcome-icon">✦</div>
-            <h5>Let's Get Down To Buckets</h5>
-            <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!</p>
+            <div class="kh-welcome-icon">✦<\/div>
+            <h5>Let's Get Down To Buckets<\/h5>
+            <p>Features, Metrics, Nasty Saves, Support, I've GOT YOUR BACK!<\/p>
             
             <button class="kh-jumpstart-trigger" onclick="startMyDay()">
-              <span>🌅</span> Start My Day
-            </button>
-            <div class="kh-section-label">InTouch Help</div>
+              <span>🌅<\/span> Start My Day
+            <\/button>
+            <div class="kh-section-label">InTouch Help<\/div>
             <div class="kh-suggestions">
-              <button class="kh-suggestion kh-top-prompt">What can you do?</button>
-              <button class="kh-suggestion">How does iQ scoring work?</button>
-              <button class="kh-suggestion">Help me build my Focus20 list</button>
-              <button class="kh-suggestion">Sheet looks broken</button>
-              <button class="kh-suggestion">What should I look at first?</button>
-            </div>
-            <div class="kh-section-label">Account Analysis</div>
+              <button class="kh-suggestion kh-top-prompt">What can you do?<\/button>
+              <button class="kh-suggestion">How does iQ scoring work?<\/button>
+              <button class="kh-suggestion">Help me build my Focus20 list<\/button>
+              <button class="kh-suggestion">Sheet looks broken<\/button>
+              <button class="kh-suggestion">What should I look at first?<\/button>
+            <\/div>
+            <div class="kh-section-label">Account Analysis<\/div>
             <div class="kh-suggestions">
-              <button class="kh-suggestion">Summarize my bucket</button>
-              <button class="kh-suggestion">Flag accounts I haven't touched in 60+ days</button>
-              <button class="kh-suggestion">Who is up for renewal soon?</button>
-              <button class="kh-suggestion">Show my Icons and Elites</button>
-              <button class="kh-suggestion">Which accounts should I pitch PI to?</button>
-              <button class="kh-suggestion">How do I rank against the team?</button>
-            </div>
-          </div>
+              <button class="kh-suggestion">Summarize my bucket<\/button>
+              <button class="kh-suggestion">Flag accounts I haven't touched in 60+ days<\/button>
+              <button class="kh-suggestion">Who is up for renewal soon?<\/button>
+              <button class="kh-suggestion">Show my Icons and Elites<\/button>
+              <button class="kh-suggestion">Which accounts should I pitch PI to?<\/button>
+              <button class="kh-suggestion">How do I rank against the team?<\/button>
+            <\/div>
+          <\/div>
         `;
         
         // Re-wire suggestion buttons
@@ -300,12 +300,12 @@
       jumpStartContent.innerHTML = `
         <div class="kh-jumpstart-loading">
           <div class="kh-loading-dots">
-            <span></span><span></span><span></span>
-          </div>
+            <span><\/span><span><\/span><span><\/span>
+          <\/div>
           <div class="kh-jumpstart-loading-text">
             Loading your priorities...
-          </div>
-        </div>
+          <\/div>
+        <\/div>
       `;
       
       // Get AM name from context or let server detect
@@ -330,17 +330,17 @@
             console.error('[startMyDay] Server returned error:', result.error);
             jumpStartContent.innerHTML = `
               <div class="kh-jumpstart-error">
-                <div class="kh-jumpstart-error-icon">⚠️</div>
+                <div class="kh-jumpstart-error-icon">⚠️<\/div>
                 <div class="kh-jumpstart-error-text">
                   Couldn't load your daily summary
-                </div>
+                <\/div>
                 <div class="kh-jumpstart-error-detail">
                   ${result.error || 'Please try again'}
-                </div>
+                <\/div>
                 <button class="kh-jumpstart-btn primary" onclick="startMyDay()">
                   Try Again
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           }
         })
@@ -355,17 +355,17 @@
           
           jumpStartContent.innerHTML = `
             <div class="kh-jumpstart-error">
-              <div class="kh-jumpstart-error-icon">❌</div>
+              <div class="kh-jumpstart-error-icon">❌<\/div>
               <div class="kh-jumpstart-error-text">
                 Connection error
-              </div>
+              <\/div>
               <div class="kh-jumpstart-error-detail">
                 ${error.message || 'Please check your connection and try again'}
-              </div>
+              <\/div>
               <button class="kh-jumpstart-btn primary" onclick="startMyDay()">
                 Try Again
-              </button>
-            </div>
+              <\/button>
+            <\/div>
           `;
         })
         .getJumpStartData(amName);
@@ -435,15 +435,15 @@
         html += `
           <div class="kh-jumpstart-section ${expanded}" data-section-id="${sectionId}" data-count="${count}">
             <div class="kh-jumpstart-section-header" onclick="toggleJumpStartSection('${sectionId}')">
-              <span class="kh-jumpstart-chevron">▶</span>
-              <span class="kh-jumpstart-dot">${section.priorityDot}</span>
-              <span class="kh-jumpstart-name" onmouseenter="showCustomTooltip(this, '${sectionTooltip}')" onmouseleave="hideCustomTooltip()">${section.title}</span>
-              <span class="kh-jumpstart-badge ${section.priority === 'high' ? 'urgent' : ''}">${count}</span>
-            </div>
+              <span class="kh-jumpstart-chevron">▶<\/span>
+              <span class="kh-jumpstart-dot">${section.priorityDot}<\/span>
+              <span class="kh-jumpstart-name" onmouseenter="showCustomTooltip(this, '${sectionTooltip}')" onmouseleave="hideCustomTooltip()">${section.title}<\/span>
+              <span class="kh-jumpstart-badge ${section.priority === 'high' ? 'urgent' : ''}">${count}<\/span>
+            <\/div>
             <div class="kh-jumpstart-content">
               ${renderSectionContent(section, isLargeSection)}
-            </div>
-          </div>
+            <\/div>
+          <\/div>
         `;
       });
       
@@ -451,10 +451,10 @@
       if (totalAccounts === 0) {
         html = `
           <div class="kh-jumpstart-all-clear">
-            <div class="kh-jumpstart-all-clear-icon">✨</div>
-            <div class="kh-jumpstart-all-clear-text">All clear!</div>
-            <div class="kh-jumpstart-all-clear-subtext">No accounts need immediate attention</div>
-          </div>
+            <div class="kh-jumpstart-all-clear-icon">✨<\/div>
+            <div class="kh-jumpstart-all-clear-text">All clear!<\/div>
+            <div class="kh-jumpstart-all-clear-subtext">No accounts need immediate attention<\/div>
+          <\/div>
         `;
       }
       
@@ -473,22 +473,22 @@
             insightsHtml = `
               <div class="kh-jumpstart-insights">
                 <div class="kh-jumpstart-insights-header">
-                  <span class="kh-jumpstart-insights-icon">💡</span>
-                  <span>Daily Insights</span>
-                </div>
+                  <span class="kh-jumpstart-insights-icon">💡<\/span>
+                  <span>Daily Insights<\/span>
+                <\/div>
                 ${suggestions.length > 0 ? `
                   <div class="kh-jumpstart-strategic">
-                    <strong>Strategic Focus:</strong>
-                    ${suggestions.map(s => `<div class="kh-jumpstart-suggestion">• ${s}</div>`).join('')}
-                  </div>
+                    <strong>Strategic Focus:<\/strong>
+                    ${suggestions.map(s => `<div class="kh-jumpstart-suggestion">• ${s}<\/div>`).join('')}
+                  <\/div>
                 ` : ''}
                 ${prompts.length > 0 ? `
                   <div class="kh-jumpstart-prompts">
-                    <strong>Try asking:</strong>
-                    ${prompts.map(p => `<button class="kh-suggested-prompt" onclick="insertPrompt('${escapeHtml(p)}')">${p}</button>`).join('')}
-                  </div>
+                    <strong>Try asking:<\/strong>
+                    ${prompts.map(p => `<button class="kh-suggested-prompt" onclick="insertPrompt('${escapeHtml(p)}')">${p}<\/button>`).join('')}
+                  <\/div>
                 ` : ''}
-              </div>
+              <\/div>
             `;
           }
         }
@@ -561,34 +561,34 @@
           listHtml += `
             <div class="kh-jumpstart-subsection">
               <div class="kh-jumpstart-subsection-header">
-                <span class="kh-jumpstart-subsection-flag">${subsection.flag}</span>
-                <span class="kh-jumpstart-subsection-count">${subsection.count}</span>
-              </div>
+                <span class="kh-jumpstart-subsection-flag">${subsection.flag}<\/span>
+                <span class="kh-jumpstart-subsection-count">${subsection.count}<\/span>
+              <\/div>
           `;
           
           // Render accounts in this subsection (show first 3 per subsection)
           const displayAccounts = subsection.accounts.slice(0, 3);
           displayAccounts.forEach(acc => {
             const name = truncateAccountName(acc.name);
-            const emojiHtml = acc.emoji ? `<span class="kh-emoji-tag">${acc.emoji}</span>` : '';
+            const emojiHtml = acc.emoji ? `<span class="kh-emoji-tag">${acc.emoji}<\/span>` : '';
             
             listHtml += `
               <div class="kh-jumpstart-row">
-                <span class="kh-jumpstart-emoji">${emojiHtml}</span>
-                <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
-              </div>
+                <span class="kh-jumpstart-emoji">${emojiHtml}<\/span>
+                <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}<\/span>
+              <\/div>
             `;
           });
           
           // Show "and X more" if there are more accounts in this subsection
           if (subsection.accounts.length > 3) {
-            listHtml += `<div class="kh-jumpstart-row" style="font-size: 10px; color: #94a3b8; padding-left: 20px;">...and ${subsection.accounts.length - 3} more</div>`;
+            listHtml += `<div class="kh-jumpstart-row" style="font-size: 10px; color: #94a3b8; padding-left: 20px;">...and ${subsection.accounts.length - 3} more<\/div>`;
           }
           
-          listHtml += '</div>';  // Close subsection
+          listHtml += '<\/div>';  // Close subsection
         });
         
-        listHtml += '</div>';  // Close list
+        listHtml += '<\/div>';  // Close list
       } else {
         // Standard rendering without subsections
         listHtml = '<div class="kh-jumpstart-list">';
@@ -599,38 +599,38 @@
           let emojiHtml = '';
           if (acc.emojiTags && acc.emojiTags.length > 0) {
             emojiHtml = acc.emojiTags
-              .map(tag => `<span class="kh-emoji-tag" onmouseenter="showCustomTooltip(this, '${tag.label}')" onmouseleave="hideCustomTooltip()">${tag.emoji}</span>`)
+              .map(tag => `<span class="kh-emoji-tag" onmouseenter="showCustomTooltip(this, '${tag.label}')" onmouseleave="hideCustomTooltip()">${tag.emoji}<\/span>`)
               .join('');
           } else if (acc.emoji) {
             // Fallback to old format if emojiTags not available
-            emojiHtml = `<span class="kh-emoji-tag">${acc.emoji}</span>`;
+            emojiHtml = `<span class="kh-emoji-tag">${acc.emoji}<\/span>`;
           }
           
           // Build days label based on section type
           let daysHtml = '';
           if (section.id === 'contractsExpiring' && acc.daysUntil != null) {
-            daysHtml = `<span class="kh-days-label">${acc.daysUntil}D</span>`;
+            daysHtml = `<span class="kh-days-label">${acc.daysUntil}D<\/span>`;
           } else if (section.id === 'noEngagement60' && acc.daysSince != null) {
             const daysDisplay = acc.daysSince === 999 ? '+90D' : `${acc.daysSince}D`;
             const colorClass = getDaysColorClass(acc.daysSince);
-            daysHtml = `<span class="kh-days-label ${colorClass}">${daysDisplay}</span>`;
+            daysHtml = `<span class="kh-days-label ${colorClass}">${daysDisplay}<\/span>`;
           }
           
           // Add SOR type for nonOTSystem section
           let sorHtml = '';
           if (section.id === 'nonOTSystem' && acc.sorType) {
-            sorHtml = `<span class="kh-days-label" style="background: #fef3c7; color: #92400e;">${acc.sorType}</span>`;
+            sorHtml = `<span class="kh-days-label" style="background: #fef3c7; color: #92400e;">${acc.sorType}<\/span>`;
           }
           
           listHtml += `
             <div class="kh-jumpstart-row">
-              <span class="kh-jumpstart-emoji">${emojiHtml}</span>
-              <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}</span>
+              <span class="kh-jumpstart-emoji">${emojiHtml}<\/span>
+              <span class="kh-jumpstart-acc-name" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" onmouseleave="hideCustomTooltip()" data-rid="${acc.rid}" onclick="copyRIDToClipboard('${acc.rid}')">${name}<\/span>
               ${daysHtml}${sorHtml}
-            </div>
+            <\/div>
           `;
         });
-        listHtml += '</div>';
+        listHtml += '<\/div>';
       }
       
       // Build action buttons with hover tooltips (using custom tooltip)
@@ -638,14 +638,14 @@
         <div class="kh-jumpstart-actions">
           <button class="kh-jumpstart-btn" onclick="jumpStartIsolate('${section.id}')" onmouseenter="showCustomTooltip(this, 'Filter Smart Select to show only these accounts')" onmouseleave="hideCustomTooltip()">
             🎯 Isolate
-          </button>
+          <\/button>
           <button class="kh-jumpstart-btn primary" onclick="jumpStartDigIn('${section.id}')" onmouseenter="showCustomTooltip(this, 'Isolate accounts and generate AI analysis')" onmouseleave="hideCustomTooltip()">
             🔍 Dig In
-          </button>
+          <\/button>
           <button class="kh-jumpstart-btn" onclick="jumpStartGlean('${section.id}')" id="gleanBtn-${section.id}" onmouseenter="showCustomTooltip(this, 'Copy prompt to clipboard and open Glean')" onmouseleave="hideCustomTooltip()">
             🧠 Glean
-          </button>
-        </div>
+          <\/button>
+        <\/div>
       `;
       
       // EDGE CASE 6: For collapsed large sections (7+), show "Show All" prompt
@@ -654,8 +654,8 @@
         <div class="kh-jumpstart-show-all">
           <button class="kh-jumpstart-show-all-btn" onclick="expandJumpStartSection('${section.id}')">
             📋 Show All ${count} Accounts
-          </button>
-        </div>
+          <\/button>
+        <\/div>
       ` : '';
       
       return showAllHtml + listHtml + actionsHtml;
@@ -666,7 +666,7 @@
      * @returns {string} HTML string
      */
     function renderEmptySection() {
-      return `<div class="kh-jumpstart-empty">✅ No accounts need attention</div>`;
+      return `<div class="kh-jumpstart-empty">✅ No accounts need attention<\/div>`;
     }
     
     /**
@@ -1563,12 +1563,12 @@
       freeGoogleContent.innerHTML = `
         <div class="kh-jumpstart-loading">
           <div class="kh-loading-dots">
-            <span></span><span></span><span></span>
-          </div>
+            <span><\/span><span><\/span><span><\/span>
+          <\/div>
           <div class="kh-jumpstart-loading-text">
             Loading Free Google cohorts...
-          </div>
-        </div>
+          <\/div>
+        <\/div>
       `;
       
       google.script.run
@@ -1589,17 +1589,17 @@
             console.error('[startFreeGoogle] Server returned error:', result.error);
             freeGoogleContent.innerHTML = `
               <div class="kh-jumpstart-error">
-                <div class="kh-jumpstart-error-icon">⚠️</div>
+                <div class="kh-jumpstart-error-icon">⚠️<\/div>
                 <div class="kh-jumpstart-error-text">
                   Couldn't load Free Google data
-                </div>
+                <\/div>
                 <div class="kh-jumpstart-error-detail">
                   ${result.error || 'Please try again'}
-                </div>
+                <\/div>
                 <button class="kh-jumpstart-btn primary" onclick="startFreeGoogle()">
                   Try Again
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           }
         })
@@ -1613,17 +1613,17 @@
           
           freeGoogleContent.innerHTML = `
             <div class="kh-jumpstart-error">
-              <div class="kh-jumpstart-error-icon">❌</div>
+              <div class="kh-jumpstart-error-icon">❌<\/div>
               <div class="kh-jumpstart-error-text">
                 Connection error
-              </div>
+              <\/div>
               <div class="kh-jumpstart-error-detail">
                 ${error.message || 'Please check your connection and try again'}
-              </div>
+              <\/div>
               <button class="kh-jumpstart-btn primary" onclick="startFreeGoogle()">
                 Try Again
-              </button>
-            </div>
+              <\/button>
+            <\/div>
           `;
         })
         .getFreeGoogleCohortData();
@@ -1669,15 +1669,15 @@
         html += `
           <div class="kh-jumpstart-section ${expanded}" data-cohort-id="${cohort.id}" data-count="${cohort.count}">
             <div class="kh-jumpstart-section-header" onclick="toggleFreeGoogleCohort('${cohort.id}')">
-              <span class="kh-jumpstart-chevron">▶</span>
-              <span class="kh-jumpstart-dot">${cohort.priorityDot}</span>
-              <span class="kh-jumpstart-name">${cohort.title} <span style="color:#64748b;font-weight:400;">(${cohort.play})</span></span>
-              <span class="kh-jumpstart-badge">${cohort.count}</span>
-            </div>
+              <span class="kh-jumpstart-chevron">▶<\/span>
+              <span class="kh-jumpstart-dot">${cohort.priorityDot}<\/span>
+              <span class="kh-jumpstart-name">${cohort.title} <span style="color:#64748b;font-weight:400;">(${cohort.play})<\/span><\/span>
+              <span class="kh-jumpstart-badge">${cohort.count}<\/span>
+            <\/div>
             <div class="kh-jumpstart-content">
               ${renderFreeGoogleCohortContent(cohort, isLargeCohort)}
-            </div>
-          </div>
+            <\/div>
+          <\/div>
         `;
       });
       
@@ -1685,10 +1685,10 @@
       if (totalAccounts === 0) {
         html = `
           <div class="kh-jumpstart-all-clear">
-            <div class="kh-jumpstart-all-clear-icon">📋</div>
-            <div class="kh-jumpstart-all-clear-text">No Free Google accounts</div>
-            <div class="kh-jumpstart-all-clear-subtext">No accounts in the Free Google cohorts</div>
-          </div>
+            <div class="kh-jumpstart-all-clear-icon">📋<\/div>
+            <div class="kh-jumpstart-all-clear-text">No Free Google accounts<\/div>
+            <div class="kh-jumpstart-all-clear-subtext">No accounts in the Free Google cohorts<\/div>
+          <\/div>
         `;
       }
       
@@ -1700,16 +1700,16 @@
         insightsContainer.innerHTML = `
           <div class="kh-jumpstart-insights">
             <div class="kh-jumpstart-insights-header">
-              <span class="kh-jumpstart-insights-icon">💡</span>
-              <span>Free Google Guidance</span>
-            </div>
+              <span class="kh-jumpstart-insights-icon">💡<\/span>
+              <span>Free Google Guidance<\/span>
+            <\/div>
             <div class="kh-jumpstart-strategic">
-              <strong>How to use:</strong>
-              <div class="kh-jumpstart-suggestion">• Click any account name to copy its RID</div>
-              <div class="kh-jumpstart-suggestion">• Paste the RID in chat for a tailored strategy</div>
-              <div class="kh-jumpstart-suggestion">• Choose Quick Strategy, Full Strategy, or Glean handoff</div>
-            </div>
-          </div>
+              <strong>How to use:<\/strong>
+              <div class="kh-jumpstart-suggestion">• Click any account name to copy its RID<\/div>
+              <div class="kh-jumpstart-suggestion">• Paste the RID in chat for a tailored strategy<\/div>
+              <div class="kh-jumpstart-suggestion">• Choose Quick Strategy, Full Strategy, or Glean handoff<\/div>
+            <\/div>
+          <\/div>
         `;
       }
       
@@ -1724,7 +1724,7 @@
      */
     function renderFreeGoogleCohortContent(cohort, isLargeCohort = false) {
       if (!cohort.accounts || cohort.accounts.length === 0) {
-        return `<div class="kh-jumpstart-empty">No accounts in this cohort</div>`;
+        return `<div class="kh-jumpstart-empty">No accounts in this cohort<\/div>`;
       }
       
       const count = cohort.accounts.length;
@@ -1735,8 +1735,8 @@
       
       displayAccounts.forEach(acc => {
         const name = truncateAccountName(acc.name);
-        const groupLabel = acc.category === 'Group' ? `<span style="color:#64748b;font-size:10px;margin-left:4px;">(Group)</span>` : '';
-        const googleRPRBadge = acc.googleRPR > 0 ? `<span class="kh-days-label" style="background:#dcfce7;color:#166534;">$${Math.round(acc.googleRPR)}</span>` : '';
+        const groupLabel = acc.category === 'Group' ? `<span style="color:#64748b;font-size:10px;margin-left:4px;">(Group)<\/span>` : '';
+        const googleRPRBadge = acc.googleRPR > 0 ? `<span class="kh-days-label" style="background:#dcfce7;color:#166534;">$${Math.round(acc.googleRPR)}<\/span>` : '';
         
         listHtml += `
           <div class="kh-jumpstart-row">
@@ -1744,13 +1744,13 @@
                   onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${acc.rid}')" 
                   onmouseleave="hideCustomTooltip()" 
                   data-rid="${acc.rid}" 
-                  onclick="copyFreeGoogleRID('${acc.rid}')">${name}${groupLabel}</span>
+                  onclick="copyFreeGoogleRID('${acc.rid}')">${name}${groupLabel}<\/span>
             ${googleRPRBadge}
-          </div>
+          <\/div>
         `;
       });
       
-      listHtml += '</div>';
+      listHtml += '<\/div>';
       
       // Show "and X more" for large cohorts
       if (count > displayLimit) {
@@ -1758,8 +1758,8 @@
           <div class="kh-jumpstart-show-all">
             <button class="kh-jumpstart-show-all-btn" onclick="expandFreeGoogleCohort('${cohort.id}')">
               📋 Show All ${count} Accounts
-            </button>
-          </div>
+            <\/button>
+          <\/div>
         `;
       }
       
@@ -1929,14 +1929,14 @@
         <div class="kh-action-buttons" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
           <button class="kh-action-btn primary" onclick="executeFreeGoogleStrategy('quick')">
             ⚡ Quick Strategy
-          </button>
+          <\/button>
           <button class="kh-action-btn" onclick="executeFreeGoogleStrategy('full')">
             📋 Full Strategy
-          </button>
+          <\/button>
           <button class="kh-action-btn" onclick="executeFreeGoogleStrategy('glean')">
             🧠 Take It to Glean
-          </button>
-        </div>
+          <\/button>
+        <\/div>
       `;
       
       // Append buttons to last message
@@ -2367,7 +2367,7 @@ Opening Glean now — paste the prompt to begin research.`);
             
             // Add data source indicator if data was injected
             const dataIndicator = result.dataInjected && result.dataSource 
-              ? `<div class="kh-data-indicator">📊 ${result.dataSource.amName} (${result.dataSource.totalAccounts} accounts)</div>`
+              ? `<div class="kh-data-indicator">📊 ${result.dataSource.amName} (${result.dataSource.totalAccounts} accounts)<\/div>`
               : '';
             
             // Debug: Log dataIndicator construction
@@ -2777,7 +2777,7 @@ Opening Glean now — paste the prompt to begin research.`);
       msgEl.className = 'kh-message ' + type;
 
       if (type === 'loading') {
-        msgEl.innerHTML = '<div class="kh-loading-dots"><span></span><span></span><span></span></div>';
+        msgEl.innerHTML = '<div class="kh-loading-dots"><span><\/span><span><\/span><span><\/span><\/div>';
       } else if (type === 'assistant') {
         // Generate unique ID for this message
         const msgId = 'kh-msg-' + Date.now();
@@ -2801,12 +2801,12 @@ Opening Glean now — paste the prompt to begin research.`);
             actionButtonsHtml = `
               <div class="kh-action-buttons">
                 <button class="kh-action-btn primary" onclick="executeColumnAction()">
-                  <span>▶</span> Add Column
-                </button>
+                  <span>▶<\/span> Add Column
+                <\/button>
                 <button class="kh-action-btn secondary" onclick="dismissAction()">
                   Not now
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           } else if (khState.pendingFunctionAction) {
             const label = khState.pendingFunctionAction.label || 'Run';
@@ -2815,23 +2815,23 @@ Opening Glean now — paste the prompt to begin research.`);
               actionButtonsHtml = `
                 <div class="kh-action-buttons">
                   <button class="kh-action-btn primary" onclick="executeFunctionAction()">
-                    <span>▶</span> ${label}
-                  </button>
+                    <span>▶<\/span> ${label}
+                  <\/button>
                   <button class="kh-action-btn secondary" onclick="executeReset()">
-                    <span>↺</span> Reset Filters
-                  </button>
-                </div>
+                    <span>↺<\/span> Reset Filters
+                  <\/button>
+                <\/div>
               `;
             } else {
               actionButtonsHtml = `
                 <div class="kh-action-buttons">
                   <button class="kh-action-btn primary" onclick="executeFunctionAction()">
-                    <span>▶</span> ${label}
-                  </button>
+                    <span>▶<\/span> ${label}
+                  <\/button>
                   <button class="kh-action-btn secondary" onclick="dismissAction()">
                     Not now
-                  </button>
-                </div>
+                  <\/button>
+                <\/div>
               `;
             }
           } else if (khState.pendingSlackAction) {
@@ -2840,34 +2840,34 @@ Opening Glean now — paste the prompt to begin research.`);
               <div class="kh-action-buttons">
                 <button class="kh-action-btn slack" onclick="openSlackChannel('${channel}')">
                   Open #${channel} in Slack
-                </button>
+                <\/button>
                 <button class="kh-action-btn secondary" onclick="dismissAction()">
                   Not now
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           } else if (khState.pendingSmartSelectAction) {
             const count = khState.pendingSmartSelectAction.rids.length;
             actionButtonsHtml = `
               <div class="kh-action-buttons">
                 <button class="kh-action-btn primary" onclick="executeSmartSelectAction()">
-                  <span>✓</span> Check ${count} in Smart Select
-                </button>
+                  <span>✓<\/span> Check ${count} in Smart Select
+                <\/button>
                 <button class="kh-action-btn secondary" onclick="dismissAction()">
                   Not now
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           } else if (khState.pendingTeamAnalysisAction) {
             actionButtonsHtml = `
               <div class="kh-action-buttons">
                 <button class="kh-action-btn primary" onclick="executeTeamAnalysis()">
-                  <span>👥</span> Run Team Analysis
-                </button>
+                  <span>👥<\/span> Run Team Analysis
+                <\/button>
                 <button class="kh-action-btn secondary" onclick="dismissAction()">
                   Not now
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           } else if (khState.pendingRetryQuery) {
             let switchControls = '';
@@ -2878,23 +2878,23 @@ Opening Glean now — paste the prompt to begin research.`);
                   <div class="kh-tab-switcher" style="margin-bottom: 8px;">
                     <button class="kh-action-btn primary" onclick="switchAndRetry('${khState.suggestedTab.replace(/'/g, "\\'")}')" style="width: 100%;">
                       Switch to ${khState.suggestedTab} & Retry
-                    </button>
-                  </div>
+                    <\/button>
+                  <\/div>
                 `;
             } 
             // If we have available tabs, show a dropdown
             else if (khState.availableTabs && khState.availableTabs.length > 0) {
-                const options = khState.availableTabs.map(am => `<option value="${am.tabName}">${am.fullName}</option>`).join('');
+                const options = khState.availableTabs.map(am => `<option value="${am.tabName}">${am.fullName}<\/option>`).join('');
                 switchControls = `
                     <div class="kh-tab-switcher" style="display: flex; gap: 4px; margin-bottom: 8px;">
                         <select id="kh-am-select" class="kh-select" style="flex: 1; padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
-                            <option value="">Select your AM tab...</option>
+                            <option value="">Select your AM tab...<\/option>
                             ${options}
-                        </select>
+                        <\/select>
                         <button class="kh-action-btn primary" onclick="switchAndRetryFromSelect()" style="flex: none;">
                             Go
-                        </button>
-                    </div>
+                        <\/button>
+                    <\/div>
                 `;
             }
 
@@ -2903,20 +2903,20 @@ Opening Glean now — paste the prompt to begin research.`);
                 ${switchControls}
                 <button class="kh-action-btn secondary" onclick="executeRetryQuery()">
                   I'm already there, try again
-                </button>
-              </div>
+                <\/button>
+              <\/div>
             `;
           }
         }
         
         msgEl.innerHTML = indicatorHtml + formatKHResponse(content) + actionButtonsHtml + `
           <div class="kh-feedback">
-            <span class="kh-feedback-label">Rate</span>
-            <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'helpful')" title="Helpful">👍</button>
-            <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'not_helpful')" title="Not helpful">👎</button>
-            <button class="kh-feedback-btn" onclick="openKHCorrection('${msgId}')" title="Suggest correction">✏️</button>
-            <span class="kh-feedback-text"></span>
-          </div>
+            <span class="kh-feedback-label">Rate<\/span>
+            <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'helpful')" title="Helpful">👍<\/button>
+            <button class="kh-feedback-btn" onclick="submitKHFeedback('${msgId}', 'not_helpful')" title="Not helpful">👎<\/button>
+            <button class="kh-feedback-btn" onclick="openKHCorrection('${msgId}')" title="Suggest correction">✏️<\/button>
+            <span class="kh-feedback-text"><\/span>
+          <\/div>
         `;
       } else if (type === 'user') {
         khLastQuery = content; // Store for feedback
@@ -3505,20 +3505,20 @@ If you have any other questions about the team data I'd be happy to dive in with
      * Render the AM selection list as buttons
      */
     function renderAMSelectionList(ams) {
-      let buttonsHtml = '<div class="kh-am-selection"><p style="margin:0 0 8px 0; font-size:11px; color:#64748b;">Select an Account Manager:</p>';
+      let buttonsHtml = '<div class="kh-am-selection"><p style="margin:0 0 8px 0; font-size:11px; color:#64748b;">Select an Account Manager:<\/p>';
       
       ams.forEach(am => {
         const displayName = am.fullName || am.tabName || 'Unknown';
         buttonsHtml += `<button class="kh-action-btn secondary" style="margin:2px; flex:none; width:auto;" onclick="selectAMForAnalysis('${displayName.replace(/'/g, "\\'")}')">
           ${displayName}
-        </button>`;
+        <\/button>`;
       });
       
       buttonsHtml += `<button class="kh-action-btn secondary" style="margin:2px; flex:none; width:auto; background:#f0fdf4; border-color:#86efac;" onclick="executeTeamAnalysis()">
         👥 All AMs (Team)
-      </button>`;
+      <\/button>`;
       
-      buttonsHtml += '</div>';
+      buttonsHtml += '<\/div>';
       
       addKHMessage('assistant', 'Who would you like to analyze?\n\n' + buttonsHtml);
     }
@@ -3892,23 +3892,23 @@ If you have any other questions about the team data I'd be happy to dive in with
       // Escape HTML first
       let html = text
         .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
+        .replace(/<\/g, '&lt;')
         .replace(/>/g, '&gt;');
       
       // Headers: ### text, ## text, # text → styled headers
-      html = html.replace(/^### (.+)$/gm, '<div class="kh-header kh-h3">$1</div>');
-      html = html.replace(/^## (.+)$/gm, '<div class="kh-header kh-h2">$1</div>');
-      html = html.replace(/^# (.+)$/gm, '<div class="kh-header kh-h1">$1</div>');
+      html = html.replace(/^### (.+)$/gm, '<div class="kh-header kh-h3">$1<\/div>');
+      html = html.replace(/^## (.+)$/gm, '<div class="kh-header kh-h2">$1<\/div>');
+      html = html.replace(/^# (.+)$/gm, '<div class="kh-header kh-h1">$1<\/div>');
       
       // Horizontal rules: --- → styled divider
       html = html.replace(/^---+$/gm, '<hr class="kh-divider">');
       
       // Bold: **text** or __text__
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1<\/strong>');
+      html = html.replace(/__(.+?)__/g, '<strong>$1<\/strong>');
       
       // Inline code: `code`
-      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      html = html.replace(/`([^`]+)`/g, '<code>$1<\/code>');
       
       // Markdown tables - MUST process BEFORE line breaks
       // Match table blocks: lines starting with |
@@ -3925,20 +3925,20 @@ If you have any other questions about the team data I'd be happy to dive in with
         
         let tableHtml = '<table class="kh-table"><thead><tr>';
         headerCells.forEach(cell => {
-          tableHtml += '<th>' + cell.trim() + '</th>';
+          tableHtml += '<th>' + cell.trim() + '<\/th>';
         });
-        tableHtml += '</tr></thead><tbody>';
+        tableHtml += '<\/tr><\/thead><tbody>';
         
         dataLines.forEach(line => {
           const cells = line.split('|').filter(cell => cell.trim() !== '');
           tableHtml += '<tr>';
           cells.forEach(cell => {
-            tableHtml += '<td>' + cell.trim() + '</td>';
+            tableHtml += '<td>' + cell.trim() + '<\/td>';
           });
-          tableHtml += '</tr>';
+          tableHtml += '<\/tr>';
         });
         
-        tableHtml += '</tbody></table>';
+        tableHtml += '<\/tbody><\/table>';
         return '\n' + tableHtml + '\n';
       });
       
@@ -3961,7 +3961,7 @@ If you have any other questions about the team data I'd be happy to dive in with
         const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         // Match whole word boundaries, case-insensitive
         const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
-        html = html.replace(regex, `<span class="kh-clickable-account" data-rid="${rid}" onclick="copyRIDToClipboard('${rid}')" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${rid}')" onmouseleave="hideCustomTooltip()">${name}</span>`);
+        html = html.replace(regex, `<span class="kh-clickable-account" data-rid="${rid}" onclick="copyRIDToClipboard('${rid}')" onmouseenter="showCustomTooltip(this, 'Click to copy RID: ${rid}')" onmouseleave="hideCustomTooltip()">${name}<\/span>`);
       });
 
       return html;

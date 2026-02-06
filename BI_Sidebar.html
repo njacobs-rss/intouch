@@ -1845,7 +1845,7 @@
 
       if (isLoading) {
         if (amPicker) {
-          amPicker.innerHTML = '<option value="" disabled selected>Loading AMs...</option>';
+          amPicker.innerHTML = '<option value="" disabled selected>Loading AMs...<\/option>';
           amPicker.disabled = true;
           amPicker.style.backgroundColor = "#f3f4f6";
         }
@@ -1874,9 +1874,9 @@
 
       const amPicker = document.getElementById('am-picker');
       if (amPicker) {
-        let amHtml = '<option value="" disabled selected>Select AM</option>';
+        let amHtml = '<option value="" disabled selected>Select AM<\/option>';
         if (data.ams && data.ams.length > 0) {
-          data.ams.forEach(am => { amHtml += `<option value="${am}">${am}</option>`; });
+          data.ams.forEach(am => { amHtml += `<option value="${am}">${am}<\/option>`; });
         }
         amPicker.innerHTML = amHtml;
       }
@@ -1929,19 +1929,16 @@
          const macroClass = record.macro ? '' : 'style="color:#ef4444;"';
          
          detailBox.innerHTML = `
-            <div class="detail-row"><span>RID:</span><span>${record.rid}</span></div>
-            <div class="detail-row"><span>Metro:</span><span ${metroClass}>${record.metro || '\u26A0 EMPTY'}</span></div>
-            <div class="detail-row"><span>Macro:</span><span ${macroClass}>${record.macro || '\u26A0 EMPTY'}</span></div>
+            <div class="detail-row"><span>RID:<\/span><span>${record.rid}<\/span><\/div>
+            <div class="detail-row"><span>Metro:<\/span><span ${metroClass}>${record.metro || '\u26A0 EMPTY'}<\/span><\/div>
+            <div class="detail-row"><span>Macro:<\/span><span ${macroClass}>${record.macro || '\u26A0 EMPTY'}<\/span><\/div>
          `;
       } else {
          btnAI.disabled = true;
          detailBox.style.display = 'none';
       }
     }
-  // #region agent log - Script block split for debugging
-  </script>
-  <script>
-  // #endregion
+
     // --- OVERLAY & ACTIONS ---
 
     function setLoadingMode(mode) {
@@ -2134,10 +2131,10 @@
 
     function loadGroups() {
       const sel = document.getElementById('calc-grp-select');
-      sel.innerHTML = '<option>Loading...</option>';
+      sel.innerHTML = '<option>Loading...<\/option>';
       google.script.run.withSuccessHandler(groups => {
-        let html = '<option value="" disabled selected>Select Group</option>';
-        groups.forEach(g => html += `<option value="${g}">${g}</option>`);
+        let html = '<option value="" disabled selected>Select Group<\/option>';
+        groups.forEach(g => html += `<option value="${g}">${g}<\/option>`);
         sel.innerHTML = html;
       }).getGroupList();
     }
@@ -2261,37 +2258,37 @@
 
       if (modelValue === 'FREEMIUM' || modelValue === 'FREE_GOOGLE') {
         rows = `
-          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">CURRENT PRICING</td></tr>
-          <tr><td>Sub Fee</td><td>${fmt(currentSubFee)}</td></tr>
-          <tr><td>Variable Fees</td><td>${fmt(currentVariableFees)}</td></tr>
-          <tr style="border-top:1px solid #e2e8f0; font-weight:600;"><td>Current Total</td><td>${fmt(currentTotal)}</td></tr>
-          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">${label.toUpperCase()} SIMULATION</td></tr>
-          <tr><td>Sub Fee</td><td>${fmt(bd.subFee)}</td></tr>
-          <tr><td>Your Network</td><td>${fmt(bd.yourNetwork)}</td></tr>
-          <tr><td>Network</td><td>${fmt(bd.network)}</td></tr>
-          <tr><td>Discovery PI</td><td>${fmt(bd.discoPI)}</td></tr>
-          <tr><td>Google</td><td>${fmt(bd.google)}</td></tr>
-          <tr style="border-top:2px solid #e2e8f0; font-weight:bold;"><td>Simulated Total</td><td>${fmt(bd.total)}</td></tr>
-          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">COMPARISON</td></tr>
-          <tr><td>Monthly Delta</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${fmt(data.monthlyDelta)}</td></tr>
-          <tr><td>% Change</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${pct(data.percentChange * -1)}</td></tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">CURRENT PRICING<\/td><\/tr>
+          <tr><td>Sub Fee<\/td><td>${fmt(currentSubFee)}<\/td><\/tr>
+          <tr><td>Variable Fees<\/td><td>${fmt(currentVariableFees)}<\/td><\/tr>
+          <tr style="border-top:1px solid #e2e8f0; font-weight:600;"><td>Current Total<\/td><td>${fmt(currentTotal)}<\/td><\/tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">${label.toUpperCase()} SIMULATION<\/td><\/tr>
+          <tr><td>Sub Fee<\/td><td>${fmt(bd.subFee)}<\/td><\/tr>
+          <tr><td>Your Network<\/td><td>${fmt(bd.yourNetwork)}<\/td><\/tr>
+          <tr><td>Network<\/td><td>${fmt(bd.network)}<\/td><\/tr>
+          <tr><td>Discovery PI<\/td><td>${fmt(bd.discoPI)}<\/td><\/tr>
+          <tr><td>Google<\/td><td>${fmt(bd.google)}<\/td><\/tr>
+          <tr style="border-top:2px solid #e2e8f0; font-weight:bold;"><td>Simulated Total<\/td><td>${fmt(bd.total)}<\/td><\/tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">COMPARISON<\/td><\/tr>
+          <tr><td>Monthly Delta<\/td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${fmt(data.monthlyDelta)}<\/td><\/tr>
+          <tr><td>% Change<\/td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${pct(data.percentChange * -1)}<\/td><\/tr>
         `;
       } else {
         rows = `
-          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">CURRENT PRICING</td></tr>
-          <tr><td>Sub Fee</td><td>${fmt(currentSubFee)}</td></tr>
-          <tr><td>Variable Fees</td><td>${fmt(currentVariableFees)}</td></tr>
-          <tr style="border-top:1px solid #e2e8f0; font-weight:600;"><td>Current Total</td><td>${fmt(currentTotal)}</td></tr>
-          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">${label.toUpperCase()} SIMULATION</td></tr>
-          <tr><td>Sub Fee</td><td>${fmt(bd.subFee)}</td></tr>
-          <tr style="border-top:2px solid #e2e8f0; font-weight:bold;"><td>Simulated Total</td><td>${fmt(bd.total)}</td></tr>
-          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">COMPARISON</td></tr>
-          <tr><td>Monthly Delta</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${fmt(data.monthlyDelta)}</td></tr>
-          <tr><td>% Change</td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${pct(data.percentChange * -1)}</td></tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">CURRENT PRICING<\/td><\/tr>
+          <tr><td>Sub Fee<\/td><td>${fmt(currentSubFee)}<\/td><\/tr>
+          <tr><td>Variable Fees<\/td><td>${fmt(currentVariableFees)}<\/td><\/tr>
+          <tr style="border-top:1px solid #e2e8f0; font-weight:600;"><td>Current Total<\/td><td>${fmt(currentTotal)}<\/td><\/tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">${label.toUpperCase()} SIMULATION<\/td><\/tr>
+          <tr><td>Sub Fee<\/td><td>${fmt(bd.subFee)}<\/td><\/tr>
+          <tr style="border-top:2px solid #e2e8f0; font-weight:bold;"><td>Simulated Total<\/td><td>${fmt(bd.total)}<\/td><\/tr>
+          <tr style="background:#f8fafc;"><td colspan="2" style="font-weight:600; color:#64748b; padding:6px 0;">COMPARISON<\/td><\/tr>
+          <tr><td>Monthly Delta<\/td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${fmt(data.monthlyDelta)}<\/td><\/tr>
+          <tr><td>% Change<\/td><td class="${data.monthlyDelta < 0 ? 'txt-grn' : 'txt-red'}">${pct(data.percentChange * -1)}<\/td><\/tr>
         `;
       }
 
-      container.innerHTML = `<table class="mini-table" style="width:100%; margin-top:5px;">${rows}</table>`;
+      container.innerHTML = `<table class="mini-table" style="width:100%; margin-top:5px;">${rows}<\/table>`;
     }
 
   </script>

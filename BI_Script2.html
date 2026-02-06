@@ -1053,7 +1053,7 @@
           }
           
           // Open Glean in new tab
-          window.open('https://app.glean.com/', '_blank');
+          window.open('https:\/\/app.glean.com\/', '_blank');
           
           // Silent operation - visual feedback is already on the button ("✓ Copied")
           console.log(`[jumpStartGlean] Prompt copied to clipboard, opening Glean for ${section.accounts.length} accounts`);
@@ -2119,7 +2119,7 @@ The prompt includes:
 Opening Glean now — paste the prompt to begin research.`);
                 
                 // Open Glean
-                window.open('https://app.glean.com/', '_blank');
+                window.open('https:\/\/app.glean.com\/', '_blank');
               })
               .catch((err) => {
                 console.error('[executeFreeGoogleGlean] Clipboard error:', err);
@@ -2998,7 +2998,7 @@ Opening Glean now — paste the prompt to begin research.`);
       }
       
       // Open Slack channel (web URL format)
-      const slackUrl = 'https://slack.com/app_redirect?channel=' + encodeURIComponent(channel);
+      const slackUrl = 'https:\/\/slack.com\/app_redirect?channel=' + encodeURIComponent(channel);
       window.open(slackUrl, '_blank');
       
       // Clear the pending action

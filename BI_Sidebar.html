@@ -1756,14 +1756,31 @@
      <div id="ai-preview" class="data-preview"></div>
   </div>
 
+  <!-- #region agent log — Sentinel script to catch parse errors in main block -->
   <script>
-    // #region agent log
-    window.addEventListener('error', function(e) {
-      console.error('[DEBUG][HypA] UNCAUGHT ERROR:', e.message, 'at', e.filename + ':' + e.lineno + ':' + e.colno);
-    });
-    console.log('[DEBUG][HypA] Script block STARTED executing');
-    // #endregion
+    console.log('[SENTINEL] Diagnostic script executing - if you see this, sentinel is working');
+    window.onerror = function(msg, url, line, col, error) {
+      console.error('[SENTINEL] CAUGHT ERROR:', msg);
+      console.error('[SENTINEL] Location: line=' + line + ' col=' + col);
+      try {
+        var pageHTML = document.documentElement.outerHTML;
+        var allLines = pageHTML.split('\n');
+        console.log('[SENTINEL] Total page lines:', allLines.length);
+        var start = Math.max(0, line - 6);
+        var end = Math.min(allLines.length, line + 5);
+        for (var i = start; i < end; i++) {
+          var prefix = (i + 1 === line) ? '>>>' : '   ';
+          console.log('[SENTINEL]', prefix, 'L' + (i + 1) + ':', allLines[i] ? allLines[i].substring(0, 250) : '(empty)');
+        }
+      } catch(e2) {
+        console.error('[SENTINEL] Failed to read page source:', e2.message);
+      }
+      return false;
+    };
+  </script>
+  <!-- #endregion -->
 
+  <script>
     // --- GLOBAL VARIABLES ---
     let ACCOUNT_MAP = {}; 
     let ACCOUNT_NAME_TO_RID = {};  // Lookup for click-to-copy RID in chat

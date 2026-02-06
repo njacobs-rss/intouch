@@ -309,7 +309,7 @@
       `;
       
       // Get AM name from context or let server detect
-      const amName = khState.currentAMContext?.fullName || '';
+      const amName = (khState.currentAMContext && khState.currentAMContext.fullName) || '';
       
       google.script.run
         .withSuccessHandler((result) => {
@@ -782,7 +782,7 @@
      */
     function jumpStartIsolate(sectionId) {
       // Validate section exists in cached data
-      if (!khState.jumpStartData?.sections?.[sectionId]) {
+      if (!(khState.jumpStartData && khState.jumpStartData.sections && khState.jumpStartData.sections[sectionId])) {
         console.error('[jumpStartIsolate] Section not found:', sectionId);
         addKHMessage('error', 'Section data not loaded. Try refreshing.');
         return;
@@ -816,7 +816,7 @@
      */
     function jumpStartDigIn(sectionId) {
       // Validate section exists in cached data
-      if (!khState.jumpStartData?.sections?.[sectionId]) {
+      if (!(khState.jumpStartData && khState.jumpStartData.sections && khState.jumpStartData.sections[sectionId])) {
         console.error('[jumpStartDigIn] Section not found:', sectionId);
         addKHMessage('error', 'Section data not loaded. Try refreshing.');
         return;
@@ -1010,7 +1010,7 @@
      */
     function jumpStartGlean(sectionId) {
       // Validate section exists
-      if (!khState.jumpStartData?.sections?.[sectionId]) {
+      if (!(khState.jumpStartData && khState.jumpStartData.sections && khState.jumpStartData.sections[sectionId])) {
         console.error('[jumpStartGlean] Section not found:', sectionId);
         addKHMessage('error', 'Section data not loaded. Try refreshing.');
         return;
@@ -1538,7 +1538,7 @@
       const welcomeEl = document.getElementById('khWelcome');
       const jumpStartEl = document.getElementById('khJumpStart');
       const triggerBtns = document.querySelectorAll('.kh-freegoogle-trigger');
-      const refreshBtn = freeGoogleEl?.querySelector('.kh-jumpstart-refresh');
+      const refreshBtn = freeGoogleEl ? freeGoogleEl.querySelector('.kh-jumpstart-refresh') : null;
       
       if (!freeGoogleEl || !freeGoogleContent) {
         console.error('[startFreeGoogle] Free Google elements not found');
@@ -1807,9 +1807,9 @@
       if (!cohortEl) return;
       
       // Re-render with all accounts
-      const cohort = khState.freeGoogleData?.cohorts?.[Object.keys(khState.freeGoogleData.cohorts).find(k => 
+      const cohort = (khState.freeGoogleData && khState.freeGoogleData.cohorts) ? khState.freeGoogleData.cohorts[Object.keys(khState.freeGoogleData.cohorts).find(k => 
         khState.freeGoogleData.cohorts[k].id === cohortId
-      )];
+      )] : null;
       
       if (cohort) {
         const contentEl = cohortEl.querySelector('.kh-jumpstart-content');
@@ -1829,7 +1829,7 @@
     function copyFreeGoogleRID(rid) {
       // Find account data for context
       let accountData = null;
-      if (khState.freeGoogleData?.cohorts) {
+      if (khState.freeGoogleData && khState.freeGoogleData.cohorts) {
         for (const cohortName of Object.keys(khState.freeGoogleData.cohorts)) {
           const cohort = khState.freeGoogleData.cohorts[cohortName];
           const found = cohort.accounts.find(a => a.rid === rid);
@@ -1868,7 +1868,7 @@
       const rid = ridMatch[0];
       
       // Check if this RID is in our Free Google data
-      if (!khState.freeGoogleData?.cohorts) return false;
+      if (!(khState.freeGoogleData && khState.freeGoogleData.cohorts)) return false;
       
       let accountData = null;
       let cohortName = null;
@@ -1897,8 +1897,8 @@
      * @param {string} cohortName - Cohort name
      */
     function showFreeGoogleStrategyMenu(rid, accountData, cohortName) {
-      const cohort = khState.freeGoogleData?.cohorts?.[cohortName];
-      const play = cohort?.play || 'Standard Evaluation';
+      const cohort = (khState.freeGoogleData && khState.freeGoogleData.cohorts) ? khState.freeGoogleData.cohorts[cohortName] : null;
+      const play = (cohort && cohort.play) || 'Standard Evaluation';
       
       // Store for later use
       khState.pendingFreeGoogleStrategy = { rid, accountData, cohortName, play };
@@ -2067,7 +2067,7 @@ Please provide:
       const loadingEl = addKHMessage('loading', '');
       
       // Get AM context
-      const amName = khState.currentAMContext?.fullName || '';
+      const amName = (khState.currentAMContext && khState.currentAMContext.fullName) || '';
       
       google.script.run
         .withSuccessHandler((response) => {
@@ -2286,7 +2286,7 @@ Opening Glean now — paste the prompt to begin research.`);
               dataInjected: result.dataInjected,
               dataSource: result.dataSource,
               hasAmContext: !!result.amContext,
-              amContextName: result.amContext?.fullName || 'none'
+              amContextName: (result.amContext && result.amContext.fullName) || 'none'
             });
             
             // Reset log flag after successful chat (first message was logged)
@@ -2742,7 +2742,7 @@ Opening Glean now — paste the prompt to begin research.`);
             console.log('[executeColumnAction] Tracked modification:', khState.modifiedColumns);
             
             // Get the section name for a friendly message
-            const sectionName = COLUMN_CATEGORIES[category]?.name || category;
+            const sectionName = (COLUMN_CATEGORIES[category] && COLUMN_CATEGORIES[category].name) || category;
             
             // Check if column was already set to this metric
             if (result.alreadySet) {
@@ -2791,7 +2791,7 @@ Opening Glean now — paste the prompt to begin research.`);
         // Debug: Log indicator in addKHMessage
         console.log('[addKHMessage] Indicator received:', {
           hasIndicator: !!dataIndicator,
-          indicatorLength: dataIndicator?.length || 0,
+          indicatorLength: (dataIndicator && dataIndicator.length) || 0,
           indicatorHtml: indicatorHtml || '(empty)'
         });
         

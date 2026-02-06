@@ -2268,8 +2268,23 @@
 
   </script>
 
+  <script>
+  // #region agent log
+  console.log('[DEBUG-MARKER-1] First script block ended OK. About to include BI_Script2.');
+  console.log('[DEBUG-MARKER-1] typeof startMyDay:', typeof startMyDay);
+  // #endregion
+  </script>
+
   <?!= include("BI_Script2") ?>
 
+  <script>
+  // #region agent log
+  console.log('[DEBUG-MARKER-2] After BI_Script2 include.');
+  console.log('[DEBUG-MARKER-2] typeof startMyDay:', typeof startMyDay);
+  console.log('[DEBUG-MARKER-2] typeof initKnowledgeHub:', typeof initKnowledgeHub);
+  console.log('[DEBUG-MARKER-2] typeof sendKHMessage:', typeof sendKHMessage);
+  // #endregion
+  </script>
 
   <!-- Correction Modal -->
   <div class="kh-modal-overlay" id="khCorrectionModal">

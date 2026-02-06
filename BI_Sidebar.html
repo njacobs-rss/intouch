@@ -1916,7 +1916,7 @@
       
       const record = ACCOUNT_MAP[val];
       
-      // 🔍 DEBUG: Log what we found
+      // DEBUG: Log what we found
       console.log("[checkAccount] Input value:", val);
       console.log("[checkAccount] Record found:", record);
       
@@ -1930,8 +1930,8 @@
          
          detailBox.innerHTML = `
             <div class="detail-row"><span>RID:</span><span>${record.rid}</span></div>
-            <div class="detail-row"><span>Metro:</span><span ${metroClass}>${record.metro || '⚠️ EMPTY'}</span></div>
-            <div class="detail-row"><span>Macro:</span><span ${macroClass}>${record.macro || '⚠️ EMPTY'}</span></div>
+            <div class="detail-row"><span>Metro:</span><span ${metroClass}>${record.metro || '\u26A0 EMPTY'}</span></div>
+            <div class="detail-row"><span>Macro:</span><span ${macroClass}>${record.macro || '\u26A0 EMPTY'}</span></div>
          `;
       } else {
          btnAI.disabled = true;
@@ -1977,7 +1977,7 @@
        const record = ACCOUNT_MAP[val];
        if(!record) return alert("Please select a valid account.");
 
-       // 🔍 DEBUG: Log what we're sending
+       // DEBUG: Log what we're sending
        console.log("[runDeck] Sending config:", {
           accountName: record.name,
           rid: record.rid,
@@ -2070,11 +2070,11 @@
        const statusDiv = document.getElementById('copy-status');
        statusDiv.style.display = 'block';
        if (isSuccess) {
-          statusDiv.innerText = "✅ Data copied! Launching Gemini...";
+          statusDiv.innerText = "\u2705 Data copied! Launching Gemini...";
           statusDiv.style.background = "#dcfce7"; 
           statusDiv.style.color = "#166534";
        } else {
-          statusDiv.innerText = "⚠️ Copy failed.";
+          statusDiv.innerText = "\u26A0 Copy failed.";
           statusDiv.style.background = "#fee2e2"; 
           statusDiv.style.color = "#991b1b";
        }

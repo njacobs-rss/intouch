@@ -1761,46 +1761,67 @@
     console.log('[SENTINEL] Diagnostic script executing - if you see this, sentinel is working');
     window.onerror = function(msg, url, line, col, error) {
       console.error('[SENTINEL] CAUGHT ERROR:', msg);
-      console.error('[SENTINEL] Location: line=' + line + ' col=' + col);
+      console.error('[SENTINEL] Location: page line=' + line + ' col=' + col);
       try {
-        var pageHTML = document.documentElement.outerHTML;
-        var allLines = pageHTML.split('\n');
-        console.log('[SENTINEL] Total page lines:', allLines.length);
-
-        // Show wider context (20 lines before, 5 after)
-        var start = Math.max(0, line - 21);
-        var end = Math.min(allLines.length, line + 5);
-        for (var i = start; i < end; i++) {
-          var prefix = (i + 1 === line) ? '>>>' : '   ';
-          console.log('[SENTINEL]', prefix, 'L' + (i + 1) + ':', allLines[i] ? allLines[i].substring(0, 300) : '(empty)');
-        }
-
-        // Character code analysis at error line
-        var errLine = allLines[line - 1] || '';
-        console.log('[SENTINEL] Error line length:', errLine.length);
-        var charCodes = '';
-        for (var c = 0; c < Math.min(errLine.length, 80); c++) {
-          charCodes += c + ':' + errLine.charCodeAt(c) + '(' + errLine[c] + ') ';
-        }
-        console.log('[SENTINEL] Error line char codes:', charCodes);
-
-        // Check for backtick integrity - find nearest backticks
-        var fullText = allLines.join('\n');
-        var errPos = 0;
-        for (var j = 0; j < line - 1; j++) { errPos += allLines[j].length + 1; }
-        errPos += col;
-        // Find backticks near error
-        var searchStart = Math.max(0, errPos - 500);
-        var searchEnd = Math.min(fullText.length, errPos + 200);
-        var nearbyText = fullText.substring(searchStart, searchEnd);
-        var backtickPositions = [];
-        for (var k = 0; k < nearbyText.length; k++) {
-          if (nearbyText.charCodeAt(k) === 96) backtickPositions.push(searchStart + k - errPos);
-        }
-        console.log('[SENTINEL] Backtick positions relative to error:', JSON.stringify(backtickPositions));
-
-        // Show the script block boundaries
+        // Get the main script block content directly
         var scripts = document.querySelectorAll('script');
+        var mainScript = scripts[scripts.length - 1];
+        var scriptText = mainScript.textContent;
+        console.log('[SENTINEL] Main script length:', scriptText.length);
+
+        // Find where the main script starts in the page
+        var pageHTML = document.documentElement.outerHTML;
+        var scriptSnippet = scriptText.substring(0, 200);
+        var scriptPos = pageHTML.indexOf(scriptSnippet);
+        var linesBeforeScript = 0;
+        if (scriptPos >= 0) {
+          linesBeforeScript = pageHTML.substring(0, scriptPos).split('\n').length;
+        }
+        console.log('[SENTINEL] Main script starts at page line:', linesBeforeScript);
+
+        // Calculate error line WITHIN the script
+        var errorLineInScript = line - linesBeforeScript;
+        console.log('[SENTINEL] Error at script-relative line:', errorLineInScript);
+
+        // Dump script content around the error
+        var scriptLines = scriptText.split('\n');
+        console.log('[SENTINEL] Script total lines:', scriptLines.length);
+        var sStart = Math.max(0, errorLineInScript - 8);
+        var sEnd = Math.min(scriptLines.length, errorLineInScript + 5);
+        for (var i = sStart; i < sEnd; i++) {
+          var prefix = (i === errorLineInScript - 1) ? '>>>' : '   ';
+          var lt = scriptLines[i];
+          console.log('[SENTINEL]', prefix, 'SL' + (i + 1) + ' (' + (lt ? lt.length : 0) + 'ch):', lt ? lt.substring(0, 300) : '(empty)');
+        }
+
+        // Char codes at error position within the SCRIPT
+        var errScriptLine = scriptLines[errorLineInScript - 1] || '';
+        console.log('[SENTINEL] Error script line length:', errScriptLine.length);
+        console.log('[SENTINEL] Error script line full:', JSON.stringify(errScriptLine.substring(0, 200)));
+        // Show chars around col
+        if (col > 0) {
+          var cStart = Math.max(0, col - 20);
+          var cEnd = Math.min(errScriptLine.length, col + 20);
+          var nearCol = errScriptLine.substring(cStart, cEnd);
+          console.log('[SENTINEL] Chars around col ' + col + ' (from ' + cStart + '):', JSON.stringify(nearCol));
+          var codes = '';
+          for (var c = Math.max(0, col - 5); c < Math.min(errScriptLine.length, col + 5); c++) {
+            codes += c + ':' + errScriptLine.charCodeAt(c) + '(' + errScriptLine[c] + ') ';
+          }
+          console.log('[SENTINEL] Char codes near col ' + col + ':', codes);
+        }
+
+        // Check for \x3c preservation: sample a few spots
+        var x3cCount = 0;
+        var ltCount = 0;
+        for (var k = 0; k < scriptText.length; k++) {
+          if (scriptText.substring(k, k + 4) === '\\x3c') x3cCount++;
+          if (scriptText.charCodeAt(k) === 60 && k > 0) ltCount++;
+        }
+        console.log('[SENTINEL] \\x3c occurrences in script:', x3cCount);
+        console.log('[SENTINEL] Raw < occurrences in script:', ltCount);
+
+        // Show script block info
         console.log('[SENTINEL] Script blocks found:', scripts.length);
         for (var s = 0; s < scripts.length; s++) {
           var src = scripts[s].src ? scripts[s].src : '(inline)';
@@ -1808,7 +1829,7 @@
           console.log('[SENTINEL] Script[' + s + ']:', src, 'length:', len);
         }
       } catch(e2) {
-        console.error('[SENTINEL] Failed to read page source:', e2.message);
+        console.error('[SENTINEL] Analysis error:', e2.message);
       }
       return false;
     };

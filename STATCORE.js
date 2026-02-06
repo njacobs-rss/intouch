@@ -399,10 +399,13 @@ function ensureSTATCORE_Formulas(targetSS) {
       `=ARRAYFORMULA(` +
       `IF(LEN(A3:A)=0,"",` +
         `IFNA(` +
-          `VLOOKUP(` +
-            `TO_TEXT(A3:A),` +
-            `{TO_TEXT(Focus20!$B$2:$B), INDEX(Focus20!$A$2:$G,, MATCH("Last Updated", Focus20!$A$1:$G$1,0))},` +
-            `2, FALSE` +
+          `TEXT(` +
+            `VLOOKUP(` +
+              `TO_TEXT(A3:A),` +
+              `{TO_TEXT(Focus20!$A$2:$A), Focus20!$B$2:$B},` +
+              `2, FALSE` +
+            `),` +
+            `"M/D/YY"` +
           `)` +
         `)` +
       `))`;

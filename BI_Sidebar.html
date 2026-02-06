@@ -1766,11 +1766,46 @@
         var pageHTML = document.documentElement.outerHTML;
         var allLines = pageHTML.split('\n');
         console.log('[SENTINEL] Total page lines:', allLines.length);
-        var start = Math.max(0, line - 6);
+
+        // Show wider context (20 lines before, 5 after)
+        var start = Math.max(0, line - 21);
         var end = Math.min(allLines.length, line + 5);
         for (var i = start; i < end; i++) {
           var prefix = (i + 1 === line) ? '>>>' : '   ';
-          console.log('[SENTINEL]', prefix, 'L' + (i + 1) + ':', allLines[i] ? allLines[i].substring(0, 250) : '(empty)');
+          console.log('[SENTINEL]', prefix, 'L' + (i + 1) + ':', allLines[i] ? allLines[i].substring(0, 300) : '(empty)');
+        }
+
+        // Character code analysis at error line
+        var errLine = allLines[line - 1] || '';
+        console.log('[SENTINEL] Error line length:', errLine.length);
+        var charCodes = '';
+        for (var c = 0; c < Math.min(errLine.length, 80); c++) {
+          charCodes += c + ':' + errLine.charCodeAt(c) + '(' + errLine[c] + ') ';
+        }
+        console.log('[SENTINEL] Error line char codes:', charCodes);
+
+        // Check for backtick integrity - find nearest backticks
+        var fullText = allLines.join('\n');
+        var errPos = 0;
+        for (var j = 0; j < line - 1; j++) { errPos += allLines[j].length + 1; }
+        errPos += col;
+        // Find backticks near error
+        var searchStart = Math.max(0, errPos - 500);
+        var searchEnd = Math.min(fullText.length, errPos + 200);
+        var nearbyText = fullText.substring(searchStart, searchEnd);
+        var backtickPositions = [];
+        for (var k = 0; k < nearbyText.length; k++) {
+          if (nearbyText.charCodeAt(k) === 96) backtickPositions.push(searchStart + k - errPos);
+        }
+        console.log('[SENTINEL] Backtick positions relative to error:', JSON.stringify(backtickPositions));
+
+        // Show the script block boundaries
+        var scripts = document.querySelectorAll('script');
+        console.log('[SENTINEL] Script blocks found:', scripts.length);
+        for (var s = 0; s < scripts.length; s++) {
+          var src = scripts[s].src ? scripts[s].src : '(inline)';
+          var len = scripts[s].textContent ? scripts[s].textContent.length : 0;
+          console.log('[SENTINEL] Script[' + s + ']:', src, 'length:', len);
         }
       } catch(e2) {
         console.error('[SENTINEL] Failed to read page source:', e2.message);

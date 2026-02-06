@@ -1,4 +1,7 @@
   <script>
+    // #region agent log
+    console.log('[DEBUG-G] BI_Script2.html script block STARTED parsing at', new Date().toISOString());
+    // #endregion
     // =========================================================
     // --- KNOWLEDGE HUB CHAT FUNCTIONS ---
     // =========================================================
@@ -77,6 +80,9 @@
     };
 
     function initKnowledgeHub() {
+      // #region agent log
+      console.log('[DEBUG-A] initKnowledgeHub CALLED at', new Date().toISOString());
+      // #endregion
       // Tab-based layout - no FAB or minimize needed
       khEls.panel = document.getElementById('tab-bucket-iq');
       khEls.clearBtn = document.getElementById('khClear');
@@ -86,6 +92,19 @@
       khEls.input = document.getElementById('khInput');
       khEls.sendBtn = document.getElementById('khSend');
       khEls.welcome = document.getElementById('khWelcome');
+
+      // #region agent log
+      console.log('[DEBUG-B] DOM elements found:', {
+        panel: !!khEls.panel,
+        clearBtn: !!khEls.clearBtn,
+        stopBtn: !!khEls.stopBtn,
+        helpBtn: !!khEls.helpBtn,
+        messages: !!khEls.messages,
+        input: !!khEls.input,
+        sendBtn: !!khEls.sendBtn,
+        welcome: !!khEls.welcome
+      });
+      // #endregion
 
       // Wire up button click handlers
       if (khEls.clearBtn) khEls.clearBtn.addEventListener('click', clearKHChat);
@@ -113,6 +132,10 @@
           }
         });
       }
+
+      // #region agent log
+      console.log('[DEBUG-A] initKnowledgeHub COMPLETE - event listeners attached');
+      // #endregion
 
       // Initialize AM context on load (chat is now always visible in tab)
       initAMContext();
@@ -2115,9 +2138,22 @@ Opening Glean now — paste the prompt to begin research.`);
     // =============================================================
 
     function sendKHMessage() {
+      // #region agent log
+      console.log('[DEBUG-C] sendKHMessage CALLED', {
+        hasInput: !!khEls.input,
+        inputValue: khEls.input ? khEls.input.value : '(null)',
+        isLoading: khState.isLoading,
+        timestamp: new Date().toISOString()
+      });
+      // #endregion
       if (!khEls.input) return;
       const query = khEls.input.value.trim();
-      if (!query || khState.isLoading) return;
+      if (!query || khState.isLoading) {
+        // #region agent log
+        console.log('[DEBUG-C] sendKHMessage EARLY RETURN', { query: query, isLoading: khState.isLoading });
+        // #endregion
+        return;
+      }
 
       // Hide welcome message
       if (khEls.welcome) {
@@ -2208,9 +2244,26 @@ Opening Glean now — paste the prompt to begin research.`);
         console.log('[sendKHMessage] Using pre-fetched data for:', cachedData.amName);
       }
 
+      // #region agent log
+      console.log('[DEBUG-D] Calling google.script.run.askInTouchGuide', {
+        queryLength: query.length,
+        hasHistory: !!historyJson,
+        hasCachedData: !!cachedData,
+        shouldLog: khState.shouldLogNextChat
+      });
+      // #endregion
       // Call backend
       google.script.run
         .withSuccessHandler((result) => {
+          // #region agent log
+          console.log('[DEBUG-E] askInTouchGuide SUCCESS handler fired', {
+            success: result ? result.success : '(null result)',
+            hasError: result ? !!result.error : false,
+            errorMsg: result ? result.error : '',
+            isLoading: khState.isLoading,
+            currentRequestId: khState.currentRequestId
+          });
+          // #endregion
           // Check if request was stopped
           if (!khState.isLoading && !khState.currentRequestId) {
             if (loadingEl) loadingEl.remove();
@@ -2365,6 +2418,12 @@ Opening Glean now — paste the prompt to begin research.`);
           }
         })
         .withFailureHandler((error) => {
+          // #region agent log
+          console.log('[DEBUG-F] askInTouchGuide FAILURE handler fired', {
+            errorMessage: error ? error.message : '(null error)',
+            errorFull: error ? JSON.stringify(error) : '(null)'
+          });
+          // #endregion
           if (loadingEl) loadingEl.remove();
           khState.isLoading = false;
           khState.currentRequestId = null;
@@ -3908,6 +3967,9 @@ If you have any other questions about the team data I'd be happy to dive in with
       return html;
     }
 
+    // #region agent log
+    console.log('[DEBUG-G] BI_Script2.html script block FULLY PARSED - registering event listeners');
+    // #endregion
     // Initialize Knowledge Hub when page loads
     document.addEventListener('DOMContentLoaded', initKnowledgeHub);
     // Also try on window load as fallback

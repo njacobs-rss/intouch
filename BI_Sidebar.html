@@ -1524,32 +1524,6 @@
   </style>
 </head>
 <body>
-  <script>
-  // #region agent log - Global error catcher (runs before other scripts)
-  window.addEventListener('error', function(evt) {
-    console.log('[DEBUG-ERR-CATCHER] Error:', evt.message, 'at line', evt.lineno, 'col', evt.colno);
-    
-    // Use the full page HTML to find the exact line
-    try {
-      var fullHTML = document.documentElement.outerHTML;
-      var allLines = fullHTML.split('\n');
-      console.log('[DEBUG-ERR-CATCHER] Total lines in page:', allLines.length);
-      var target = evt.lineno - 1; // 0-indexed
-      if (target >= 0 && target < allLines.length) {
-        console.log('[DEBUG-ERR-CATCHER] Line ' + evt.lineno + ' col ' + evt.colno + ' char: ' + JSON.stringify(allLines[target].substring(Math.max(0, evt.colno - 20), evt.colno + 30)));
-        console.log('[DEBUG-ERR-CATCHER] Exact char at col ' + evt.colno + ': charCode=' + allLines[target].charCodeAt(evt.colno - 1) + ' char=' + JSON.stringify(allLines[target][evt.colno - 1]));
-        // Show context lines
-        for (var i = Math.max(0, target - 3); i <= Math.min(allLines.length - 1, target + 3); i++) {
-          var prefix = (i === target) ? '>>>' : '   ';
-          console.log('[DEBUG-ERR-CATCHER] ' + prefix + ' L' + (i+1) + ': ' + allLines[i].substring(0, 200));
-        }
-      }
-    } catch(e) {
-      console.log('[DEBUG-ERR-CATCHER] Could not read page source:', e.message);
-    }
-  });
-  // #endregion
-  </script>
   <div class="tab-nav">
     <button class="tab-btn active" data-tab="tab-bucket-iq">BUCKET IQ</button>
     <button class="tab-btn" data-tab="tab-prep">MEETING PREP</button>
@@ -2293,23 +2267,7 @@
 
   </script>
 
-  <script>
-  // #region agent log
-  console.log('[DEBUG-MARKER-1] First script block ended OK. About to include BI_Script2.');
-  console.log('[DEBUG-MARKER-1] typeof startMyDay:', typeof startMyDay);
-  // #endregion
-  </script>
-
   <?!= include("BI_Script2") ?>
-
-  <script>
-  // #region agent log
-  console.log('[DEBUG-MARKER-2] After BI_Script2 include.');
-  console.log('[DEBUG-MARKER-2] typeof startMyDay:', typeof startMyDay);
-  console.log('[DEBUG-MARKER-2] typeof initKnowledgeHub:', typeof initKnowledgeHub);
-  console.log('[DEBUG-MARKER-2] typeof sendKHMessage:', typeof sendKHMessage);
-  // #endregion
-  </script>
 
   <!-- Correction Modal -->
   <div class="kh-modal-overlay" id="khCorrectionModal">

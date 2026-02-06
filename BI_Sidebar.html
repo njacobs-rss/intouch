@@ -1757,6 +1757,13 @@
   </div>
 
   <script>
+    // #region agent log
+    window.addEventListener('error', function(e) {
+      console.error('[DEBUG][HypA] UNCAUGHT ERROR:', e.message, 'at', e.filename + ':' + e.lineno + ':' + e.colno);
+    });
+    console.log('[DEBUG][HypA] Script block STARTED executing');
+    // #endregion
+
     // --- GLOBAL VARIABLES ---
     let ACCOUNT_MAP = {}; 
     let ACCOUNT_NAME_TO_RID = {};  // Lookup for click-to-copy RID in chat
@@ -2344,6 +2351,9 @@
     };
 
     function initKnowledgeHub() {
+      // #region agent log
+      console.log('[DEBUG][HypA] initKnowledgeHub ENTERED');
+      // #endregion
       // Tab-based layout - no FAB or minimize needed
       khEls.panel = document.getElementById('tab-bucket-iq');
       khEls.clearBtn = document.getElementById('khClear');
@@ -2354,6 +2364,19 @@
       khEls.sendBtn = document.getElementById('khSend');
       khEls.welcome = document.getElementById('khWelcome');
 
+      // #region agent log
+      console.log('[DEBUG][HypB/E] Element lookup results:', JSON.stringify({
+        panel: !!khEls.panel,
+        clearBtn: !!khEls.clearBtn,
+        stopBtn: !!khEls.stopBtn,
+        helpBtn: !!khEls.helpBtn,
+        messages: !!khEls.messages,
+        input: !!khEls.input,
+        sendBtn: !!khEls.sendBtn,
+        welcome: !!khEls.welcome
+      }));
+      // #endregion
+
       // Wire up button click handlers
       if (khEls.clearBtn) khEls.clearBtn.addEventListener('click', clearKHChat);
       if (khEls.stopBtn) khEls.stopBtn.addEventListener('click', stopKHRequest);
@@ -2361,7 +2384,9 @@
       if (khEls.sendBtn) khEls.sendBtn.addEventListener('click', sendKHMessage);
 
       // Suggestion clicks
+      var suggestionCount = 0;
       document.querySelectorAll('.kh-suggestion').forEach(btn => {
+        suggestionCount++;
         btn.addEventListener('click', () => {
           if (khEls.input) {
             khEls.input.value = btn.textContent;
@@ -2369,6 +2394,10 @@
           }
         });
       });
+
+      // #region agent log
+      console.log('[DEBUG][HypB] Listeners attached. Suggestion buttons wired:', suggestionCount);
+      // #endregion
 
       // Enter key to send (Ctrl+Enter or Cmd+Enter for textarea)
       if (khEls.input) {
@@ -2383,9 +2412,15 @@
 
       // Initialize AM context on load (chat is now always visible in tab)
       initAMContext();
+      // #region agent log
+      console.log('[DEBUG][HypA] initKnowledgeHub COMPLETED successfully');
+      // #endregion
     }
     
     function clearKHChat() {
+      // #region agent log
+      console.log('[DEBUG][HypB] clearKHChat ENTERED');
+      // #endregion
       // Reset conversation state
       khState.conversationHistory = [];
       
@@ -2511,6 +2546,9 @@
      * Fetches data and renders the accordion
      */
     function startMyDay() {
+      // #region agent log
+      console.log('[DEBUG][HypA] startMyDay ENTERED (onclick handler working)');
+      // #endregion
       console.log('[startMyDay] Starting...');
       
       // EDGE CASE 8: Debounce rapid clicks - prevent multiple fetches
@@ -4382,9 +4420,17 @@ Opening Glean now — paste the prompt to begin research.`);
     // =============================================================
 
     function sendKHMessage() {
+      // #region agent log
+      console.log('[DEBUG][HypC] sendKHMessage ENTERED. isLoading:', khState.isLoading, 'input exists:', !!khEls.input, 'input value:', khEls.input ? khEls.input.value.trim().substring(0, 30) : 'N/A');
+      // #endregion
       if (!khEls.input) return;
       const query = khEls.input.value.trim();
-      if (!query || khState.isLoading) return;
+      if (!query || khState.isLoading) {
+        // #region agent log
+        console.log('[DEBUG][HypC] sendKHMessage BLOCKED. query empty:', !query, 'isLoading:', khState.isLoading);
+        // #endregion
+        return;
+      }
 
       // Hide welcome message
       if (khEls.welcome) {
@@ -6046,6 +6092,9 @@ If you have any other questions about the team data I'd be happy to dive in with
      * Show the help guide modal
      */
     function showHelpGuide() {
+      // #region agent log
+      console.log('[DEBUG][HypB] showHelpGuide ENTERED');
+      // #endregion
       const modal = document.getElementById('helpModal');
       if (modal) modal.classList.add('open');
     }
@@ -6175,10 +6224,39 @@ If you have any other questions about the team data I'd be happy to dive in with
       return html;
     }
 
+    // #region agent log
+    console.log('[DEBUG][HypA] Script block reached END (all functions defined successfully)');
+    // #endregion
+
     // Initialize Knowledge Hub when page loads
     document.addEventListener('DOMContentLoaded', initKnowledgeHub);
     // Also try on window load as fallback
-    window.addEventListener('load', initKnowledgeHub);
+    window.addEventListener('load', function() {
+      initKnowledgeHub();
+      // #region agent log — Check for CSS overlay blocking clicks (HypD)
+      setTimeout(function() {
+        var sendBtn = document.getElementById('khSend');
+        if (sendBtn) {
+          var rect = sendBtn.getBoundingClientRect();
+          var centerX = rect.left + rect.width / 2;
+          var centerY = rect.top + rect.height / 2;
+          var topEl = document.elementFromPoint(centerX, centerY);
+          console.log('[DEBUG][HypD] Element at Send button position:', topEl ? topEl.tagName + '#' + topEl.id + '.' + topEl.className : 'null');
+          console.log('[DEBUG][HypD] Is it the send button?', topEl === sendBtn);
+          var sendStyle = window.getComputedStyle(sendBtn);
+          console.log('[DEBUG][HypD] Send button computed style: display=' + sendStyle.display + ', visibility=' + sendStyle.visibility + ', pointerEvents=' + sendStyle.pointerEvents + ', opacity=' + sendStyle.opacity);
+        }
+        var inputEl = document.getElementById('khInput');
+        if (inputEl) {
+          var irect = inputEl.getBoundingClientRect();
+          var itopEl = document.elementFromPoint(irect.left + 10, irect.top + 5);
+          console.log('[DEBUG][HypD] Element at Input position:', itopEl ? itopEl.tagName + '#' + itopEl.id + '.' + itopEl.className : 'null');
+          console.log('[DEBUG][HypD] Is it the input?', itopEl === inputEl);
+        }
+        console.log('[DEBUG][HypC] Initial isLoading state:', khState.isLoading);
+      }, 1000);
+      // #endregion
+    });
   </script>
 
   <!-- Correction Modal -->

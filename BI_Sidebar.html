@@ -1524,7 +1524,48 @@
   </style>
 </head>
 <body>
-
+  <script>
+  // #region agent log - Global error catcher (runs before other scripts)
+  window.addEventListener('error', function(evt) {
+    // Capture script errors from subsequent blocks
+    var info = {
+      message: evt.message,
+      filename: evt.filename,
+      lineno: evt.lineno,
+      colno: evt.colno
+    };
+    console.log('[DEBUG-ERR-CATCHER] Script error caught:', JSON.stringify(info));
+    
+    // Try to get the actual source line from the page
+    try {
+      var scripts = document.querySelectorAll('script');
+      var totalLine = 0;
+      for (var s = 0; s < scripts.length; s++) {
+        var content = scripts[s].textContent;
+        if (!content) continue;
+        var lines = content.split('\n');
+        if (totalLine + lines.length >= evt.lineno) {
+          // The error is in this script block
+          var localLine = evt.lineno - totalLine - 1;
+          if (localLine >= 0 && localLine < lines.length) {
+            console.log('[DEBUG-ERR-CATCHER] Error in script block #' + s);
+            console.log('[DEBUG-ERR-CATCHER] Source line ' + evt.lineno + ': ' + lines[localLine].substring(0, 200));
+            // Show surrounding lines for context
+            for (var ctx = Math.max(0, localLine - 2); ctx <= Math.min(lines.length - 1, localLine + 2); ctx++) {
+              var prefix = (ctx === localLine) ? '>>> ' : '    ';
+              console.log('[DEBUG-ERR-CATCHER] ' + prefix + (totalLine + ctx + 1) + ': ' + lines[ctx].substring(0, 200));
+            }
+          }
+          break;
+        }
+        totalLine += lines.length;
+      }
+    } catch(e) {
+      console.log('[DEBUG-ERR-CATCHER] Could not read source:', e.message);
+    }
+  });
+  // #endregion
+  </script>
   <div class="tab-nav">
     <button class="tab-btn active" data-tab="tab-bucket-iq">BUCKET IQ</button>
     <button class="tab-btn" data-tab="tab-prep">MEETING PREP</button>

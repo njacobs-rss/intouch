@@ -97,8 +97,9 @@ function BI_openSidebar() {
     // Force any pending spreadsheet operations to complete
     SpreadsheetApp.flush();
     
-    // Build HTML 
-    const html = HtmlService.createTemplateFromFile('BI_Sidebar').evaluate()
+    // Build HTML (use createHtmlOutputFromFile — no template tags in BI_Sidebar.html,
+    // and createTemplateFromFile().evaluate() was corrupting the script content)
+    const html = HtmlService.createHtmlOutputFromFile('BI_Sidebar')
       .setTitle('InTouch AI')
       .setWidth(450);
     

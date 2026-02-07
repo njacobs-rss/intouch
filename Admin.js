@@ -287,6 +287,19 @@ function removeTrueAccountsFromFocus20Optimized() { tagFocus20Status(false); }
  * @param {boolean} isAdding - true = Append RID+Date+User; false = Delete matching rows
  */
 function tagFocus20Status(isAdding) {
+  // --- LOCK: Prevent duplicate execution (simple + installable triggers) ---
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(500)) return; // Another instance already running
+
+  try {
+    tagFocus20Status_(isAdding);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** @private Core logic, called under lock */
+function tagFocus20Status_(isAdding) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = ss.getActiveSheet();
 

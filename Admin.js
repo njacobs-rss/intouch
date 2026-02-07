@@ -6,7 +6,7 @@
 // PROTECTED SHEETS: These sheets should NEVER be deleted by tab management functions
 var PROTECTED_SHEET_NAMES = [
   'Setup', 'STATCORE', 'SYSCORE', 'DAGCORE', 'DISTRO', 
-  'Launcher', 'Sets', 'Refresh', 'Config', 'Benchmarks'
+  'Launcher', 'Sets', 'Refresh', 'Config', 'Benchmarks', 'Focus20'
 ];
 
 // =============================================================
@@ -272,7 +272,7 @@ function deleteEmployeeTabs() {
 }
 
 // =============================================================
-// SECTION: FOCUS 20 LOGIC (STATCORE TAGGING)
+// SECTION: FOCUS 20 LOGIC (Focus20 Tab Management)
 // =============================================================
 
 // --- WRAPPER FUNCTIONS (Required for Menu & Triggers) ---
@@ -281,44 +281,38 @@ function removeTrueAccountsFromFocus20Optimized() { tagFocus20Status(false); }
 
 /**
  * CORE ENGINE: Reads RIDs from Active Sheet (Smart Select), 
- * finds them in STATCORE, and updates the 'Focus20' column.
- * * @param {boolean} isAdding - true = Add Date; false = Clear Cell
+ * manages the Focus20 sheet tab (add/remove rows by RID).
+ * Focus20 tab schema: RID (A) | AddedDate (B) | AddedBy (C)
+ * The STATCORE AU formula VLOOKUPs from this tab by RID each night.
+ * @param {boolean} isAdding - true = Append RID+Date+User; false = Delete matching rows
  */
 function tagFocus20Status(isAdding) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = ss.getActiveSheet();
-  const targetSheet = ss.getSheetByName("STATCORE");
-  
+
   // --- VALIDATION ---
-  if (!targetSheet) {
-    ss.toast("CRITICAL: 'STATCORE' sheet not found.", "System Error", 10);
-    return;
-  }
-  if (sourceSheet.getName() === "STATCORE") {
-    ss.toast("Please select accounts from a working tab, not STATCORE.", "Usage Error", 5);
+  if (sourceSheet.getName() === "STATCORE" || sourceSheet.getName() === "Focus20") {
+    ss.toast("Please select accounts from a working tab.", "Usage Error", 5);
     return;
   }
 
-  // --- MAP COLUMNS ---
+  const focus20Sheet = ss.getSheetByName("Focus20");
+  if (!focus20Sheet) {
+    ss.toast("CRITICAL: 'Focus20' sheet tab not found.", "System Error", 10);
+    return;
+  }
+
+  // --- MAP SOURCE COLUMNS ---
   const srcHeaderRow = 2;
   const srcSmartIdx = getColumnIndexByName(sourceSheet, 'Smart Select');
-  const srcRidIdx = getColumnIndexByName(sourceSheet, 'RID') || 3; 
+  const srcRidIdx = getColumnIndexByName(sourceSheet, 'RID') || 3;
 
   if (!srcSmartIdx) {
     ss.toast("Column 'Smart Select' not found in Row 2.", "Config Error", 5);
     return;
   }
 
-  const tgtHeaderRow = 2;
-  const tgtRidIdx = getColumnIndexByName(targetSheet, 'RID') || 1; 
-  const tgtFocusIdx = getColumnIndexByName(targetSheet, 'Focus20');
-  
-  if (!tgtFocusIdx) {
-    ss.toast("Column 'Focus20' not found in STATCORE Row 2.", "Config Error", 10);
-    return;
-  }
-
-  // --- STEP 1: READ SOURCE ---
+  // --- STEP 1: READ SOURCE (Smart Select checked RIDs) ---
   const srcLastRow = sourceSheet.getLastRow();
   if (srcLastRow <= srcHeaderRow) {
     ss.toast("Sheet is empty.", "System", 3);
@@ -327,10 +321,10 @@ function tagFocus20Status(isAdding) {
 
   const srcData = sourceSheet.getRange(srcHeaderRow + 1, 1, srcLastRow - srcHeaderRow, sourceSheet.getLastColumn()).getValues();
   const ridsToProcess = new Set();
-  const rowsToUncheck = []; 
+  const rowsToUncheck = [];
 
   srcData.forEach((row, i) => {
-    const isSelected = row[srcSmartIdx - 1]; 
+    const isSelected = row[srcSmartIdx - 1];
     const rid = row[srcRidIdx - 1];
     // Check for boolean TRUE or string "TRUE"
     if ((isSelected === true || String(isSelected).toUpperCase() === 'TRUE') && rid) {
@@ -344,33 +338,68 @@ function tagFocus20Status(isAdding) {
     return;
   }
 
-  // --- STEP 2: UPDATE STATCORE ---
-  const tgtLastRow = targetSheet.getLastRow();
-  const tgtRids = targetSheet.getRange(tgtHeaderRow + 1, tgtRidIdx, tgtLastRow - tgtHeaderRow, 1).getValues().flat().map(String);
-  const focusRange = targetSheet.getRange(tgtHeaderRow + 1, tgtFocusIdx, tgtLastRow - tgtHeaderRow, 1);
-  const focusValues = focusRange.getValues();
-  
-  let matchCount = 0;
-  const valueToWrite = isAdding ? new Date() : ""; 
+  // --- STEP 2: UPDATE FOCUS20 TAB ---
+  let actionCount = 0;
 
-  tgtRids.forEach((rid, i) => {
-    if (ridsToProcess.has(rid)) {
-      focusValues[i][0] = valueToWrite;
-      matchCount++;
+  if (isAdding) {
+    // ADD FLOW: Append new RIDs to Focus20 tab (skip duplicates)
+    const f20LastRow = focus20Sheet.getLastRow();
+    const existingRids = new Set();
+    if (f20LastRow >= 2) {
+      focus20Sheet.getRange(2, 1, f20LastRow - 1, 1).getValues().flat().forEach(function(rid) {
+        existingRids.add(String(rid));
+      });
     }
-  });
 
-  // --- STEP 3: WRITE & TOAST ---
-  if (matchCount > 0) {
-    focusRange.setValues(focusValues);
-    rowsToUncheck.forEach(r => sourceSheet.getRange(r, srcSmartIdx).setValue(false));
-    
-    const verb = isAdding ? "Tagged" : "Removed";
-    // SUCCESS TOAST
-    ss.toast(`${verb} ${matchCount} accounts in STATCORE.`, "Success", 4);
+    const now = new Date();
+    var userEmail = 'unknown';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || 'unknown';
+    } catch (e) {}
+
+    const rowsToAppend = [];
+    ridsToProcess.forEach(function(rid) {
+      if (!existingRids.has(rid)) {
+        rowsToAppend.push([rid, now, userEmail]);
+        actionCount++;
+      }
+    });
+
+    if (rowsToAppend.length > 0) {
+      focus20Sheet.getRange(f20LastRow + 1, 1, rowsToAppend.length, 3).setValues(rowsToAppend);
+    }
+
   } else {
-    // WARNING TOAST
-    ss.toast("None of the selected RIDs were found in STATCORE.", "Warning", 5);
+    // REMOVE FLOW: Delete matching RID rows from Focus20 tab (bottom-to-top)
+    const f20LastRow = focus20Sheet.getLastRow();
+    if (f20LastRow >= 2) {
+      const f20Rids = focus20Sheet.getRange(2, 1, f20LastRow - 1, 1).getValues();
+      const rowsToDelete = [];
+
+      f20Rids.forEach(function(row, i) {
+        if (ridsToProcess.has(String(row[0]))) {
+          rowsToDelete.push(i + 2); // +2 because data starts at row 2
+          actionCount++;
+        }
+      });
+
+      // Delete bottom-to-top to preserve row indices
+      for (var i = rowsToDelete.length - 1; i >= 0; i--) {
+        focus20Sheet.deleteRow(rowsToDelete[i]);
+      }
+    }
+  }
+
+  // --- STEP 3: UNCHECK SMART SELECT & TOAST ---
+  rowsToUncheck.forEach(function(r) { sourceSheet.getRange(r, srcSmartIdx).setValue(false); });
+
+  var verb = isAdding ? "Added" : "Removed";
+  if (actionCount > 0) {
+    ss.toast(verb + " " + actionCount + " accounts in Focus20.", "Success", 4);
+  } else if (isAdding) {
+    ss.toast("Selected accounts are already in Focus20.", "Info", 4);
+  } else {
+    ss.toast("None of the selected RIDs were found in Focus20.", "Warning", 5);
   }
 }
 
